@@ -1,14 +1,14 @@
 // The finishing touches of the UI level-up: page zoom in the Mac app (View menu with the level, Actual Size on ⌘⌥0
 // clear of the Docs tab's ⌘0, a chip in the bar while the zoom isn't 100% that puts it back), the Docs tab
 // (the user guide with Studio's bar on top) and its contents list, and the off air page in the brand.
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { startStudio } = require('./support/studio.mts');
-const { openPage } = require('./support/browser.mts');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { startStudio, type Json } from './support/studio.mts';
+import { openPage } from './support/browser.mts';
 
-const read = f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+const read = (f: Json) => fs.readFileSync(path.join(import.meta.dirname, '..', f), 'utf8');
 
 test('the View menu zooms in steps with Actual Size on ⌘⌥0, and the off air page carries the mark', () => {
   const w = read('desktop/windows.ts');
@@ -35,8 +35,8 @@ test('the Docs tab is the guide under Studio\'s bar, with its contents, and the 
   assert.ok(links.length >= 12, `contents has the chapters (${links.length})`);
   assert.ok(links.some(l => l[1] === '#ref'), 'the Reference');
   for (const [text, href] of links) {
-    assert.ok(text.trim(), 'a title');
-    assert.ok(await page.$(href), `${href} is in the guide`);
+    assert.ok(text!.trim(), 'a title');
+    assert.ok(await page.$(href!), `${href} is in the guide`);
   }
   // The contents stay in view below the bar, not under it.
   const bar = await page.$eval('.fp-bar', b => b.getBoundingClientRect().bottom);
@@ -45,7 +45,7 @@ test('the Docs tab is the guide under Studio\'s bar, with its contents, and the 
   assert.ok(toc >= bar - 1, `the contents (${toc}) sit below the bar (${bar})`);
   // Each Studio page's "More in the guide" lands on a part of the guide that is there.
   for (const f of ['output', 'control', 'planner', 'socials', 'recordings', 'setup', 'sponsors', 'athletes']) {
-    const html = fs.readFileSync(path.join(__dirname, '..', 'public', `${f}.html`), 'utf8');
+    const html = fs.readFileSync(path.join(import.meta.dirname, '..', 'public', `${f}.html`), 'utf8');
     const m = /<a href="\/guide\/#([\w-]+)">More in the guide<\/a>/.exec(html);
     assert.ok(m, `${f}.html links to the guide`);
     assert.ok(await page.$(`#${m[1]}`), `${f}.html's #${m[1]} is in the guide`);

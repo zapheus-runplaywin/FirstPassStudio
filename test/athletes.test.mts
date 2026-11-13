@@ -3,8 +3,6 @@
 // typed in. Against the stand-in PlayHQ, with the Thunder League's game on court 1 being scored.
 import { createRequire } from 'node:module';
 
-'use strict';
-
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

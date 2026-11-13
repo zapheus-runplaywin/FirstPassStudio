@@ -3,14 +3,14 @@
 // Sound goes to, how each destination is doing (outputs.ts soundState) and the levels the windows report
 // (POST /api/outputs/level, GET /api/outputs/sound). The Mac app's windows can't run here, so the page is handed
 // outputs as the app would report them, and the levels are posted as the windows would.
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio.mts');
-const { openBrowser } = require('./support/browser.mts');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { startStudio, type Json } from './support/studio.mts';
+import { openBrowser } from './support/browser.mts';
 
 test('the levels the windows report are read back while fresh, and only for outputs that exist', async t => {
   const studio = await startStudio(t);
-  const post = b => studio.request('POST', '/api/outputs/level', b);
+  const post = (b: Json) => studio.request('POST', '/api/outputs/level', b);
   await post({ output: 'main', device: 'own', peak: [0.5, 0.25], rate: 48000, channels: 2 });
   await post({ output: 'main', device: 'DLZ Creator XS', peak: [0.1], rate: 44100, channels: 2 });
   await post({ output: 'nope', device: 'own', peak: [1, 1] });
@@ -26,7 +26,7 @@ test('the status board\'s Sound out tile and the output cards say where the soun
   const browser = await openBrowser(t);
   if (!browser) return;
   const studio = await startStudio(t);
-  const ok = async a => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); };
+  const ok = async (a: Json) => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); };
   await ok({ type: 'micAdd', changes: { name: 'Crowd mic', device: '' } });
   const added = await studio.request('POST', '/api/outputs', { add: true });
   assert.equal(added.status, 200, JSON.stringify(added.json));
@@ -35,7 +35,7 @@ test('the status board\'s Sound out tile and the output cards say where the soun
   // How the outputs look to the page: Output 1 a Blackmagic output into the SDI and the mixer (with the crowd mic), the second on NDI.
   let one = {
     mode: 'decklink', decklinkKeying: 'off', decklinkStatus: { running: true, name: 'UltraStudio HD Mini', sound: 'sdi' },
-    sound: [{ device: 'own', mics: [] }, { device: 'Mixer', mics: [mic] }], soundState: [{ state: 'sending' }, { state: 'sending' }],
+    sound: [{ device: 'own', mics: [] }, { device: 'Mixer', mics: [mic] }], soundState: [{ state: 'sending' }, { state: 'sending' }] as { state: string; error?: string }[],
   };
   let levels = {
     'main|sdi': { peak: [0.5, 0.25], rate: 0, channels: 0, dry: 0 },
@@ -48,18 +48,18 @@ test('the status board\'s Sound out tile and the output cards say where the soun
     if (route.request().method() !== 'GET') return route.continue();
     const res = await route.fetch();
     const body = await res.json();
-    body.outputs = body.outputs.map(o => o.primary ? { ...o, ...one } : { ...o, mode: 'ndi', sound: [{ device: 'own', mics: [] }], soundState: [{ state: 'off' }] });
+    body.outputs = body.outputs.map((o: Json) => o.primary ? { ...o, ...one } : { ...o, mode: 'ndi', sound: [{ device: 'own', mics: [] }], soundState: [{ state: 'off' }] });
     await route.fulfill({ response: res, json: body });
   });
   await context.route(url => new URL(String(url)).pathname === '/api/outputs/sound', route => route.fulfill({ json: { levels } }));
   const page = await context.newPage();
-  const errors = [];
+  const errors: string[] = [];
   page.on('pageerror', err => errors.push(err.message));
   await page.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
   // Each row: [light, device, the line under it, format, level].
-  const rows = () => page.$$eval('#board .stile .srow', rs => rs.map(r => [r.querySelector('.dot').className.replace('dot', '').trim(),
-    r.querySelector('.sname b').textContent, (r.querySelector('.sname small') || {}).textContent || '', r.querySelector('.sfmt').textContent, (r.querySelector('.sdb') || r.querySelector('.snone')).textContent]));
-  const says = re => page.waitForFunction(r => new RegExp(r).test(document.querySelector('#board .stile')?.textContent || ''), re);
+  const rows = () => page.$$eval('#board .stile .srow', rs => rs.map(r => [r.querySelector('.dot')!.className.replace('dot', '').trim(),
+    r.querySelector('.sname b')!.textContent, (r.querySelector('.sname small') || {}).textContent || '', r.querySelector('.sfmt')!.textContent, (r.querySelector('.sdb') || r.querySelector('.snone'))!.textContent]));
+  const says = (re: Json) => page.waitForFunction(r => new RegExp(r).test(document.querySelector('#board .stile')?.textContent || ''), re);
   await says('Mixer');
   await says('−6 dB');
   await says('44.1 kHz');
@@ -74,14 +74,14 @@ test('the status board\'s Sound out tile and the output cards say where the soun
   const meters = () => page.$$eval('#board .stile .srow .smeter i', is => is.slice(0, 2).map(i => [Math.round(parseFloat(i.style.width)), i.className]));
   assert.deepEqual(await meters(), [[90, 'warm'], [80, '']]); // 0.25 is just under -12 dB
   // The Sound out tile spans the board, with the Switcher beside the Recording under it.
-  const order = await page.$$eval('#board .sgrid > *', els => els.map(e => e.classList.contains('stile') ? 'Sound out' : e.querySelector('.lbl').textContent));
+  const order = await page.$$eval('#board .sgrid > *', els => els.map(e => e.classList.contains('stile') ? 'Sound out' : e.querySelector('.lbl')!.textContent));
   assert.deepEqual(order, ['Sequence', 'Run order', 'Music', 'Mics', 'Sound out', 'Switcher', 'Recording', 'Next game']);
   const cards = await page.$$eval('#outList .outCard small', cs => cs.map(c => c.textContent));
   assert.match(cards[0], /Sound: SDI \+ Mixer \(Crowd mic\)/);
   assert.match(cards[1], /Sound: Mac, not over NDI/);
   // The cards follow the mics' names straight away (the outputs are only read every 5 s): a rename, or the scene
   // arriving after the outputs, draws them again.
-  const cardSays = re => page.waitForFunction(r => new RegExp(r).test(document.querySelector('#outList .outCard small').textContent), re, { timeout: 1500 });
+  const cardSays = (re: Json) => page.waitForFunction(r => new RegExp(r).test(document.querySelector('#outList .outCard small')!.textContent), re, { timeout: 1500 });
   await ok({ type: 'micUpdate', mic, changes: { name: 'Bench mic' } });
   await cardSays('Sound: SDI \\+ Mixer \\(Bench mic\\)');
   await ok({ type: 'micUpdate', mic, changes: { name: 'Crowd mic' } });

@@ -164,10 +164,11 @@ through `/api/log`. The log file keeps its old name on purpose.
 `npm test` runs the `node:test` suites in `test/`. `test/support/studio.mts` starts a real Studio (`out/server.js`) on a free port
 with its own data folder; `test/support/playhq.mts` is a stand-in PlayHQ with a made-up season around today's date
 (`world.fail` and `world.answers` make one request fail or answer oddly, for the PlayHQ outage tests). The tests are
-moving to TypeScript: a `.test.mts` file and the helpers in `test/support/` run in Node as they are (Node strips the types),
+TypeScript: each `test/*.test.mts` file and the helpers in `test/support/` run in Node as they are (Node strips the types),
 and `tsc -p test` (`test/tsconfig.json`, strict, run by `npm test`'s `pretest`) checks them against the compiled modules'
 own types (`out/*.d.ts`, which `npm run build` writes beside them and the app doesn't pack). A test's page code (`page.evaluate`) is
-checked against the browser's types, and `test/pages.d.ts` names the pages' own globals it reaches into. The `.test.js` files move next. A
-Chromium page-load test runs when a browser is available, and `test/app.test.js` runs the Mac app itself (Electron, on
+checked against the browser's types, and `test/pages.d.ts` names the pages' own globals it reaches into. A test is an ES module, so one that calls `require()` makes it with
+`createRequire` (`test/test-modules.test.mts` checks, since Node's types let a bare one through). A
+Chromium page-load test runs when a browser is available, and `test/app.test.mts` runs the Mac app itself (Electron, on
 Linux under `xvfb-run`, with Electron's binary from `node node_modules/electron/install.js`). The Tests workflow runs
 them on every pull request and before each Mac app build; `test/packaging.test.mts` checks that every module `out/server.js` and the app load is in the app's file list. `npm test` builds first (`pretest`), and the tests load the compiled modules from `out/`. Both workflows keep Electron's download (and the Mac build electron-builder's tools) in the Actions cache under their version, so a newer version is downloaded fresh, and try the download again for a few minutes when GitHub answers 504.

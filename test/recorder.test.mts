@@ -4,15 +4,18 @@
 // Studio page's reads or a private answer. Lines are written as gzip members of their own, so the file reads up to
 // its last write; going off air ends it. A recording with no game, or older than 60 days, is tidied away, and
 // recording can be turned off.
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const zlib = require('node:zlib');
-const { startStudio } = require('./support/studio.mts');
+import { createRequire } from 'node:module';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import zlib from 'node:zlib';
+import { startStudio, type Json } from './support/studio.mts';
 
-const read = f => zlib.gunzipSync(fs.readFileSync(f), { finishFlush: zlib.constants.Z_SYNC_FLUSH }).toString('utf8').split('\n').filter(Boolean).map(l => JSON.parse(l));
+const require = createRequire(import.meta.url);
+
+const read = (f: Json) => zlib.gunzipSync(fs.readFileSync(f), { finishFlush: zlib.constants.Z_SYNC_FLUSH }).toString('utf8').split('\n').filter(Boolean).map(l => JSON.parse(l));
 
 test('the recorder keeps only changes, starts with what it already knows, and tidies away what has no game or is old', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-recorder-'));
@@ -20,7 +23,7 @@ test('the recorder keeps only changes, starts with what it already knows, and ti
     const recordings = path.join(dir, 'Recordings');
     fs.mkdirSync(recordings);
     // Left from earlier: one night with a game, one with none (set up only), one too old.
-    const member = lines => zlib.gzipSync(lines.map(l => JSON.stringify(l)).join('\n') + '\n');
+    const member = (lines: Json) => zlib.gzipSync(lines.map((l: Json) => JSON.stringify(l)).join('\n') + '\n');
     fs.writeFileSync(path.join(recordings, '2026-10-01 1900.jsonl.gz'), member([{ t: 1, k: 'start' }, { t: 2, k: 'game', id: 'g1', home: 'A', away: 'B' }]));
     fs.writeFileSync(path.join(recordings, '2026-10-02 1900.jsonl.gz'), member([{ t: 1, k: 'start' }]));
     const old = path.join(recordings, '2026-01-01 1900.jsonl.gz');
@@ -54,10 +57,10 @@ test('the recorder keeps only changes, starts with what it already knows, and ti
     recorder.answer({ method: 'POST', url: '/api/scoreboard', headers: {} }, 200, '{}', undefined, graphic);
     recorder.answer({ method: 'GET', url: '/api/stats', headers: {} }, 500, '{}', undefined, graphic);
 
-    const r = recorder.list().find(x => x.recording);
-    assert.deepEqual(r.games.map(g => [g.id, g.home, g.away, g.division]), [['g7', 'Stormz', 'Semi Pro', 'Div 1']]);
+    const r = recorder.list().find((x: Json) => x.recording);
+    assert.deepEqual(r.games.map((g: Json) => [g.id, g.home, g.away, g.division]), [['g7', 'Stormz', 'Semi Pro', 'Div 1']]);
     const lines = recorder.read(r.name);
-    const kinds = lines.map(l => l.k);
+    const kinds = lines.map((l: Json) => l.k);
     assert.deepEqual(kinds, ['start', 'game', 'scene', 'board', 'board', 'action', 'playhq', 'live', 'live', 'api'], 'the scene from before the game, then each change');
     assert.match(r.name, /^\d{4}-\d{2}-\d{2} \d{4} Stormz v Semi Pro\.jsonl\.gz$/, 'named after the game');
     assert.equal(lines[0].version, '9.9.9');
@@ -90,10 +93,10 @@ test('a recording follows its game: due before the start, stopped after full tim
     const recordings = path.join(dir, 'Recordings');
     const settings = path.join(dir, 'recordings.json');
     recorder.init(() => {}, { dir: recordings, settings, start: () => ({ version: '9.9.9' }), lead: () => 10 * 60000 });
-    const two = n => String(n).padStart(2, '0');
-    const at = ms => { const d = new Date(ms); return { date: `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`, time: `${two(d.getHours())}:${two(d.getMinutes())}` }; };
+    const two = (n: Json) => String(n).padStart(2, '0');
+    const at = (ms: number) => { const d = new Date(ms); return { date: `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`, time: `${two(d.getHours())}:${two(d.getMinutes())}` }; };
     const startMs = Math.ceil((Date.now() + 30 * 60000) / 60000) * 60000; // half an hour away, on the minute
-    const game = (id, extra = {}) => ({ gameId: id, ...at(startMs), home: { name: 'Fliers', score: 0 }, away: { name: 'Gold/Coast', score: 0 }, ...extra });
+    const game = (id: string, extra = {}) => ({ gameId: id, ...at(startMs), home: { name: 'Fliers', score: 0 }, away: { name: 'Gold/Coast', score: 0 }, ...extra });
 
     recorder.board(game('a1'));
     assert.equal(recorder.state().recording, '', 'not due yet');
@@ -129,8 +132,8 @@ test('a recording follows its game: due before the start, stopped after full tim
     assert.equal(recorder.read(third).at(-1).why, 'next game');
     const fourth = recorder.state().recording;
     assert.ok(fourth && fourth !== third);
-    assert.deepEqual(recorder.read(fourth).filter(l => l.k === 'game').map(l => l.id), ['a4'], 'one game a recording');
-    assert.equal(recorder.read(fourth).filter(l => l.k === 'board').at(-1).board.gameId, 'a4');
+    assert.deepEqual(recorder.read(fourth).filter((l: Json) => l.k === 'game').map((l: Json) => l.id), ['a4'], 'one game a recording');
+    assert.equal(recorder.read(fourth).filter((l: Json) => l.k === 'board').at(-1).board.gameId, 'a4');
 
     // Hand scoring: PlayHQ never says it's finished, so it stops four hours after the start.
     recorder.check(Date.now() + 4 * 3600000 + 60000);
@@ -155,9 +158,9 @@ test('a PlayHQ game on air is recorded, a graphic\'s reads but not a Studio page
 
   const s = await studio.get('/api/recordings');
   assert.equal(s.record, true);
-  const r = s.recordings.find(x => x.recording);
+  const r = s.recordings.find((x: Json) => x.recording);
   assert.ok(r, 'one is being made');
-  assert.ok(r.games.some(g => g.id === game.id && g.home === game.home && g.away === game.away), 'the game is a chapter');
+  assert.ok(r.games.some((g: Json) => g.id === game.id && g.home === game.home && g.away === game.away), 'the game is a chapter');
 
   const file = path.join(studio.dataDir, 'Recordings', r.name);
   let lines = read(file);
@@ -203,16 +206,16 @@ test('each game followed in the background gets a recording of its own: what Pla
     recorder.live('g9', { data: { game: { id: 'g9', n: 1 } } }); // the same again: not recorded twice
     recorder.live('other', { data: { game: { id: 'other' } } }); // another game's isn't in it
     recorder.playhq('gradeLadder', { gradeID: 'x' }, 'na', { ladder: 'new' });
-    const listed = recorder.list().find(r => r.name === name);
+    const listed = recorder.list().find((r: Json) => r.name === name);
     assert.equal(listed.followed, true);
     assert.equal(listed.recording, true);
-    assert.deepEqual(listed.games.map(x => [x.id, x.court, x.date, x.time, x.followed]), [['g9', 'Court 2', '2026-11-09', '19:30:00', true]]);
+    assert.deepEqual(listed.games.map((x: Json) => [x.id, x.court, x.date, x.time, x.followed]), [['g9', 'Court 2', '2026-11-09', '19:30:00', true]]);
     let lines = recorder.read(name);
-    assert.deepEqual(lines.slice(0, 2).map(l => l.k), ['start', 'game']);
+    assert.deepEqual(lines.slice(0, 2).map((l: Json) => l.k), ['start', 'game']);
     assert.equal(lines[0].followed, true);
-    assert.ok(lines.some(l => l.k === 'playhq' && l.op === 'discoverFixtureByRound'), 'starts with what PlayHQ already said');
+    assert.ok(lines.some((l: Json) => l.k === 'playhq' && l.op === 'discoverFixtureByRound'), 'starts with what PlayHQ already said');
     assert.deepEqual(lines.at(-1).data, { ladder: 'new' }, 'and every PlayHQ answer from then on');
-    assert.deepEqual(lines.filter(l => l.k === 'live').map(l => l.data.game.n), [0, 1]);
+    assert.deepEqual(lines.filter((l: Json) => l.k === 'live').map((l: Json) => l.data.game.n), [0, 1]);
     assert.match(recorder.remove(name), /still being made/);
     // Finished: kept going for the minutes after full time, then stopped, and not started again.
     recorder.followGames([{ ...g, started: true, done: true }], now);
@@ -231,6 +234,6 @@ test('each game followed in the background gets a recording of its own: what Pla
     assert.equal(recorder.state().followed.length, 1);
     recorder.closeFollowed();
     assert.equal(recorder.state().followed.length, 0);
-    assert.equal(recorder.list().filter(r => r.followed).length, 3);
+    assert.equal(recorder.list().filter((r: Json) => r.followed).length, 3);
   } finally { recorder.closeFollowed(); recorder.close(); fs.rmSync(dir, { recursive: true, force: true }); }
 });

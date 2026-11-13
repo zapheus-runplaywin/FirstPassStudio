@@ -3,19 +3,24 @@
 // and a window that goes without saying so (the Mac app's windows can) doesn't leave the Output
 // page stuck on "The Scene View is in its own window".
 // The browser: as in pages.test.mts (Playwright's own, or STUDIO_TEST_CHROMIUM).
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio.mts');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { startStudio, type Json } from './support/studio.mts';
+import type { BrowserType } from 'playwright';
+import type { TestContext } from 'node:test';
+import { createRequire } from 'node:module';
 
-let chromium = null;
-try { ({ chromium } = require('playwright')); } catch { /* not installed */ }
+const require = createRequire(import.meta.url);
+
+let chromium: BrowserType | null = null;
+try { ({ chromium } = require('playwright') as typeof import('playwright')); } catch { /* not installed */ }
 
 // The browser, closed when the test ends; null (and the test skipped) when there isn't one.
-async function launch(t) {
+async function launch(t: TestContext) {
   let browser = null, why = 'playwright is not installed';
   if (chromium) {
     try { browser = await chromium.launch({ executablePath: process.env.STUDIO_TEST_CHROMIUM || undefined }); }
-    catch (err) { why = err.message.split('\n')[0]; }
+    catch (err) { why = (err as Error).message.split('\n')[0]; }
   }
   if (!browser) {
     if (process.env.STUDIO_TEST_REQUIRE_BROWSER) assert.fail(`no browser to test the pages in: ${why}`);
@@ -37,16 +42,16 @@ test('the Scene View pops out, comes back and pops out again', async t => {
   const output = await context.newPage();
   await output.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
   const state = () => output.evaluate(() => ({
-    frame: document.getElementById('previewFrame').getAttribute('src'),
-    placeholder: !document.getElementById('previewOff').classList.contains('hidden'),
-    button: document.getElementById('popOut').textContent,
+    frame: document.getElementById('previewFrame')!.getAttribute('src'),
+    placeholder: !document.getElementById('previewOff')!.classList.contains('hidden'),
+    button: document.getElementById('popOut')!.textContent,
   }));
   const here = { frame: '/scene.html?mute=1', placeholder: false, button: 'Pop out' };
   const away = { frame: 'about:blank', placeholder: true, button: 'Show window' };
-  const becomes = async want => {
-    await output.waitForFunction(w => document.getElementById('previewFrame').getAttribute('src') === w.frame
-      && document.getElementById('previewOff').classList.contains('hidden') !== w.placeholder
-      && document.getElementById('popOut').textContent === w.button, want, { timeout: 10000 }).catch(() => {});
+  const becomes = async (want: typeof here) => {
+    await output.waitForFunction(w => document.getElementById('previewFrame')!.getAttribute('src') === w.frame
+      && document.getElementById('previewOff')!.classList.contains('hidden') !== w.placeholder
+      && document.getElementById('popOut')!.textContent === w.button, want, { timeout: 10000 }).catch(() => {});
     assert.deepEqual(await state(), want);
   };
   const popOut = async () => {
@@ -93,7 +98,7 @@ test('the popped-out Scene View follows each sequence played while it is covered
     { type: 'browser', name: 'Fixtures', url: 'testpattern.html?b=1' },
   ] });
   const { sources } = await studio.get('/api/scene');
-  const id = name => sources.find(s => s.name === name).id;
+  const id = (name: string) => sources.find((s: Json) => s.name === name).id;
   for (const name of ['Ladder', 'Fixtures']) {
     await studio.post('/api/scene', { type: 'seqAdd', changes: { name: `Show ${name}`, steps: [{ sources: [id(name)], length: { type: 'time', sec: 60 } }] } });
   }
@@ -109,9 +114,9 @@ test('the popped-out Scene View follows each sequence played while it is covered
   await output.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
   const [win] = await Promise.all([output.waitForEvent('popup'), output.click('#popOut')]);
   await win.waitForLoadState('load');
-  const showing = want => win.waitForFunction(w => {
-    const doc = document.getElementById('frame').contentDocument;
-    return doc && JSON.stringify([...doc.querySelectorAll('.layer.on')].map(l => l.dataset.id)) === JSON.stringify(w);
+  const showing = (want: string[]) => win.waitForFunction(w => {
+    const doc = document.querySelector<HTMLIFrameElement>('#frame')!.contentDocument;
+    return doc && JSON.stringify([...doc.querySelectorAll<HTMLElement>('.layer.on')].map(l => l.dataset.id)) === JSON.stringify(w);
   }, want, { timeout: 5000 }).then(() => true, () => false);
 
   await studio.post('/api/scene', { type: 'seqPlay', sequence: 'Show Ladder' });

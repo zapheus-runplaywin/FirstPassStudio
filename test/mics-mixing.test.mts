@@ -2,20 +2,25 @@
 // Scene View or the key output), it mixes them at their levels and mutes, says what it hears, and says plainly when a
 // device isn't plugged in. Chromium's stand-in microphone plays a beep.
 // The browser: as in pages.test.mts (Playwright's own, or STUDIO_TEST_CHROMIUM).
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio.mts');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { startStudio, type Json } from './support/studio.mts';
+import type { BrowserType } from 'playwright';
+import type { TestContext } from 'node:test';
+import { createRequire } from 'node:module';
 
-let chromium = null;
-try { ({ chromium } = require('playwright')); } catch { /* not installed */ }
+const require = createRequire(import.meta.url);
 
-async function launch(t) {
+let chromium: BrowserType | null = null;
+try { ({ chromium } = require('playwright') as typeof import('playwright')); } catch { /* not installed */ }
+
+async function launch(t: TestContext) {
   let browser = null, why = 'playwright is not installed';
   if (chromium) {
     try {
       browser = await chromium.launch({ executablePath: process.env.STUDIO_TEST_CHROMIUM || undefined,
         args: ['--autoplay-policy=no-user-gesture-required', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] });
-    } catch (err) { why = err.message.split('\n')[0]; }
+    } catch (err) { why = (err as Error).message.split('\n')[0]; }
   }
   if (!browser) {
     if (process.env.STUDIO_TEST_REQUIRE_BROWSER) assert.fail(`no browser to test the pages in: ${why}`);
@@ -34,7 +39,7 @@ test('an output\'s window mixes the mics that go to it, a Scene View and the key
   t.after(() => context.close());
   await context.grantPermissions(['microphone'], { origin: studio.base });
   await context.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
-  const act = async a => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); return r.json; };
+  const act = async (a: Json) => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); return r.json; };
   const added = await act({ type: 'micAdd', changes: { name: 'Court mic', device: '' } });
   const id = added.mics.mics[0].id;
 
@@ -86,7 +91,7 @@ test('an output\'s window mixes the mics that go to it, a Scene View and the key
   await page.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
   await page.waitForFunction(() => document.querySelectorAll('#mxList [data-mic]').length === 2);
   assert.equal(await page.textContent('#mxList [data-mic] b'), 'Court mic');
-  assert.match(await page.textContent('#mxHeard'), /Output 1 is off/);
+  assert.match((await page.textContent('#mxHeard'))!, /Output 1 is off/);
   await page.click('#mxDip');
   await studio.until(async () => (await studio.get('/api/scene')).mics.hand);
   await page.click('#mxList [data-mic] .edit');

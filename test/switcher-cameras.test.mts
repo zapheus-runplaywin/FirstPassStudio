@@ -2,21 +2,24 @@
 // cuts, autos and program presses take its key on with them and off with any other camera, in the same transition
 // (the switcher's next transition selection, put back afterwards); with Keys follow the camera on, a cut made on the
 // switcher itself brings the keys straight after. Against the stand-in switcher (test/support/atem.mts).
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { startStudio, wait } = require('./support/studio.mts');
-const { startAtem } = require('./support/atem.mts');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { startStudio, wait } from './support/studio.mts';
+import { startAtem, type Atem } from './support/atem.mts';
+import type { Json } from './support/studio.mts';
+import type { Studio } from './support/studio.mts';
+import type { TestContext } from 'node:test';
 
 const NAMES = ['Wide', 'Court', 'Bench', 'Crowd', 'GFX Fill', 'GFX Key', 'GFX2 Fill', 'GFX2 Key'];
-const sent = (atem, name, from = 0) => atem.received.slice(from).filter(r => r.name === name);
+const sent = (atem: Json, name: string, from = 0) => atem.received.slice(from).filter((r: Json) => r.name === name);
 
-async function setUp(t, before = () => {}) {
+async function setUp(t: TestContext, before: (atem: Atem) => unknown = () => {}) {
   const atem = await startAtem({ model: 'MiniExtreme', names: NAMES });
   t.after(() => atem.close());
   const studio = await startStudio(t);
   await studio.post('/api/outputs', { mode: 'fillkey', swFill: 5, swKey: 6 });
   const added = await studio.post('/api/outputs', { add: true });
-  const two = added.outputs.find(o => o.slot === 2).id;
+  const two = added.outputs.find((o: Json) => o.slot === 2).id;
   // Output 2 on upstream key 2 (the usual), going with Court.
   await studio.post('/api/outputs', { output: two, mode: 'ndi', ndiSignal: 'fillkey', swFill: 7, swKey: 8, swCameras: [2] });
   await before(atem);
@@ -24,7 +27,7 @@ async function setUp(t, before = () => {}) {
   await studio.until(async () => (await studio.get('/api/switcher')).state === 'connected', 8000, 100);
   return { atem, studio, two };
 }
-const check = async (studio, id) => (await studio.get('/api/switcher')).keys.find(k => k.output === id);
+const check = async (studio: Studio, id: string) => (await studio.get('/api/switcher')).keys.find((k: Json) => k.output === id);
 
 test('Studio\'s cuts take an output\'s key with its camera, in the same transition, and leave the panel\'s selection as it was', async t => {
   const { atem, studio, two } = await setUp(t);
@@ -131,7 +134,7 @@ test('an output whose key has a problem, or a downstream key, is never paired', 
 test('the usual keys never clash: Output 1 on downstream key 1 (upstream key 1 for chroma), the others on upstream keys 2 to 4', async t => {
   const studio = await startStudio(t);
   for (let n = 0; n < 3; n++) await studio.post('/api/outputs', { add: true });
-  const usual = async () => (await studio.get('/api/outputs')).outputs.map(o => o.keyerNow);
+  const usual = async () => (await studio.get('/api/outputs')).outputs.map((o: Json) => o.keyerNow);
   for (const mode of ['fillkey', 'chroma']) {
     for (const o of (await studio.get('/api/outputs')).outputs) await studio.post('/api/outputs', { output: o.id, mode });
     const keys = await usual();
@@ -145,7 +148,7 @@ test('an auto that takes its time: the selection is put back once the mix is ove
   t.after(() => atem.close());
   const studio = await startStudio(t);
   const added = await studio.post('/api/outputs', { add: true });
-  const two = added.outputs.find(o => o.slot === 2).id;
+  const two = added.outputs.find((o: Json) => o.slot === 2).id;
   await studio.post('/api/outputs', { output: two, mode: 'ndi', ndiSignal: 'fillkey', swFill: 7, swKey: 8, swCameras: [2] });
   await studio.post('/api/switcher', { type: 'use', address: `127.0.0.1:${atem.port}` });
   await studio.until(async () => (await studio.get('/api/switcher')).state === 'connected', 8000, 100);
@@ -161,7 +164,7 @@ test('an auto that takes its time: the selection is put back once the mix is ove
   const last = ctt.at(-1);
   assert.equal(last.data[3], 1, 'the operator\'s selection (background only) is what\'s put back');
   assert.ok(last.at - started >= 600, `put back after the mix (${last.at - started} ms), not during it`);
-  assert.equal(ctt.filter(x => x.data[3] === 1).length, 1, 'put back once, by the last take');
+  assert.equal(ctt.filter((x: Json) => x.data[3] === 1).length, 1, 'put back once, by the last take');
   assert.equal(atem.state.nextSelection, 1);
   assert.equal(atem.state.program, 2);
 });

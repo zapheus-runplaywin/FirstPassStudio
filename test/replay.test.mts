@@ -1,13 +1,19 @@
 // 4K replay (replay.ts): a recorded night's on-air layer goes back on the pages exactly as it went to air: the
 // scene, the scoreboard and a graphic's reads come from the recording at the replay's point, the live scene and
 // scoreboard are left as they were and can't be changed while it runs, and Stop puts the live ones back.
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const zlib = require('node:zlib');
-const { startStudio } = require('./support/studio.mts');
-const { localZone } = require('./support/playhq.mts');
+import { createRequire } from 'node:module';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import zlib from 'node:zlib';
+import { startStudio, type Json } from './support/studio.mts';
+import { localZone } from './support/playhq.mts';
+import net from 'node:net';
+import { EventEmitter } from 'node:events';
+import type { TestContext } from 'node:test';
+
+const require = createRequire(import.meta.url);
 
 // Studio runs in the stand-in PlayHQ's time zone: the test reads timecode as a time of day in the same one.
 process.env.TZ = localZone().tz;
@@ -18,8 +24,8 @@ test('a replay puts the recorded night on the pages, leaves the live setup alone
   const live = await studio.get('/api/scene');
 
   const T0 = Date.now() - 2 * 86400000;
-  const scene = on => ({ sources: [{ id: 'sb', name: 'Scoreboard', url: 'scoreboard.html', visible: on }, { id: 'lt', name: 'Ladder', url: 'ladder.html', visible: false }], scenes: [], current: null });
-  const board = (t, home, period) => ({ t, k: 'board', board: { gameId: 'g1', period, home: { name: 'Red', score: home }, away: { name: 'Blue', score: 0 },
+  const scene = (on: Json) => ({ sources: [{ id: 'sb', name: 'Scoreboard', url: 'scoreboard.html', visible: on }, { id: 'lt', name: 'Ladder', url: 'ladder.html', visible: false }], scenes: [], current: null });
+  const board = (t: number, home: Json, period: Json) => ({ t, k: 'board', board: { gameId: 'g1', period, home: { name: 'Red', score: home }, away: { name: 'Blue', score: 0 },
     clock: { running: true, startedAt: t - 1000, elapsedMs: 0, lengthSec: 600 }, serverNow: t } });
   const lines = [
     { t: T0, k: 'start' },
@@ -37,23 +43,23 @@ test('a replay puts the recorded night on the pages, leaves the live setup alone
   const s = await studio.post('/api/replay', { start: { recording: name, game: 'g1' } });
   assert.equal(s.active, true);
   assert.equal(s.paused, true, 'it waits at the game for Play');
-  assert.deepEqual(s.events.map(e => e.label), ['Game: Red v Blue', 'Q1', 'Scoreboard on', 'Q2']);
+  assert.deepEqual(s.events.map((e: Json) => e.label), ['Game: Red v Blue', 'Q1', 'Scoreboard on', 'Q2']);
 
   // The pages get the recorded scene, and a graphic its recorded read; a Studio page's read is live.
-  await studio.until(async () => (await studio.get('/api/scene')).sources.some(x => x.id === 'sb'));
+  await studio.until(async () => (await studio.get('/api/scene')).sources.some((x: Json) => x.id === 'sb'));
   let st = await studio.get('/api/scene');
-  assert.equal(st.sources.find(x => x.id === 'sb').visible, false);
+  assert.equal(st.sources.find((x: Json) => x.id === 'sb').visible, false);
   const graphic = { referer: `${studio.base}/ladder.html?division=Open` };
   const ladder = (await studio.request('GET', '/api/ladder?division=Open', undefined, graphic)).json;
   assert.deepEqual(ladder.pools, [[{ team: 'Red' }]]);
   assert.ok(Math.abs(ladder.serverNow - Date.now()) < 5000, 'its serverNow is now');
 
   // Jump to the scoreboard coming on: the scene there, paused.
-  const at = s.events.find(e => e.label === 'Scoreboard on').t;
+  const at = s.events.find((e: Json) => e.label === 'Scoreboard on').t;
   const j = await studio.post('/api/replay', { seek: at });
   assert.equal(j.position, at);
   st = await studio.get('/api/scene');
-  assert.equal(st.sources.find(x => x.id === 'sb').visible, true);
+  assert.equal(st.sources.find((x: Json) => x.id === 'sb').visible, true);
   // The nudge moves it by a frame.
   assert.equal((await studio.post('/api/replay', { nudge: 40 })).position, at + 40);
   // Played, it moves on.
@@ -65,7 +71,7 @@ test('a replay puts the recorded night on the pages, leaves the live setup alone
   let k = await studio.get('/deck/replay/toggle');
   assert.equal(k.paused, true);
   k = await studio.get('/deck/replay/prev');
-  assert.equal(k.position, s.events.find(e => e.label === 'Q1').t, 'back past the scoreboard coming on, to Q1');
+  assert.equal(k.position, s.events.find((e: Json) => e.label === 'Q1').t, 'back past the scoreboard coming on, to Q1');
   k = await studio.get('/deck/replay/next');
   assert.equal(k.position, at, 'on to the scoreboard coming on');
   assert.equal((await studio.get('/deck/replay/nudge/-40')).position, at - 40);
@@ -84,13 +90,12 @@ test('a replay puts the recorded night on the pages, leaves the live setup alone
   // Stop: the live scene again, and changes work.
   assert.equal((await studio.post('/api/replay', { stop: true })).active, false);
   st = await studio.get('/api/scene');
-  assert.deepEqual(st.sources.map(x => x.id), live.sources.map(x => x.id));
+  assert.deepEqual(st.sources.map((x: Json) => x.id), live.sources.map((x: Json) => x.id));
   assert.equal((await studio.request('POST', '/api/scoreboard', { type: 'score', side: 'home', delta: 1 })).status, 200);
 });
 
 // Following a HyperDeck (hyperdeck.ts): its protocol's answers, and its timecode as the moment of the night.
-const net = require('node:net');
-const hyperdeck = require('../out/hyperdeck');
+const hyperdeck: typeof import('../out/hyperdeck.js') = require('../out/hyperdeck.js');
 
 test("a HyperDeck's answers and timecode are read", () => {
   const { blocks, rest } = hyperdeck.parseBlocks('500 connection info:\r\nprotocol version: 1.12\r\nmodel: HyperDeck Studio 4K Pro\r\n\r\n200 ok\r\n208 transport info:\r\nstatus: play\r\nspeed: 100\r\n');
@@ -108,9 +113,9 @@ test("a HyperDeck's answers and timecode are read", () => {
 });
 
 // A stand-in HyperDeck: answers transport info with whatever deck says.
-function fakeHyperDeck(t) {
-  const deck = { status: 'stopped', tc: '00:00:00:00', heard: [] };
-  const sockets = new Set();
+function fakeHyperDeck(t: TestContext) {
+  const deck = { status: 'stopped', tc: '00:00:00:00', heard: [] as string[] };
+  const sockets = new Set<net.Socket>();
   const server = net.createServer(s => {
     sockets.add(s);
     s.on('close', () => sockets.delete(s));
@@ -125,10 +130,10 @@ function fakeHyperDeck(t) {
     });
   });
   t.after(() => { for (const s of sockets) s.destroy(); server.close(); });
-  return new Promise(r => server.listen(0, '127.0.0.1', () => r({ deck, port: server.address().port })));
+  return new Promise<{ deck: typeof deck; port: number }>(r => server.listen(0, '127.0.0.1', () => r({ deck, port: (server.address() as net.AddressInfo).port })));
 }
-const two = n => String(n).padStart(2, '0');
-const tcOf = t => { const d = new Date(t); return `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}:${two(Math.floor(d.getMilliseconds() / 40))}`; };
+const two = (n: Json) => String(n).padStart(2, '0');
+const tcOf = (t: number) => { const d = new Date(t); return `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}:${two(Math.floor(d.getMilliseconds() / 40))}`; };
 
 test("a replay follows a HyperDeck's timecode, and Jump there and the nudge sync it", async t => {
   const { deck, port } = await fakeHyperDeck(t);
@@ -137,7 +142,7 @@ test("a replay follows a HyperDeck's timecode, and Jump there and the nudge sync
   const day = new Date(Date.now() - 2 * 86400000);
   day.setHours(19, 0, 0, 0);
   const T0 = day.getTime();
-  const scene = on => ({ sources: [{ id: 'sb', name: 'Scoreboard', url: 'scoreboard.html', visible: on }], scenes: [], current: null });
+  const scene = (on: Json) => ({ sources: [{ id: 'sb', name: 'Scoreboard', url: 'scoreboard.html', visible: on }], scenes: [], current: null });
   const lines = [
     { t: T0, k: 'start' },
     { t: T0 + 1000, k: 'game', id: 'g1', home: 'Red', away: 'Blue' },
@@ -156,7 +161,7 @@ test("a replay follows a HyperDeck's timecode, and Jump there and the nudge sync
   s = await studio.until(async () => { const r = await studio.get('/api/replay'); return r.follow.hyperdeck.conn === 'connected' && Math.abs(r.position - (T0 + 30000)) < 50 && r; });
   assert.equal(s.paused, true);
   assert.ok(deck.heard.includes('notify: transport: true'));
-  assert.ok(deck.heard.every(l => l === 'transport info' || l.startsWith('notify:')), 'Studio only asks, never controls the HyperDeck');
+  assert.ok(deck.heard.every((l: Json) => l === 'transport info' || l.startsWith('notify:')), 'Studio only asks, never controls the HyperDeck');
   // Studio's own Play is the HyperDeck's while it follows.
   assert.equal((await studio.request('POST', '/api/replay', { pause: false })).status, 400);
 
@@ -168,7 +173,7 @@ test("a replay follows a HyperDeck's timecode, and Jump there and the nudge sync
   // Stopped on the scoreboard coming on, but the HyperDeck's clock is 5 s behind: Jump there syncs it.
   deck.status = 'stopped';
   deck.tc = tcOf(T0 + 55000);
-  const at = s.events.find(e => e.label === 'Scoreboard on').t;
+  const at = s.events.find((e: Json) => e.label === 'Scoreboard on').t;
   await studio.until(async () => { const r = await studio.get('/api/replay'); return r.paused && Math.abs(r.position - (T0 + 55000)) < 50; });
   s = await studio.post('/api/replay', { seek: at });
   assert.ok(Math.abs(s.follow.offset - 5000) < 50, `offset ${s.follow.offset}`);
@@ -198,36 +203,35 @@ test("a replay follows a HyperDeck's timecode, and Jump there and the nudge sync
 
 // Following the SDI input's timecode (sditimecode.ts): the Mac app sends what comes into the UltraStudio.
 test("the SDI input's timecode is followed: moving on a frame at a time is playing, the same one is stopped", async () => {
-  const sdi = require('../out/sditimecode');
-  const { EventEmitter } = require('node:events');
-  const port = new EventEmitter();
-  const asked = [];
-  port.postMessage = m => asked.push(m);
+  const sdi: typeof import('../out/sditimecode.js') = require('../out/sditimecode.js');
+  // The Mac app's side of the message port: what Studio asks it, and its answers as events.
+  const asked: Json[] = [];
+  const port = Object.assign(new EventEmitter(), { postMessage: (m: Json) => asked.push(m) });
   sdi.init(() => {}, { port });
-  const say = m => port.emit('message', { data: { type: 'sdiTimecode', name: 'UltraStudio 4K Mini', signal: true, fps: 50, ...m } });
-  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const say = (m: Json) => port.emit('message', { data: { type: 'sdiTimecode', name: 'UltraStudio 4K Mini', signal: true, fps: 50, ...m } });
+  const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
 
   sdi.follow({ device: '' });
   assert.deepEqual(asked[0], { type: 'readTimecode', device: '' });
   assert.equal(sdi.state().conn, 'connecting');
   say({ timecode: '19:30:00:00' });
-  assert.equal(sdi.now().playing, false, 'one timecode is stopped');
-  assert.equal(sdi.now().ms, ((19 * 60 + 30) * 60) * 1000);
+  assert.equal(sdi.now()!.playing, false, 'one timecode is stopped');
+  assert.equal(sdi.now()!.ms, ((19 * 60 + 30) * 60) * 1000);
   // A frame on each 40 ms (50p counts frame pairs: 25 a second), so it's playing, and runs on between frames.
   for (let f = 1; f <= 3; f++) { await wait(40); say({ timecode: `19:30:00:0${f}` }); }
   let n = sdi.now();
-  assert.equal(n.playing, true);
+  assert.equal(n!.playing, true);
   await wait(20);
-  assert.ok(sdi.now().ms > n.ms, 'it runs on between frames');
+  assert.ok(sdi.now()!.ms > n!.ms, 'it runs on between frames');
   assert.equal(sdi.state().status, 'play');
   // The same timecode again and again: stopped there.
   for (let i = 0; i < 4; i++) { await wait(40); say({ timecode: '19:30:00:03' }); }
   n = sdi.now();
-  assert.equal(n.playing, false);
-  assert.equal(n.ms, ((19 * 60 + 30) * 60) * 1000 + 120);
+  assert.equal(n!.playing, false);
+  assert.equal(n!.ms, ((19 * 60 + 30) * 60) * 1000 + 120);
   // A jump (scrubbing) isn't playing.
   say({ timecode: '19:31:00:00' });
-  assert.equal(sdi.now().playing, false);
+  assert.equal(sdi.now()!.playing, false);
   // No signal: nothing to follow, and it says why.
   say({ signal: false, timecode: '' });
   assert.equal(sdi.now(), null);

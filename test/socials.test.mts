@@ -1,7 +1,7 @@
 // The Socials tab (socials.ts, socials.html, social.html): the season's game nights, one night's pictures made from
 // the fixture Studio already has (every court), its results, ladders and top shooters, the Production Planner's court and commentators, the sponsor strip
 // and Studio mark settings kept per competition, photos for the polaroid, and saving, which needs the Mac app
-// (app.test.js saves real PNGs).
+// (app.test.mts saves real PNGs).
 import { createRequire } from 'node:module';
 import test from 'node:test';
 import assert from 'node:assert/strict';

@@ -1,6 +1,6 @@
 // As a carousel on the Socials tab: the ticked pictures saved as one Instagram post in the order shown above Save,
 // one size and up to 20, each marked 1/6, 2/6... (social.html?page=). The browser: Playwright's own, or
-// STUDIO_TEST_CHROMIUM; skipped without one (except in the Tests check). Saving itself needs the Mac app (app.test.js).
+// STUDIO_TEST_CHROMIUM; skipped without one (except in the Tests check). Saving itself needs the Mac app (app.test.mts).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startStudio, type Json } from './support/studio.mts';

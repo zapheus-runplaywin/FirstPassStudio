@@ -2,20 +2,25 @@
 // window plays it (a silent one at no volume) until the source goes off, and the Output page's source options warn
 // when the theme and the animation are more than 25% apart, checking again when the style changes.
 // The browser: as in pages.test.mts (Playwright's own, or STUDIO_TEST_CHROMIUM).
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { startStudio } = require('./support/studio.mts');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { startStudio, type Json } from './support/studio.mts';
+import type { BrowserType, Page } from 'playwright';
+import type { TestContext } from 'node:test';
+import { createRequire } from 'node:module';
 
-let chromium = null;
-try { ({ chromium } = require('playwright')); } catch { /* not installed */ }
+const require = createRequire(import.meta.url);
 
-async function launch(t) {
+let chromium: BrowserType | null = null;
+try { ({ chromium } = require('playwright') as typeof import('playwright')); } catch { /* not installed */ }
+
+async function launch(t: TestContext) {
   let browser = null, why = 'playwright is not installed';
   if (chromium) {
     try { browser = await chromium.launch({ executablePath: process.env.STUDIO_TEST_CHROMIUM || undefined, args: ['--autoplay-policy=no-user-gesture-required'] }); }
-    catch (err) { why = err.message.split('\n')[0]; }
+    catch (err) { why = (err as Error).message.split('\n')[0]; }
   }
   if (!browser) {
     if (process.env.STUDIO_TEST_REQUIRE_BROWSER) assert.fail(`no browser to test the pages in: ${why}`);
@@ -27,7 +32,7 @@ async function launch(t) {
 }
 
 // sec seconds of quiet as a WAV.
-function quiet(sec) {
+function quiet(sec: number) {
   const rate = 8000, bytes = Math.round(rate * sec) * 2, wav = Buffer.alloc(44 + bytes);
   wav.write('RIFF', 0); wav.writeUInt32LE(36 + bytes, 4); wav.write('WAVEfmt ', 8); wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22);
   wav.writeUInt32LE(rate, 24); wav.writeUInt32LE(rate * 2, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(bytes, 40);
@@ -44,7 +49,7 @@ test('an intro plays its sound in the scene until it goes off, and the Output pa
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   t.after(() => context.close());
   await context.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
-  const act = async a => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); };
+  const act = async (a: Json) => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); };
   await act({ type: 'add', sources: [{ type: 'browser', name: 'Intro', url: 'introoutro.html?style=orbit&theme=Stinger.wav&themefit=logo' }] });
 
   // Two scene windows: one that makes sound, and the key output's silent one. Both play it.
@@ -52,7 +57,7 @@ test('an intro plays its sound in the scene until it goes off, and the Output pa
   await loud.goto(`${studio.base}/scene.html`, { waitUntil: 'load' });
   await silent.goto(`${studio.base}/scene.html?mute=1`, { waitUntil: 'load' });
   await act({ type: 'show', name: 'Intro' });
-  const playing = page => page.waitForFunction(() => window.soundState().pages === 1, null, { timeout: 15000 }).then(() => true, () => false);
+  const playing = (page: Page) => page.waitForFunction(() => window.soundState().pages === 1, null, { timeout: 15000 }).then(() => true, () => false);
   assert.ok(await playing(loud), 'the scene plays the intro\'s sound');
   assert.ok(await playing(silent), 'a silent scene window plays it at no volume');
   await act({ type: 'hide', name: 'Intro' });
@@ -63,8 +68,8 @@ test('an intro plays its sound in the scene until it goes off, and the Output pa
   await output.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
   await output.click('#sources li:has-text("Intro") .name'); // the name, not the row's centre: the sound column put Off there
   await output.waitForSelector('#opt-theme');
-  assert.ok(await output.$eval('#opt-theme', s => [...s.options].some(o => o.value === 'Stinger.wav')), 'songs in the media folder are offered');
-  const note = async want => {
+  assert.ok(await output.$eval('#opt-theme', (s: HTMLSelectElement) => [...s.options].some(o => o.value === 'Stinger.wav')), 'songs in the media folder are offered');
+  const note = async (want: string) => {
     await output.waitForFunction(w => (document.getElementById('optLengthCheck')?.textContent || '').includes(w), want, { timeout: 10000 }).catch(() => {});
     return output.$eval('#optLengthCheck', n => n.textContent);
   };
@@ -77,10 +82,10 @@ test('an intro plays its sound in the scene until it goes off, and the Output pa
   assert.match(await note('stretching goes only 25%'), /stretching goes only 25%, so it plays at 1\.25× and the theme ends [\d.]+ s early/);
   // A sound added right there goes into the media folder and becomes the theme.
   await output.setInputFiles('#opt-theme-add', { name: 'Thunder League.wav', mimeType: 'audio/wav', buffer: quiet(1.5) });
-  await studio.until(async () => /theme=Thunder(\+|%20)League\.wav/.test((await studio.get('/api/scene')).sources.find(s => s.name === 'Intro').url));
+  await studio.until(async () => /theme=Thunder(\+|%20)League\.wav/.test((await studio.get('/api/scene')).sources.find((s: Json) => s.name === 'Intro').url));
   assert.ok(fs.existsSync(path.join(studio.dataDir, 'media', 'Thunder League.wav')));
-  await output.waitForFunction(() => document.getElementById('opt-theme')?.value === 'Thunder League.wav', null, { timeout: 5000 });
-  const url = (await studio.get('/api/scene')).sources.find(s => s.name === 'Intro').url;
+  await output.waitForFunction(() => document.querySelector<HTMLSelectElement>('#opt-theme')?.value === 'Thunder League.wav', null, { timeout: 5000 });
+  const url = (await studio.get('/api/scene')).sources.find((s: Json) => s.name === 'Intro').url;
   assert.match(url, /style=court/);
   assert.match(url, /themefit=stretch/);
 });
@@ -95,9 +100,9 @@ test('cut to a sequence with music of its own, the scene plays the old song fadi
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   t.after(() => context.close());
   await context.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
-  const act = async a => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); };
+  const act = async (a: Json) => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); };
   await act({ type: 'add', sources: [{ type: 'browser', name: 'Ladder', url: 'ladder.html' }] });
-  const ladder = (await studio.get('/api/scene')).sources.find(s => s.name === 'Ladder').id;
+  const ladder = (await studio.get('/api/scene')).sources.find((s: Json) => s.name === 'Ladder').id;
   const steps = [{ sources: [ladder], length: { type: 'time', sec: 60 } }];
   await act({ type: 'seqAdd', changes: { name: 'Bed', music: { track: 'Bed.wav', fadeInSec: 0 }, musicEnd: { type: 'fade', sec: 6 }, steps } });
   await act({ type: 'seqAdd', changes: { name: 'Walk', music: { track: 'Walk.wav', fadeInSec: 0 }, steps } });
@@ -127,30 +132,30 @@ test("the Output page's Scene View is silent on every output, with the music pla
   fs.writeFileSync(path.join(studio.dataDir, 'media', 'Bed.wav'), quiet(120));
   assert.equal((await studio.request('POST', '/api/outputs', { add: true })).status, 200);
   const two = (await studio.get('/api/outputs')).outputs[1];
-  const act = async a => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); };
+  const act = async (a: Json) => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); };
   await act({ type: 'add', sources: [{ type: 'browser', name: 'Ladder', url: 'ladder.html' }] });
-  const ladder = (await studio.get('/api/scene')).sources.find(s => s.name === 'Ladder').id;
+  const ladder = (await studio.get('/api/scene')).sources.find((s: Json) => s.name === 'Ladder').id;
   await act({ type: 'seqAdd', changes: { name: 'Bed', playsOn: ['main', two.id], music: { track: 'Bed.wav', fadeInSec: 0 }, steps: [{ sources: [ladder], length: { type: 'time', sec: 120 } }] } });
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   t.after(() => context.close());
   await context.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
   const page = await context.newPage();
-  const errors = [];
+  const errors: string[] = [];
   page.on('pageerror', err => errors.push(err.message));
-  const asks = [];
+  const asks: string[] = [];
   page.on('request', r => { if (r.url().includes('/api/outputs/listen')) asks.push(r.url()); });
   await page.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
   await act({ type: 'seqPlay', sequence: 'Bed' });
   await studio.until(async () => (await studio.get('/api/scene')).music?.status === 'playing');
   // What the Scene View plays: its output, and its music player (never playing: the view is silent).
   const view = () => page.evaluate(() => {
-    const f = document.getElementById('previewFrame');
+    const f = document.querySelector<HTMLIFrameElement>('#previewFrame')!;
     const src = f.getAttribute('src') || '';
     let p = null;
-    try { p = f.contentWindow.musicPlayers?.(); } catch {}
+    try { p = f.contentWindow!.musicPlayers?.(); } catch {}
     return { output: (src.match(/output=([^&]+)/) || [])[1] || 'main', muted: /mute=1/.test(src), playing: !!(p && p.music.playing) };
   });
-  const drawn = () => page.waitForFunction(() => { const f = document.getElementById('previewFrame'); try { return !window.previewSwitching() && f.contentWindow.standbyReady(); } catch { return false; } }, null, { timeout: 15000 });
+  const drawn = () => page.waitForFunction(() => { const f = document.querySelector<HTMLIFrameElement>('#previewFrame'); try { return !window.previewSwitching() && f!.contentWindow!.standbyReady!(); } catch { return false; } }, null, { timeout: 15000 });
   await drawn();
   await page.waitForTimeout(500);
   assert.deepEqual(await view(), { output: 'main', muted: true, playing: false }, 'the music plays through Output 1\'s Sound goes to, not in the view');
@@ -175,14 +180,14 @@ test('a page that opens while a video plays joins it where the output has got to
   if (!browser) return;
   const studio = await startStudio(t, { competition: 'Thunder League' });
   fs.mkdirSync(path.join(studio.dataDir, 'media'), { recursive: true });
-  fs.copyFileSync(path.join(__dirname, 'fixtures', 'clip.webm'), path.join(studio.dataDir, 'media', 'clip.webm')); // 30 s
-  const act = async a => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); };
+  fs.copyFileSync(path.join(import.meta.dirname, 'fixtures', 'clip.webm'), path.join(studio.dataDir, 'media', 'clip.webm')); // 30 s
+  const act = async (a: Json) => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); };
   await act({ type: 'add', sources: [{ type: 'video', name: 'Highlights', file: 'clip.webm', restartOnShow: true }] });
-  const id = (await studio.get('/api/scene')).sources.find(s => s.name === 'Highlights').id;
+  const id = (await studio.get('/api/scene')).sources.find((s: Json) => s.name === 'Highlights').id;
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   t.after(() => context.close());
-  const at = page => page.evaluate(() => document.querySelector('video').currentTime);
-  const playing = page => page.waitForFunction(() => { const v = document.querySelector('video'); return v && !v.paused && v.readyState >= 1; }, null, { timeout: 10000 });
+  const at = (page: Page) => page.evaluate(() => document.querySelector('video')!.currentTime);
+  const playing = (page: Page) => page.waitForFunction(() => { const v = document.querySelector('video'); return v && !v.paused && v.readyState >= 1; }, null, { timeout: 10000 });
   const open = async () => {
     const page = await context.newPage();
     await page.goto(`${studio.base}/scene.html?mute=1`, { waitUntil: 'load' });
@@ -201,19 +206,19 @@ test('a page that opens while a video plays joins it where the output has got to
   const joined = await at(view), there = await at(first);
   assert.ok(joined > 3 && Math.abs(joined - there) < 1, `joined at ${joined} s with the output at ${there} s`);
   const st = await studio.get('/api/scene');
-  assert.ok(st.sources.find(s => s.id === id).playAt.main > 0, 'the scene says when its showing began');
+  assert.ok(st.sources.find((s: Json) => s.id === id).playAt.main > 0, 'the scene says when its showing began');
   // Restart: from the top everywhere, and a page opening just after joins near the top too.
   await act({ type: 'restart', id });
-  await view.waitForFunction(() => document.querySelector('video').currentTime < 1.5, null, { timeout: 5000 });
+  await view.waitForFunction(() => document.querySelector('video')!.currentTime < 1.5, null, { timeout: 5000 });
   const late = await open();
   await playing(late);
   assert.ok(await at(late) < 2.5, `a page opened after the restart starts near the top: ${await at(late)}`);
   // Off and on again: a new showing, from the top.
   await act({ type: 'hide', id });
   await act({ type: 'show', id });
-  await view.waitForFunction(() => { const v = document.querySelector('video'); return !v.paused && v.currentTime < 1.5; }, null, { timeout: 5000 });
+  await view.waitForFunction(() => { const v = document.querySelector('video'); return !v!.paused && v!.currentTime < 1.5; }, null, { timeout: 5000 });
   // Not saved with the scene.
   const saved = JSON.parse(fs.readFileSync(path.join(studio.dataDir, 'scene.json'), 'utf8'));
-  assert.equal(saved.sources.find(s => s.id === id).playAt, undefined);
+  assert.equal(saved.sources.find((s: Json) => s.id === id).playAt, undefined);
 });
 
