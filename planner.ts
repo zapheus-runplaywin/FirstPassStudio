@@ -45,24 +45,76 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { localDate, isFinished } from './playhq';
+import type { Structure, GradeRef } from './playhq';
 import { errorMessage } from './errors';
+import { obj, str, arr } from './check';
+import type { Log, Send, ReadBody, ReadRaw } from './types';
+import type * as Competitions from './competitions';
+import type * as Savefile from './savefile';
+import type { SeasonGame } from './games';
+import type { Board } from './board';
+
+// The saved plan (planner.json).
+interface Person { id: string; name: string; guest: boolean; headshot?: string }
+interface SavedSlot { people: string[]; runOrder?: string; game?: { id: string; home: string; away: string } }
+interface Night { court: string; slots: Record<string, SavedSlot> }
+interface Plan { pool: Person[]; nights: Record<string, Night> }
+// A night's plan as it applies: its own (from ''), or inherited from the night from.
+type NightPlan = Night & { from: string };
+// A season game as the planner reads it, with its period once its live score is read in (withLiveScores).
+type Game = SeasonGame & { period?: string };
+interface Brief { id: string; home: string; away: string; division: string; round: string; court: string; time: string }
+interface SlotView { time: string; game: Brief | null; people: string[]; runOrder: string; changed?: { was: string } }
+interface NightView { date: string; courts: string[]; court: string; planned: boolean; from: string; slots: SlotView[]; games: Brief[] }
+interface RunOrderRef { id: string; name: string; count: number }
+interface Score { home: number | null; away: number | null }
+
+interface Deps {
+  log: Log; competitions: typeof Competitions; savefile: typeof Savefile;
+  getStructure(): Promise<Structure>; getSeasonGames(grade: GradeRef): Promise<SeasonGame[]>;
+  board(): Board; sameCourt(court: unknown, wanted: unknown): boolean; night(): string;
+  about?(): { competition?: string; venue?: string }; logoFor?(teamName: string): string | null;
+  withLiveScores?<G extends Game>(games: G[], maxAgeMs?: number): Promise<G[]>; isLive?(g: { status?: string | null }): boolean;
+  runOrders?(): RunOrderRef[];
+}
 
 const MAX_PEOPLE = 3; // commentators in one timeslot
-const isDate = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
-const slotOf = g => String(g.time || '').slice(0, 5);
-const cleanName = s => String(s || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+const isDate = (v: unknown): v is string => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+const slotOf = (g: { time?: string | null }) => String(g.time || '').slice(0, 5);
+const cleanName = (s: unknown) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+
+// planner.json as read: anything that isn't part of a plan is left out.
+function personOf(v: unknown): Person | null {
+  const x = obj(v);
+  if (!str(x.id) || !str(x.name)) return null;
+  return { id: str(x.id), name: str(x.name), guest: !!x.guest, ...(str(x.headshot) ? { headshot: str(x.headshot) } : {}) };
+}
+function savedSlotOf(v: unknown): SavedSlot {
+  const s = obj(v), g = obj(s.game);
+  return { people: arr(s.people).map(str).filter(Boolean), ...(str(s.runOrder) ? { runOrder: str(s.runOrder) } : {}),
+    ...(str(g.id) ? { game: { id: str(g.id), home: str(g.home), away: str(g.away) } } : {}) };
+}
+function planOf(v: unknown): Plan {
+  const d = obj(v);
+  const nights: Record<string, Night> = {};
+  for (const [date, n] of Object.entries(obj(d.nights))) {
+    const night = obj(n);
+    nights[date] = { court: str(night.court), slots: Object.fromEntries(Object.entries(obj(night.slots)).map(([t, s]) => [t, savedSlotOf(s)])) };
+  }
+  return { pool: arr(d.pool).map(personOf).filter((x): x is Person => !!x), nights };
+}
 
 function create({ log, competitions, savefile, getStructure, getSeasonGames, board, sameCourt, night: pickedNight, about = () => ({}), logoFor = () => null,
-  withLiveScores = async g => g, isLive = () => false, runOrders = () => [] }) {
-  const fileOf = id => path.join(competitions.DIR, id, 'planner.json');
-  function read(id) {
-    let d = {};
+  withLiveScores = async g => g, isLive = () => false, runOrders = () => [] }: Deps) {
+  const fileOf = (id: string) => path.join(competitions.DIR, id, 'planner.json');
+  function read(id: string): Plan {
+    let d: unknown = {};
     try { d = JSON.parse(fs.readFileSync(fileOf(id), 'utf8')); } catch { /* no plan yet */ }
-    return { pool: Array.isArray(d.pool) ? d.pool : [], nights: d.nights && typeof d.nights === 'object' ? d.nights : {} };
+    return planOf(d);
   }
   const active = () => competitions.activeId();
-  const plan = () => (active() ? read(active()) : { pool: [], nights: {} });
-  function write(p) {
+  const plan = (): Plan => { const id = active(); return id ? read(id) : { pool: [], nights: {} }; };
+  function write(p: Plan) {
     const id = active();
     if (!id) throw new Error('Set up a competition first, on the Competitions setup page.');
     const nights = Object.fromEntries(Object.keys(p.nights).sort().map(k => [k, p.nights[k]]));
@@ -71,18 +123,18 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
 
   // Every game of the season by date: { date: [game, ...] } in time order.
   async function byDate() {
-    const out = {};
+    const out: Record<string, Game[]> = {};
     for (const grade of (await getStructure()).grades) {
       for (const g of await getSeasonGames(grade)) if (isDate(g.date)) (out[g.date] = out[g.date] || []).push(g);
     }
     for (const list of Object.values(out)) list.sort((a, b) => slotOf(a).localeCompare(slotOf(b)) || String(a.court || '').localeCompare(String(b.court || ''), 'en', { numeric: true }));
     return out;
   }
-  const brief = g => ({ id: g.id, home: g.home.name, away: g.away.name, division: g.division || '', round: g.round || '', court: g.court || '', time: slotOf(g) });
+  const brief = (g: Game): Brief => ({ id: g.id, home: g.home.name, away: g.away.name, division: g.division || '', round: g.round || '', court: g.court || '', time: slotOf(g) });
 
   // A night's plan: its own, or the last planned night's before it (from: that night's date), or null.
   // An inherited plan keeps the court, and the people and run order slot by slot in time order.
-  function planFor(p, date, games) {
+  function planFor(p: Plan, date: string, games: Game[]): NightPlan | null {
     if (p.nights[date]) return { ...p.nights[date], from: '' };
     const before = Object.keys(p.nights).filter(d => d < date).sort().pop();
     if (!before) return null;
@@ -94,18 +146,18 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
   }
 
   // One night for the Planner: its courts, its plan and each timeslot on the planned court, with what to check.
-  function nightView(p, date, games) {
+  function nightView(p: Plan, date: string, games: Game[]): NightView {
     const courts = [...new Set(games.map(g => g.court).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
     const pl = planFor(p, date, games);
     const court = pl ? pl.court : '';
     const onCourt = court ? games.filter(g => sameCourt(g.court, court)) : [];
     const saved = (pl && pl.slots) || {};
-    const slots = [];
+    const slots: SlotView[] = [];
     for (const g of onCourt) {
       const time = slotOf(g);
       if (slots.some(s => s.time === time)) continue; // two divisions can't share a court and a time; keep the first
-      const s = saved[time] || {};
-      const changed = !pl.from && s.game && s.game.id !== g.id ? { was: `${s.game.home} v ${s.game.away}` } : null;
+      const s: Partial<SavedSlot> = saved[time] || {};
+      const changed = pl && !pl.from && s.game && s.game.id !== g.id ? { was: `${s.game.home} v ${s.game.away}` } : null;
       slots.push({ time, game: brief(g), people: s.people || [], runOrder: s.runOrder || '', ...(changed ? { changed } : {}) });
     }
     // People planned in a slot that has no game on the court any more (moved to another time, court or night).
@@ -119,7 +171,7 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
 
   // The plan's court for a night, for automatic game selection (games.js): { court, key } or null.
   // key changes when the plan does, so the court is set again then and only then.
-  async function courtFor(date) {
+  async function courtFor(date: string) {
     if (!active() || !isDate(date)) return null;
     const p = plan();
     if (!Object.keys(p.nights).length) return null;
@@ -138,13 +190,13 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
     const p = plan();
     const none = { names: [], people: [], gameId: b.gameId || '', game: b.gameId ? `${b.home.name} v ${b.away.name}` : '' };
     if (!b.gameId || !isDate(b.date) || !Object.keys(p.nights).length) return none;
-    const games = (await byDate().catch(() => ({})))[b.date] || [];
+    const games = (await byDate().catch((): Record<string, Game[]> => ({})))[b.date] || [];
     const pl = planFor(p, b.date, games);
     if (!pl) return none;
     const slots = pl.slots || {};
     let slot = Object.values(slots).find(s => s.game && s.game.id === b.gameId);
     if (!slot && sameCourt(b.court, pl.court)) slot = slots[slotOf(b)];
-    const people = ((slot && slot.people) || []).map(id => p.pool.find(x => x.id === id)).filter(Boolean);
+    const people = ((slot && slot.people) || []).map(id => p.pool.find(x => x.id === id)).filter((x): x is Person => !!x);
     return { ...none, names: people.map(x => x.name), people: people.map(x => ({ name: x.name, guest: !!x.guest, headshot: headshotUrl(x.headshot) })),
       guest: people.length > 0 && people.every(x => x.guest), court: pl.court, time: slotOf(b), runOrder: (slot && slot.runOrder) || '' };
   }
@@ -152,11 +204,11 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
   // What the Planner flags about tonight: Scoreboard control following another court, or a game picked by hand
   // that isn't in the plan, so the commentary team can be moved to match. Tonight is the game night picked by hand,
   // else today.
-  async function tonight(nights) {
+  async function tonight(nights: NightView[]) {
     const b = board();
     const date = pickedNight() || localDate();
     const n = nights.find(x => x.date === date);
-    const flags = [];
+    const flags: { kind: string; text: string }[] = [];
     if (!n || !n.court) return { date, flags };
     if (b.autoCourt && !sameCourt(b.autoCourt, n.court)) flags.push({ kind: 'court', text: `Scoreboard control is following ${b.autoCourt}, but the plan for tonight is ${n.court}.` });
     else if (!b.autoCourt) flags.push({ kind: 'court', text: `Scoreboard control has no court set, but the plan for tonight is ${n.court}.` });
@@ -179,7 +231,7 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
   //          the score the scoreboard had when it moved on (board.js lastGame)
   //   winner 'home', 'away' or 'draw' for a done game with a score
   const BOARD_LIVE_MS = 60 * 1000;
-  async function fixtureBoard(q = {}) {
+  async function fixtureBoard(q: { date?: string } = {}) {
     const p = plan();
     const dates = await byDate();
     const all = Object.keys(dates).sort();
@@ -188,15 +240,16 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
     const games = (dates[date] || []).map(g => ({ ...g, home: { ...g.home }, away: { ...g.away } }));
     const n = nightView(p, date, games);
     const b = board();
-    const name = id => p.pool.find(x => x.id === id);
-    const streamed = g => !!n.court && sameCourt(g.court, n.court);
-    const onBoard = g => !!b.gameId && g.id === b.gameId;
-    const boardAt = b.gameId && games.find(onBoard) ? slotOf(games.find(onBoard)) : '';
+    const name = (id: string) => p.pool.find(x => x.id === id);
+    const streamed = (g: Game) => !!n.court && sameCourt(g.court, n.court);
+    const onBoard = (g: Game) => !!b.gameId && g.id === b.gameId;
+    const atBoard = games.find(onBoard);
+    const boardAt = b.gameId && atBoard ? slotOf(atBoard) : '';
     await withLiveScores(games.filter(g => !onBoard(g) && !isFinished(g)), BOARD_LIVE_MS);
     const out = games.map(g => {
       const final = isFinished(g) && g.home.score != null && g.away.score != null;
       let state = final ? 'done' : isLive(g) ? 'live' : 'next';
-      let score = final || state === 'live' ? (g.home.score != null ? { home: g.home.score, away: g.away.score } : null) : null;
+      let score: Score | null = final || state === 'live' ? (g.home.score != null ? { home: g.home.score, away: g.away.score } : null) : null;
       let period = state === 'live' ? g.period || '' : '';
       if (onBoard(g)) {
         const started = b.home.score > 0 || b.away.score > 0 || b.period > 1 || (b.clock && (b.clock.running || b.clock.elapsedMs > 0)) || isLive(g);
@@ -206,10 +259,11 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
         if (b.lastGame && b.lastGame.id === g.id) score = { home: b.lastGame.home.score, away: b.lastGame.away.score };
       }
       const slot = streamed(g) ? n.slots.find(x => x.game && x.game.id === g.id) : null;
-      const winner = state === 'done' && score ? (score.home > score.away ? 'home' : score.away > score.home ? 'away' : 'draw') : '';
+      const h = score?.home ?? 0, a = score?.away ?? 0;
+      const winner = state === 'done' && score ? (h > a ? 'home' : a > h ? 'away' : 'draw') : '';
       return { id: g.id, time: slotOf(g), court: g.court || '', division: g.division || '', round: g.round || '',
         home: { name: g.home.name, logo: logoFor(g.home.name) }, away: { name: g.away.name, logo: logoFor(g.away.name) },
-        streamed: streamed(g), onAir: onBoard(g), people: slot ? slot.people.map(name).filter(Boolean).map(x => ({ name: x.name, guest: !!x.guest, headshot: headshotUrl(x.headshot) })) : [],
+        streamed: streamed(g), onAir: onBoard(g), people: slot ? slot.people.map(name).filter((x): x is Person => !!x).map(x => ({ name: x.name, guest: !!x.guest, headshot: headshotUrl(x.headshot) })) : [],
         state, score, winner, ...(period ? { period } : {}) };
     });
     const times = [...new Set(out.map(g => g.time))].sort();
@@ -222,14 +276,15 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
   // The court Studio streams on a night and who calls each game there, for the Socials tab's On the stream picture:
   // { court, slots: [{ id, time, division, home, away, people }] }, or null when the night isn't planned. The fixture
   // only, no live scores, so it asks PlayHQ for nothing.
-  async function onStream(date) {
+  async function onStream(date: string) {
     const n = nightView(plan(), date, (await byDate())[date] || []);
     if (!n.court) return null;
     const p = plan();
-    const name = id => p.pool.find(x => x.id === id);
-    return { court: n.court, slots: n.slots.filter(s => s.game).map(s => ({ id: s.game.id, time: s.time, division: s.game.division,
+    const name = (id: string) => p.pool.find(x => x.id === id);
+    const planned = n.slots.flatMap(s => (s.game ? [{ ...s, game: s.game }] : []));
+    return { court: n.court, slots: planned.map(s => ({ id: s.game.id, time: s.time, division: s.game.division,
       home: { name: s.game.home, logo: logoFor(s.game.home) }, away: { name: s.game.away, logo: logoFor(s.game.away) },
-      people: s.people.map(name).filter(Boolean).map(x => ({ name: x.name, guest: !!x.guest, headshot: headshotUrl(x.headshot) })) })) };
+      people: s.people.map(name).filter((x): x is Person => !!x).map(x => ({ name: x.name, guest: !!x.guest, headshot: headshotUrl(x.headshot) })) })) };
   }
 
   // Everything the Planner page shows.
@@ -238,8 +293,8 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
     const dates = await byDate();
     const nights = Object.keys(dates).sort().map(d => nightView(p, d, dates[d]));
     const today = localDate();
-    const next = (nights.find(n => n.date >= today) || nights[nights.length - 1] || {}).date || '';
-    const others = [];
+    const next = (nights.find(n => n.date >= today) || nights[nights.length - 1])?.date || '';
+    const others: { name: string; guest: boolean; from: string }[] = [];
     for (const c of competitions.list()) {
       if (c.id === active()) continue;
       for (const x of read(c.id).pool) if (!others.some(o => o.name.toLowerCase() === x.name.toLowerCase())) others.push({ name: x.name, guest: !!x.guest, from: c.name });
@@ -250,13 +305,14 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
 
   // The pool, as the page sends it: [{ id?, name, guest }]. A new person gets an id; someone taken out of the
   // pool comes out of every night's slots too.
-  function setPool(list) {
+  function setPool(list: unknown) {
     const p = plan();
-    const pool = [];
-    for (const x of Array.isArray(list) ? list : []) {
-      const name = cleanName(x && x.name);
+    const pool: Person[] = [];
+    for (const v of arr(list)) {
+      const x = obj(v);
+      const name = cleanName(x.name);
       if (!name || pool.some(o => o.name.toLowerCase() === name.toLowerCase())) continue;
-      const id = x.id && p.pool.some(o => o.id === x.id) ? x.id : crypto.randomBytes(5).toString('hex');
+      const id = str(x.id) && p.pool.some(o => o.id === x.id) ? str(x.id) : crypto.randomBytes(5).toString('hex');
       const had = p.pool.find(o => o.id === id);
       pool.push({ id, name, guest: !!x.guest, ...(had && had.headshot ? { headshot: had.headshot } : {}) });
     }
@@ -271,21 +327,23 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
   }
 
   // A commentator's headshot: saved as <their id>.<ext> in the competition's headshots folder (replacing any before).
-  const headshotUrl = f => (f ? '/headshots/' + encodeURIComponent(f) : null);
-  function dropHeadshot(file) { try { competitions.deleteImage(active(), 'headshots', file); } catch (err) { log('warn', 'planner', `Couldn't remove headshot ${file}: ${errorMessage(err)}`); } }
-  function setHeadshot(id, ext, buf) {
+  const headshotUrl = (f: string | undefined) => (f ? '/headshots/' + encodeURIComponent(f) : null);
+  // The active competition, for the headshot calls (a commentator is only found when there is one).
+  const activeOr = () => { const id = active(); if (!id) throw new Error('Set up a competition first, on the Competitions setup page.'); return id; };
+  function dropHeadshot(file: string) { try { competitions.deleteImage(activeOr(), 'headshots', file); } catch (err) { log('warn', 'planner', `Couldn't remove headshot ${file}: ${errorMessage(err)}`); } }
+  function setHeadshot(id: string | null, ext: string | null, buf: Buffer) {
     const p = plan();
     const x = p.pool.find(o => o.id === id);
     if (!x) throw new Error('Add the commentator first.');
     const type = String(ext || '').toLowerCase().replace(/^\./, '').replace('jpeg', 'jpg');
     if (!['jpg', 'png', 'webp'].includes(type)) throw new Error('A headshot needs to be a JPEG, PNG or WebP photo.');
-    const file = competitions.saveImage(active(), 'headshots', `${id}.${type}`, buf);
+    const file = competitions.saveImage(activeOr(), 'headshots', `${id}.${type}`, buf);
     if (x.headshot && x.headshot !== file) dropHeadshot(x.headshot);
     x.headshot = file;
     write(p);
     log('info', 'planner', `Headshot saved for ${x.name}`);
   }
-  function removeHeadshot(id) {
+  function removeHeadshot(id: string | null) {
     const p = plan();
     const x = p.pool.find(o => o.id === id);
     if (!x || !x.headshot) return;
@@ -298,8 +356,9 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
   // A night, as the page sends it: { date, court, slots: { "HH:MM": { people: [id, ...], runOrder } } } (a slot can be just
   // its people, [id, ...]), or { date, clear: true } to go back
   // to the plan of the night before. Each slot keeps the game on it now, to notice when PlayHQ changes it.
-  async function setNight(body) {
-    const date = String(body && body.date || '');
+  async function setNight(given: unknown) {
+    const body = obj(given);
+    const date = String(body.date || '');
     if (!isDate(date)) throw new Error('Which night? Send its date as YYYY-MM-DD.');
     const p = plan();
     if (body.clear) {
@@ -312,24 +371,26 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
     if (!court) throw new Error('Pick the court Studio streams that night.');
     const games = ((await byDate())[date] || []).filter(g => sameCourt(g.court, court));
     const ids = new Set(p.pool.map(x => x.id));
-    const slots = {};
-    for (const [time, v] of Object.entries(body.slots || {})) {
+    const slots: Record<string, SavedSlot> = {};
+    for (const [time, v] of Object.entries(obj(body.slots))) {
       if (!/^\d{2}:\d{2}$/.test(time)) continue;
-      const list = Array.isArray(v) ? v : v && Array.isArray(v.people) ? v.people : [];
-      const people = [...new Set(list.filter(id => ids.has(id)))].slice(0, MAX_PEOPLE);
+      const list = Array.isArray(v) ? v : arr(obj(v).people);
+      const people = [...new Set(list.map(str).filter(id => ids.has(id)))].slice(0, MAX_PEOPLE);
       // A run order that has since been deleted is kept (the page flags it), so the plan doesn't change behind Matt's back.
-      const runOrder = v && !Array.isArray(v) && typeof v.runOrder === 'string' ? v.runOrder.slice(0, 40) : '';
+      const runOrder = !Array.isArray(v) ? str(obj(v).runOrder).slice(0, 40) : '';
       const g = games.find(x => slotOf(x) === time);
       slots[time] = { people, ...(runOrder ? { runOrder } : {}), ...(g ? { game: { id: g.id, home: g.home.name, away: g.away.name } } : {}) };
     }
     p.nights[date] = { court, slots };
     write(p);
-    const names = id => (p.pool.find(x => x.id === id) || {}).name;
-    const order = id => (runOrders().find(o => o.id === id) || { name: 'a deleted run order' }).name;
+    const names = (id: string) => p.pool.find(x => x.id === id)?.name;
+    const order = (id: string) => (runOrders().find(o => o.id === id) || { name: 'a deleted run order' }).name;
     log('info', 'planner', `Plan for ${date} saved: ${court}; ${Object.entries(slots).map(([t, s]) => `${t} ${s.people.map(names).join(', ') || 'nobody'}${s.runOrder ? `, run order "${order(s.runOrder)}"` : ''}`).join('; ') || 'no games'}`);
   }
 
-  async function route(req, res, url, { send, readBody, readRaw, changed }) {
+  async function route(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, url: URL,
+    { send, readBody, readRaw, changed }: { send: Send; readBody: ReadBody; readRaw: ReadRaw; changed(): unknown }) {
+
     if (url.pathname === '/api/planner/onair') return send(res, 200, await onAir()), true;
     if (url.pathname === '/api/planner/fixtureboard') return send(res, 200, await fixtureBoard(Object.fromEntries(url.searchParams))), true;
     if (url.pathname === '/api/planner' && req.method === 'GET') return send(res, 200, await view()), true;
