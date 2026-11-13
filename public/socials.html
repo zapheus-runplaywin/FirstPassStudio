@@ -101,6 +101,29 @@
   dialog.made a { color: var(--fp-blue); }
   dialog.made figcaption { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin-top: 4px; color: var(--fp-muted); }
   dialog.made .row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; position: sticky; bottom: -16px; background: var(--fp-white); padding: 8px 0; }
+  /* A picture's caption: a style, Write caption, and the text to change by hand and copy. */
+  .caption { margin-top: 10px; font-size: 13px; }
+  .caption summary { cursor: pointer; font-weight: 700; color: var(--fp-navy); }
+  .caption summary .done { font-weight: 400; color: var(--fp-muted); }
+  .caption .styles { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 6px; }
+  .caption .styles label { border: 1px solid var(--fp-line-strong); border-radius: 999px; padding: 2px 9px; cursor: pointer; }
+  .caption .styles label:has(input:checked) { border-color: var(--fp-blue); box-shadow: 0 0 0 1px var(--fp-blue); background: var(--fp-blue-soft); }
+  .caption .styles input { position: absolute; opacity: 0; pointer-events: none; }
+  .caption textarea { width: 100%; box-sizing: border-box; min-height: 120px; font: inherit; padding: 6px 8px; border: 1px solid var(--fp-line-strong); border-radius: 8px; resize: vertical; }
+  .caption .row { gap: 6px 10px; margin: 6px 0; }
+  .caption .note { margin: 4px 0 0; color: var(--fp-muted); }
+  .caption [hidden] { display: none; }
+  .caption .note.warn, .captions .warn { color: var(--fp-warn-ink); background: var(--fp-warn-bg); padding: 4px 8px; border-radius: 6px; font-weight: 600; }
+  .caption .note.error { color: var(--fp-danger); }
+  /* The Captions card (this Mac only): who writes them, the key, the model, what they cost, the hashtags. */
+  .captions { margin-top: 12px; }
+  .captions summary { cursor: pointer; font-size: 14px; }
+  .captions .grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 14px; align-items: center; margin-top: 10px; font-size: 14px; }
+  @media (max-width: 600px) { .captions .grid { grid-template-columns: 1fr; } }
+  .captions input[type=text], .captions input[type=password], .captions select { font: inherit; padding: 4px 8px; border: 1px solid var(--fp-line-strong); border-radius: 8px; }
+  .captions input[type=text] { width: min(100%, 520px); box-sizing: border-box; }
+  .captions a { color: var(--fp-blue); }
+  dialog.made .cap { white-space: pre-wrap; font-size: 13px; background: var(--fp-blue-soft); border-radius: 6px; padding: 6px 8px; margin: 6px 0 0; }
   .bar #status { flex: 1; min-width: 200px; font-size: 14px; color: var(--fp-muted); }
   .bar #status.warn { color: var(--fp-warn-ink); background: var(--fp-warn-bg); padding: 4px 8px; border-radius: 6px; font-weight: 600; }
 </style>
@@ -140,6 +163,7 @@
       <label><input type="checkbox" id="mark"> FirstPass Studio mark</label>
       <label><input type="checkbox" id="pivt"> PIVT logo</label>
     </div>
+    <details class="captions" id="captionsCard" hidden><summary><b>Captions</b> <span class="help" id="capSummary"></span></summary><div id="capBody"></div></details>
     <div class="row colours" id="templates" role="group" aria-label="Template set"></div>
     <div class="row colours" id="colours" role="group" aria-label="Colour set"></div>
     <form class="row newset" id="newSet" hidden>
@@ -159,7 +183,9 @@
       PIVT logo bottom left; untick either to leave it off. Whether each picture carries the sponsor strip (your naming, elite and major sponsors)
       is remembered for next week. Who is on the stream comes from the Production Planner. <b>As a carousel</b> saves the ticked
       pictures as one Instagram post in the order shown above Save (drag one, or ‹ ›, to move it): one size, up to 20, each marked
-      1/6, 2/6… top right with an arrow to swipe on, in a folder of their own.</p></details>
+      1/6, 2/6… top right with an arrow to swipe on, in a folder of their own. <b>Caption</b> under a picture writes its post text with AI
+      (Claude, ChatGPT or Gemini, set up on the <b>Captions</b> card on this Mac) from the same facts the picture shows, in the style picked; change
+      it by hand or type your own. Save puts the captions in Captions.txt beside the pictures.</p></details>
   </section>
   <div id="pics"><section><p class="help">Loading the season's game nights…</p></section></div>
   <div class="bar">

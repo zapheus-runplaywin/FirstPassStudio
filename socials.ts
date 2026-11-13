@@ -21,7 +21,8 @@
 // Routes (server.ts hands every /api/socials and /socials/ request here):
 //   GET  /api/socials                    the game nights, the settings, the kinds of picture (KIND_NAMES) and whether
 //                                        pictures can be saved (app: the Mac app) and here (the page is open on this Mac)
-//   GET  /api/socials/night?date=        one night for social.html: its games and results, the streamed court, sponsors,
+//   GET  /api/socials/night?date=        one night for social.html (?kind= with the rest of a picture's link: what that
+//                                        kind of picture needs, NEEDS): its games and results, the streamed court, sponsors,
 //                                        look (&colours= a colour set and &template= a template set, else the ones picked); &with=ladders adds the ladder of each division that played
 //                                        (with each team's move since before the night, when the ladder is after it), &with=shooters
 //                                        the night's top shooters (each with their photo when approved; &division= one
@@ -64,8 +65,9 @@
 //                                        pictureSets: [{ id?, name, kinds }], pictureSet: <set id or ''> }
 //   POST /api/socials/photo?name=x.jpg   the photo's bytes; answers { photo } for social.html's ?photo=
 //   GET  /socials/photos/<file>          a dropped photo
-//   POST /api/socials/export             { date, set: upcoming|results, share, zip, carousel, items: [{ name, link, size }] }: the
-//                                        app saves them (and a zip of them with zip: true). carousel: true saves them as one
+//   POST /api/socials/export             { date, set: upcoming|results, share, zip, carousel, items: [{ name, link, size }],
+//                                        captions: [{ name, text }] }: the app saves them (and a zip of them with zip: true),
+//                                        with the captions in Captions.txt beside them. carousel: true saves them as one
 //                                        Instagram carousel in their order: one size, up to 20, each marked 1/6, 2/6...
 //                                        (?page=), in a folder of its own. A picture that can't be made is skipped and the
 //                                        rest saved: answers { folder, files, skipped: [{ name, reason }], zip, shared }.
@@ -203,6 +205,27 @@ const KIND_NAMES = [
   ['spotlight', 'Athlete spotlight', 'both'], ['sponsorspot', 'Sponsor spotlight', 'both'],
 ].map(([kind, name, when]) => ({ kind, name, when }));
 const KIND_IDS = KIND_NAMES.map(k => k.kind);
+// What each kind of picture asks night() for (&with=) and which of its link's settings go with that: social.html draws
+// from it, and an AI caption (captions.ts) is written from the same. A kind not listed needs only what every picture has.
+const NEEDS: Partial<Record<string, string[]>> = {
+  ladder: ['ladders'], review: ['review'], topshooters: ['shooters', 'division'], tournament: ['tournament', 'division', 'after'],
+  finalsbound: ['finals', 'division'], finalsdraw: ['finals', 'division'], champions: ['finals', 'division'],
+  accuracy: ['accuracy', 'division'], supershots: ['supershots', 'division'], teamsupers: ['teamsupers', 'division'], onfire: ['onfire', 'division'],
+  numbers: ['numbers'], season: ['season', 'division', 'team'], wrap: ['wrap', 'division'],
+  potm: ['potm', 'game', 'athlete', 'medal'], story: ['story', 'game'], worm: ['story', 'game'], moments: ['story', 'game'], gamestats: ['gamestats', 'game'],
+  shooting: ['gamestats', 'game'], h2h: ['form', 'game'], teamsheet: ['teamsheet', 'game'], watch: ['watch', 'link'],
+  teamround: ['teamround', 'division', 'GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'], spotlight: ['spotlight', 'athlete'], sponsorspot: ['sponsorspot', 'sponsor'],
+  form: ['form', 'game'], preview: ['preview', 'division'], race: ['race', 'division'], draw: ['draw', 'division', 'team'], milestones: ['milestones'],
+};
+// A picture's link (social.html's ?kind=&date=...) as night() takes it: the night, its look, the athletes picked, and
+// what its kind needs.
+function nightQuery(link: Query): Query {
+  const q: Query = {};
+  for (const k of ['date', 'colours', 'template', 'home', 'away', 'athlete']) if (link[k]) q[k] = link[k];
+  const needs = NEEDS[String(link.kind || '')];
+  if (needs) { q.with = needs[0]; for (const k of needs.slice(1)) if (link[k]) q[k] = link[k]; }
+  return q;
+}
 const MAX_PICTURE_SETS = 12;
 const SHOOTERS_SHOWN = 6;
 const TOURNAMENT_SHOWN = 8; // the tournament top shooters, a division's best so far
@@ -246,6 +269,7 @@ const PHOTO_TYPES: Record<string, string> = { '.jpg': 'image/jpeg', '.jpeg': 'im
 const PHOTOS_KEPT = 40;
 const MAX_PHOTO = 40 * 1024 * 1024;
 const MAX_ITEMS = 120;
+const MAX_CAPTION_TEXT = 2600; // characters of one picture's caption saved in Captions.txt (a post takes 2200)
 const CAROUSEL_MAX = 20; // Instagram's most pictures in one post
 const EXPORT_TIMEOUT_MS = 5 * 60 * 1000;
 // Pictures saved for another device (a paired phone): it fetches them from /api/socials/made/<id>/<n> for this long,
@@ -1052,7 +1076,10 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     });
     log('info', 'socials', `Saving ${pictures.length} pictures for ${date} (${set})${body.share ? ' to share' : ''}`);
     const toDevice = body.toDevice === true;
-    appPort.postMessage({ type: 'socialsSave', id, folder, carousel: body.carousel === true, pictures, share: !toDevice && body.share === true, zip: body.zip === true, quiet: toDevice });
+    // The pictures' captions (written by AI or typed on the tab), each under its picture's name: Captions.txt.
+    const captions = arr(body.captions).slice(0, MAX_ITEMS).map(obj).map(c => ({ name: fileName(c.name), text: str(c.text).trim().slice(0, MAX_CAPTION_TEXT) }))
+      .filter(c => c.text).map(c => `${c.name}\n\n${c.text}`).join('\n\n────────\n\n');
+    appPort.postMessage({ type: 'socialsSave', id, folder, carousel: body.carousel === true, pictures, captions, share: !toDevice && body.share === true, zip: body.zip === true, quiet: toDevice });
     const m = await answer;
     if (m.error) { log('warn', 'socials', `Saving the pictures for ${date}: ${m.error}`); throw Object.assign(new Error(m.error), { status: 500 }); }
     const skipped = m.skipped;
@@ -1079,7 +1106,8 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       // here: the page is open on this Mac (Save puts the pictures in its Pictures folder) rather than on a phone or
       // another computer (Save hands them to that device).
       if (p === '/api/socials' && req.method === 'GET') return send(res, 200, { ...await list(), here: access.isLocal(req.socket.remoteAddress) }), true;
-      if (p === '/api/socials/night' && req.method === 'GET') return send(res, 200, await night(q)), true;
+      // ?kind= and the rest of a picture's link (social.html): what that picture needs; else &with= and the rest as asked.
+      if (p === '/api/socials/night' && req.method === 'GET') return send(res, 200, await night(q.kind ? nightQuery(q) : q)), true;
       // The athletes to pick for a picture: those with a photo they approved, with their teams and divisions.
       if (p === '/api/socials/athletes' && req.method === 'GET') return send(res, 200, { athletes: athletesWithPhotos() }), true;
       if (p === '/api/socials/settings' && req.method === 'POST') {
@@ -1111,7 +1139,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     return false;
   }
 
-  return { route, list, night, settings, saveSettings, savePhoto, colourSets: () => allSets(settings().colourSets), SIZES, KINDS, KIND_NAMES, TEMPLATES };
+  return { route, list, night, pictureNight: (link: Query) => night(nightQuery(link)), settings, saveSettings, savePhoto, colourSets: () => allSets(settings().colourSets), SIZES, KINDS, KIND_NAMES, TEMPLATES };
 }
 
 export { create, SIZES, KINDS, KIND_NAMES };

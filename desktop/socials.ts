@@ -56,6 +56,7 @@ async function take({ url, width, height }: Picture): Promise<NativeImage> {
 // Pictures made for a phone: one folder per save under the Mac's temporary folder, each removed an hour after it was
 // made (the helper serves them that long), checked whenever another is made.
 const TEMP_KEPT_MS = 60 * 60 * 1000;
+const CAPTIONS_FILE = 'Captions.txt';
 const tempRoot = () => path.join(app.getPath('temp'), 'FirstPass Studio socials');
 function clearOldTemp() {
   let dirs: string[] = [];
@@ -67,8 +68,9 @@ function clearOldTemp() {
 }
 
 function create({ log }: { log: (message: string) => void }) {
-  // msg: { type: 'socialsSave', id, folder, carousel, pictures: [{ label, url, width, height }], share, zip, quiet }.
-  // Each picture is saved as "<NN> <label>.png", numbered in order. quiet (saved for a phone, which fetches them) makes
+  // msg: { type: 'socialsSave', id, folder, carousel, pictures: [{ label, url, width, height }], captions, share, zip, quiet }.
+  // Each picture is saved as "<NN> <label>.png", numbered in order, and the captions (text, when any) as Captions.txt
+  // beside them (in the zip too, but not shared: the Share menu takes just the pictures). quiet (saved for a phone, which fetches them) makes
   // them in a temporary folder instead, cleared after an hour, and opens neither Finder nor the Share menu. Answers
   // { type: 'socialsSaved', id, folder, files, skipped: [{ name, reason }], zip, zipFile, shared } or { ..., error }.
   async function save(child: UtilityProcess, msg: Body) {
@@ -112,7 +114,11 @@ function create({ log }: { log: (message: string) => void }) {
           files.push(file);
         }
       }
-      log(`Socials: saved ${files.length} pictures in ${folder}`);
+      const captions = str(msg.captions).trim();
+      const captionsFile = path.join(folder, CAPTIONS_FILE);
+      if (captions) fs.writeFileSync(captionsFile, `${captions}\n`);
+      else fs.rmSync(captionsFile, { force: true });
+      log(`Socials: saved ${files.length} pictures${captions ? ` and ${CAPTIONS_FILE}` : ''} in ${folder}`);
       // The zip: the folder's pictures in a folder of the same name, beside it (written to .part first, so a zip that
       // is there is whole).
       let zipped: string | null = null;
@@ -121,7 +127,7 @@ function create({ log }: { log: (message: string) => void }) {
         const part = `${zipped}.part`;
         const out = fs.createWriteStream(part);
         const done = new Promise<void>((resolve, reject) => { out.on('finish', () => resolve()); out.on('error', reject); });
-        await zip.write(out, files.map(f => ({ name: `${path.basename(folder)}/${path.basename(f)}`, file: f })));
+        await zip.write(out, [...files, ...(captions ? [captionsFile] : [])].map(f => ({ name: `${path.basename(folder)}/${path.basename(f)}`, file: f })));
         await done;
         fs.renameSync(part, zipped);
         log(`Socials: zipped them in ${zipped}`);
