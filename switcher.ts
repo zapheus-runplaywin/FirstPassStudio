@@ -27,6 +27,36 @@ import { spawn } from 'node:child_process';
 import * as datadir from './datadir';
 import * as savefile from './savefile';
 import { errorCode, errorMessage } from './errors';
+import { obj, str, arr, isObj } from './check';
+import type { Atem } from 'atem-connection';
+import type { Log, Body, Send, ReadBody } from './types';
+import type * as Outputs from './outputs';
+
+// The switcher picked (see pick below), and one found on the network.
+type Picked = { kind: 'found'; name: string; host: string; port: number; address: string } | { kind: 'address'; address: string; port: number; name?: undefined };
+interface Found { name: string; model: string; host: string; port: number; address: string }
+// What the switcher has and shows (summary()).
+interface Input { id: number; name: string; short: string }
+interface Summary {
+  model: string; inputs: Input[]; program: number | null; preview: number | null; inTransition: boolean; usk: boolean[]; dsk: boolean[]; ftb: boolean; fps: number;
+}
+// What each output gives the switcher (outputs.js switcherPlan).
+type PlanOut = ReturnType<typeof Outputs.switcherPlan>[number];
+// What a key needs for its output (keyChecks): null where it doesn't matter.
+interface Want { fill: number; cut: number | null; pre: boolean | null; type: number | null; straightOff: boolean }
+interface KeyCheck {
+  output: string; name: string; colour: string; keyer: string; label: string; onAir: boolean; problems: string[]; fixes: string[]; cameras: number[]; withCamera: string; want?: Want;
+}
+// An action on a sequence step or scene, cleaned (cleanActions).
+interface SwitcherAction { type: string; input?: number; name?: string; key?: number; on?: string; mix?: boolean; macro?: number; atSec: number }
+// What a switcher request gives: done, or why not (with the HTTP status for it).
+type Fail = { error: string; status: number; ok?: undefined; done?: undefined };
+type Done = { ok: true; done?: string; error?: undefined; status?: undefined };
+type Result = Done | Fail;
+interface Cover { from: number; to: number; at: number }
+interface StingerApi { find(ref?: unknown): { id: string; name: string; url?: string } | null | undefined; play(id: string, output: string): boolean }
+// The atem-connection library, loaded when a switcher is set up (loadLibrary()).
+type Library = typeof import('atem-connection');
 
 const FILE = datadir.file('switcher.json');
 const PORT = 9910;
@@ -37,40 +67,45 @@ const FIND_MS = 2500;         // how long a search for switchers listens
 const REFIND_MS = 15000;      // while a found switcher isn't answering, look for it again this often (its address may have changed)
 const CONNECT_MS = 5000;      // a switcher that hasn't answered this long after connecting starts (it's off, or unplugged) is shown as not answering
 
-let log = () => {};
+let log: Log = () => {};
 let onChange = () => {};
 let micsChanged = () => {};   // mics.js: the switcher's Fairlight audio changed (a fader moved)
 // What's picked: null (not set up), { kind: 'found', name, host, port, address } or { kind: 'address', address, port }.
-let pick = null;
-let atem = null;              // the atem-connection client
-let conn = 'off';             // off | connecting | connected | lost | error
+let pick: Picked | null = null;
+let atem: Atem | null = null; // the atem-connection client
+type Conn = 'off' | 'connecting' | 'connected' | 'lost' | 'error';
+let conn: Conn = 'off';
 let since = Date.now();
 let error = '';
 let address = '';             // the address it's connected (or connecting) to
-let refindTimer = null;
-let connectTimer = null;      // CONNECT_MS after connecting starts, if it hasn't connected by then
-let found = [];               // the last search's switchers
-let finding = null;           // the search in progress (a promise)
+let refindTimer: NodeJS.Timeout | undefined;
+let connectTimer: NodeJS.Timeout | undefined; // CONNECT_MS after connecting starts, if it hasn't connected by then
+let found: Found[] = [];      // the last search's switchers
+let finding: Promise<Found[]> | null = null; // the search in progress
 let lastKey = '';
 let rev = 0;                  // counts each change sent out, so a page can tell an older status from a newer one
-const listeners = new Set(); // server-sent events (/api/switcher/events): the Stream Deck plugin's Switcher keys
+const listeners = new Set<import('node:http').ServerResponse>(); // server-sent events (/api/switcher/events): the Stream Deck plugin's Switcher keys
 // Stinger cuts: Studio plays the scene's stinger (stinger.html) on the output on a downstream key (Output 1 unless
 // another one that's switched on is, as only a downstream key covers the whole picture) and cuts while it covers the frame.
 let follow = true;            // Keys follow the camera: after a cut made elsewhere, paired outputs' keys follow the program camera
-let lastProgram = null;       // the program input Keys follow the camera last saw
-let followTimer = null;
+let lastProgram: number | null = null; // the program input Keys follow the camera last saw
+let followTimer: NodeJS.Timeout | undefined;
 // Each output's line-up: frames to cut later (or earlier, below 0) than the middle of the cover, for that output's
 // delay into the switcher (NDI is later than HDMI): { outputId: frames }. The stinger's output's is used.
-let lineups = {};
-let stingerApi = null;        // { find(ref), play(id) } from scene.js
-let outputsPlan = () => [];   // what each output gives the switcher (outputs.js switcherPlan), for the key settings check
-let straightOff = () => {};   // unticks an output's Straight (Blackmagic fill), for Set up this key for me
-let stingerWait = null;       // a stinger cut waiting to hear the stinger has started: { resolve }
+let lineups: Record<string, number> = {};
+let stingerApi: StingerApi | null = null; // { find(ref), play(id) } from scene.js
+let outputsPlan = (): PlanOut[] => [];   // what each output gives the switcher (outputs.js switcherPlan), for the key settings check
+let straightOff = (_id: string) => {};   // unticks an output's Straight (Blackmagic fill), for Set up this key for me
+let stingerWait: { output: string; resolve(c: Cover | null): void } | null = null; // a stinger cut waiting to hear the stinger has started
 const STINGER_WAIT_MS = 3000; // how long a stinger has to start (its page loads its logo first)
 const LINEUP = [-25, 25];
 
 const now = () => Date.now();
-function setConn(c, why = '') {
+// The client while it's connected with the whole state read (atem-connection's status 2), else null.
+const ready = (): Atem | null => (atem && atem.status === 2 ? atem : null);
+// The switcher for a command: act() and the others check it's connected first, and it can go while they wait.
+function client(): Atem { if (!atem) throw new Error('the switcher stopped answering'); return atem; }
+function setConn(c: Conn, why = '') {
   if (c === conn && why === error) return;
   conn = c;
   error = why;
@@ -89,8 +124,8 @@ function changed() {
 }
 
 // ─── Saved setting ────────────────────────────────────────────────────────
-function cleanPick(p) {
-  if (!p || typeof p !== 'object') return null;
+function cleanPick(p: unknown): Picked | null {
+  if (!isObj(p)) return null;
   const port = Math.round(Number(p.port)) || PORT;
   const addr = String(p.address || '').trim().slice(0, 100);
   if (p.kind === 'found' && p.name) {
@@ -99,13 +134,13 @@ function cleanPick(p) {
   if (p.kind === 'address' && addr) return { kind: 'address', address: addr, port };
   return null;
 }
-const cleanLineup = v => Math.round(Math.min(LINEUP[1], Math.max(LINEUP[0], Number(v) || 0)));
+const cleanLineup = (v: unknown) => Math.round(Math.min(LINEUP[1], Math.max(LINEUP[0], Number(v) || 0)));
 function load() {
   try {
-    const saved = JSON.parse(fs.readFileSync(FILE, 'utf8'));
+    const saved = obj(JSON.parse(fs.readFileSync(FILE, 'utf8')));
     pick = cleanPick(saved.pick);
     lineups = {};
-    for (const [id, v] of Object.entries(saved.lineups || {})) if (/^[a-z0-9]{1,20}$/i.test(id)) lineups[id] = cleanLineup(v);
+    for (const [id, v] of Object.entries(obj(saved.lineups))) if (/^[a-z0-9]{1,20}$/i.test(id)) lineups[id] = cleanLineup(v);
     if (saved.lineup !== undefined && saved.lineups === undefined) lineups.main = cleanLineup(saved.lineup); // from before each output had one
     for (const id of Object.keys(lineups)) if (!lineups[id]) delete lineups[id];
     follow = saved.follow !== false;
@@ -117,7 +152,7 @@ function save() {
 }
 
 // A typed address: an IP address or name, with :port if it isn't the usual 9910.
-function parseAddress(text) {
+function parseAddress(text: unknown) {
   const s = String(text || '').trim();
   const m = s.match(/^\[?([^\]\s]+?)\]?(?::(\d{1,5}))?$/);
   if (!m || !/^[a-z0-9.-]+$/i.test(m[1])) return null;
@@ -129,44 +164,44 @@ function parseAddress(text) {
 // and for -L, where one is ("... can be reached at ATEM-Mini-Extreme.local.:9910 (interface 12)") followed by its
 // TXT record ("class=AtemSwitcher name=ATEM\ Mini\ Extreme ..."). Other Blackmagic devices (HyperDecks, Web
 // Presenters) share the service type: only ATEM switchers are kept.
-function parseBrowse(text) {
-  const names = [];
+function parseBrowse(text: unknown) {
+  const names: string[] = [];
   for (const line of String(text).split('\n')) {
     const m = line.match(/^\s*\S+\s+Add\s+\d+\s+\d+\s+\S+\s+_blackmagic\._tcp\.\s+(.+?)\s*$/);
     if (m && !names.includes(m[1])) names.push(m[1]);
   }
   return names;
 }
-function parseTxt(text) {
-  const out = {};
+function parseTxt(text: unknown) {
+  const out: Record<string, string> = {};
   for (const [, k, v] of String(text).matchAll(/(?:^|\s)((?:[^=\s\\]|\\.)+)=((?:[^\s\\]|\\.)*)/g)) {
     out[k.replace(/\\(.)/g, '$1').toLowerCase()] = v.replace(/\\(.)/g, '$1');
   }
   return out;
 }
-function parseLookup(text) {
+function parseLookup(text: unknown) {
   const s = String(text);
   const at = s.match(/can be reached at (\S+?)\.?:(\d+)/);
   if (!at) return null;
-  const after = s.slice(at.index + at[0].length).split('\n').slice(1).join(' ');
+  const after = s.slice((at.index || 0) + at[0].length).split('\n').slice(1).join(' ');
   return { host: at[1], port: Number(at[2]), txt: parseTxt(after) };
 }
-const isSwitcher = info => info && (/atem/i.test(info.txt.class || '') || (!info.txt.class && info.port === PORT));
+const isSwitcher = (info: ReturnType<typeof parseLookup>): info is NonNullable<ReturnType<typeof parseLookup>> => !!info && (/atem/i.test(info.txt.class || '') || (!info.txt.class && info.port === PORT));
 
 // Runs dns-sd for ms and gives what it printed (it never ends by itself).
-function runDnsSd(args, ms) {
-  return new Promise(resolve => {
+function runDnsSd(args: string[], ms: number) {
+  return new Promise<string>(resolve => {
     let out = '';
-    let child;
+    let child: import('node:child_process').ChildProcessWithoutNullStreams | import('node:child_process').ChildProcess;
     try { child = spawn(DNS_SD, args, { stdio: ['ignore', 'pipe', 'ignore'] }); }
     catch { resolve(''); return; }
-    child.stdout.on('data', d => { out += d; });
+    child.stdout?.on('data', d => { out += d; });
     child.on('error', () => resolve(out));
     const timer = setTimeout(() => child.kill(), ms);
     child.on('close', () => { clearTimeout(timer); resolve(out); });
   });
 }
-const lookupHost = host => new Promise(resolve => {
+const lookupHost = (host: string) => new Promise<string>(resolve => {
   if (!host) return resolve('');
   const timer = setTimeout(() => resolve(''), 3000);
   dns.lookup(host, { family: 4 }, (err, addr) => { clearTimeout(timer); resolve(err ? '' : addr); });
@@ -179,7 +214,7 @@ function find() {
   finding = (async () => {
     if (!canFind()) return found;
     const names = parseBrowse(await runDnsSd(['-B', SERVICE, 'local.'], FIND_MS));
-    const list = [];
+    const list: Found[] = [];
     await Promise.all(names.map(async name => {
       const info = parseLookup(await runDnsSd(['-L', name, SERVICE, 'local.'], 1500));
       if (!isSwitcher(info)) return;
@@ -195,15 +230,15 @@ function find() {
 }
 
 // ─── The connection ───────────────────────────────────────────────────────
-function loadLibrary() {
+function loadLibrary(): Library {
   // Loaded only when a switcher is set up, so a problem with it never stops Studio starting.
   return require('atem-connection');
 }
 async function disconnect() {
   clearInterval(refindTimer);
-  refindTimer = null;
+  refindTimer = undefined;
   clearTimeout(connectTimer);
-  connectTimer = null;
+  connectTimer = undefined;
   const a = atem;
   atem = null;
   address = '';
@@ -218,20 +253,21 @@ async function connect() {
   await disconnect();
   if (!current()) return;
   if (!pick) { setConn('off'); return; }
-  let lib;
+  let lib: Library;
   try { lib = loadLibrary(); }
   catch (err) { log('error', 'switcher', `Switcher control isn't available: ${errorMessage(err)}`); setConn('error', `Switcher control isn't available in this copy of Studio (${errorMessage(err)})`); return; }
   setConn('connecting');
   let target = pick.address;
   if (pick.kind === 'found') {
     // Remembered by name: ask the network where it is now, in case its address changed.
-    const name = pick.name;
-    const fresh = (await lookupHost(pick.host)) || ((await find()).find(f => f.name === name) || {}).address;
-    if (!current()) return;
-    if (fresh && fresh !== pick.address) { pick = { ...pick, address: fresh }; save(); }
+    const was = pick;
+    const fresh = (await lookupHost(was.host)) || (await find()).find(f => f.name === was.name)?.address;
+    if (!current() || !pick) return;
+    if (fresh && fresh !== was.address) { pick = { ...was, address: fresh }; save(); }
     target = pick.address;
   }
   if (!target) { setConn('lost', `Can't find "${pick.name}" on the network`); startRefind(); return; }
+  const port = pick.port;
   const a = new lib.Atem({ disableMultithreaded: true });
   atem = a;
   address = target;
@@ -239,7 +275,7 @@ async function connect() {
   // A switcher that's off or unplugged never answers, so the library never says it has gone: say so after a few
   // seconds (it carries on trying, and connected still comes when it's back), and look for a found one by name.
   connectTimer = setTimeout(() => {
-    connectTimer = null;
+    connectTimer = undefined;
     if (atem !== a || conn !== 'connecting') return;
     log('warn', 'switcher', `The switcher at ${target} isn't answering; trying again`);
     setConn('lost', 'Not answering');
@@ -249,20 +285,21 @@ async function connect() {
   a.on('connected', () => {
     if (atem !== a) return;
     clearInterval(refindTimer);
-    refindTimer = null;
+    refindTimer = undefined;
     clearTimeout(connectTimer);
-    connectTimer = null;
+    connectTimer = undefined;
     const s = summary();
+    if (!s) return;
     log('info', 'switcher', `Connected to ${s.model} at ${target} (${s.inputs.length} inputs, ${s.usk.length} upstream keys, ${s.dsk.length} downstream keys)`);
     lastProgram = s.program; // what's on now isn't a cut to follow: nothing is sent on connecting
     setConn('connected');
     // The sound coming into its audio inputs, for the mics' meters (as ATEM Software Control asks for it): it
     // changes nothing on the switcher.
     levels.clear();
-    if (a.state && a.state.fairlight) a.startFairlightMixerSendLevels().catch(err => log('warn', 'switcher', `Couldn't ask for the audio levels: ${err.message}`));
+    if (a.state && a.state.fairlight) a.startFairlightMixerSendLevels().catch(err => log('warn', 'switcher', `Couldn't ask for the audio levels: ${errorMessage(err)}`));
   });
   a.on('levelChanged', l => {
-    if (atem !== a || !l || l.type !== 'source' || !l.levels) return;
+    if (atem !== a || !l || l.type !== 'source' || !('levels' in l) || !l.levels) return;
     const key = `${l.index}:${l.source}`, db = Math.max(l.levels.inputLeftLevel, l.levels.inputRightLevel) / 100, now = Date.now();
     const was = levels.get(key);
     // The loudest moment over the last half second, as the Mac's mics report theirs.
@@ -280,7 +317,7 @@ async function connect() {
     followSoon();
     if ((paths || []).some(p => String(p).startsWith('fairlight'))) micsChanged(); // a fader moved (mics.js)
   });
-  try { await a.connect(target, pick.port); }
+  try { await a.connect(target, port); }
   catch (err) { if (atem === a) setConn('error', errorMessage(err)); }
 }
 // A found switcher that isn't answering may have a new address (the venue's router handed out another):
@@ -289,48 +326,50 @@ function startRefind() {
   if (refindTimer || !pick || pick.kind !== 'found') return;
   refindTimer = setInterval(async () => {
     if (conn === 'connected' || !pick || pick.kind !== 'found') return;
-    const f = (await find()).find(x => x.name === pick.name);
-    if (f && f.address && f.address !== address) { log('info', 'switcher', `"${pick.name}" is now at ${f.address}`); pick = { ...pick, address: f.address, host: f.host }; save(); connect(); }
+    const was = pick;
+    const f = (await find()).find(x => x.name === was.name);
+    if (f && f.address && f.address !== address) { log('info', 'switcher', `"${was.name}" is now at ${f.address}`); pick = { ...was, address: f.address, host: f.host }; save(); connect(); }
   }, REFIND_MS);
   refindTimer.unref?.();
 }
 
 // ─── What the switcher has and shows ─────────────────────────────────────
-const MODEL_NAMES = { 13: 'ATEM Mini', 14: 'ATEM Mini Pro', 15: 'ATEM Mini Pro ISO', 16: 'ATEM Mini Extreme', 17: 'ATEM Mini Extreme ISO' };
+const MODEL_NAMES: Record<number, string> = { 13: 'ATEM Mini', 14: 'ATEM Mini Pro', 15: 'ATEM Mini Pro ISO', 16: 'ATEM Mini Extreme', 17: 'ATEM Mini Extreme ISO' };
 // Frames a second of the switcher's video standard (atem-connection's Enums.VideoMode, named like P1080p50 or
 // N1080i5994): 50 when it isn't known.
-function fpsOf(mode) {
-  let Enums;
+function fpsOf(mode: number | undefined) {
+  let Enums: Library['Enums'];
   try { ({ Enums } = loadLibrary()); } catch { return 50; }
-  const m = /([pi])(\d+)/.exec(String(Enums.VideoMode[mode] || ''));
+  const m = /([pi])(\d+)/.exec(String(mode === undefined ? '' : Enums.VideoMode[mode] || ''));
   if (!m) return 50;
   let n = Number(m[2]);
   if (n > 100) n /= 100;      // 5994 is 59.94, 5000 is 50
   return Math.round((m[1] === 'i' ? n / 2 : n) * 100) / 100;
 }
-function summary() {
-  const st = atem && atem.state;
-  if (!st || atem.status !== 2) return null; // 2: connected, with the whole state read
-  const me = (st.video.mixEffects || [])[0] || {};
-  const uskCount = ((st.info.mixEffects || [])[0] || {}).keyCount || 0;
-  const dskCount = (st.info.capabilities || {}).downstreamKeyers || 0;
+function summary(): Summary | null {
+  const a = ready(); // connected, with the whole state read
+  const st = a && a.state;
+  if (!st) return null;
+  const me = st.video.mixEffects[0];
+  const uskCount = st.info.mixEffects[0]?.keyCount || 0;
+  const dskCount = st.info.capabilities?.downstreamKeyers || 0;
   // The inputs that are cameras and other things plugged in (not black, bars, media players or keys).
-  const inputs = Object.values(st.inputs || {}).filter(i => i && i.internalPortType === 0)
+  const inputs = Object.values(st.inputs).flatMap(i => (i && i.internalPortType === 0 ? [i] : []))
     .sort((a, b) => a.inputId - b.inputId)
     .map(i => ({ id: i.inputId, name: i.longName || `Input ${i.inputId}`, short: i.shortName || String(i.inputId) }));
   return {
-    model: st.info.productIdentifier || MODEL_NAMES[st.info.model] || 'ATEM switcher',
+    model: st.info.productIdentifier || (st.info.model !== undefined && MODEL_NAMES[st.info.model]) || 'ATEM switcher',
     inputs,
-    program: me.programInput ?? null,
-    preview: me.previewInput ?? null,
-    inTransition: !!(me.transitionPosition && me.transitionPosition.inTransition),
-    usk: Array.from({ length: uskCount }, (_, k) => !!((me.upstreamKeyers || [])[k] || {}).onAir),
-    dsk: Array.from({ length: dskCount }, (_, k) => !!((st.video.downstreamKeyers || [])[k] || {}).onAir),
-    ftb: !!(me.fadeToBlack && me.fadeToBlack.isFullyBlack),
-    fps: fpsOf(st.settings && st.settings.videoMode),
+    program: me?.programInput ?? null,
+    preview: me?.previewInput ?? null,
+    inTransition: !!me?.transitionPosition?.inTransition,
+    usk: Array.from({ length: uskCount }, (_, k) => !!me?.upstreamKeyers[k]?.onAir),
+    dsk: Array.from({ length: dskCount }, (_, k) => !!st.video.downstreamKeyers[k]?.onAir),
+    ftb: !!me?.fadeToBlack?.isFullyBlack,
+    fps: fpsOf(st.settings?.videoMode),
   };
 }
-const stingerMusicOf = url => {
+const stingerMusicOf = (url: unknown) => {
   const m = new URLSearchParams(String(url || '').split('?')[1] || '').get('music');
   return m === 'quiet' ? 'quiet' : m === 'duck' || m === 'dip' ? 'duck' : '';
 };
@@ -365,30 +404,30 @@ function status() {
 
 // ─── Doing things ─────────────────────────────────────────────────────────
 // An input by number, or by its name or short name on the switcher ("Camera 2", "CAM2", "camera-2").
-function inputOf(s, v) {
+function inputOf(s: Summary, v: unknown) {
   const t = String(v ?? '').trim().toLowerCase();
   if (!t) return null;
-  const slug = x => String(x).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const slug = (x: unknown) => String(x).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   return s.inputs.find(i => String(i.id) === t) || s.inputs.find(i => i.name.toLowerCase() === t || i.short.toLowerCase() === t)
     || s.inputs.find(i => slug(i.name) === slug(t)) || null;
 }
 // The switcher answers a command before it sends what changed: wait a moment for that, so what's sent
 // back (and shown on a Stream Deck key) is the switcher after the change.
-const settled = () => new Promise(resolve => {
+const settled = () => new Promise<void>(resolve => {
   const a = atem;
   if (!a) return resolve();
   const done = () => { clearTimeout(timer); a.off('stateChanged', done); resolve(); };
   const timer = setTimeout(done, 150);
   a.on('stateChanged', done);
 });
-const noInput = (s, v) => `No input "${v}" on the ${s.model}. Use its number or its name: ${s.inputs.map(x => `${x.id} ${x.name}`).join(', ')}.`;
-const nameOf = (s, id) => (s.inputs.find(i => i.id === id) || {}).name || `input ${id}`;
+const noInput = (s: Summary, v: unknown) => `No input "${v}" on the ${s.model}. Use its number or its name: ${s.inputs.map(x => `${x.id} ${x.name}`).join(', ')}.`;
+const nameOf = (s: Summary, id: number | null) => s.inputs.find(i => i.id === id)?.name || `input ${id}`;
 
 // The output the stinger plays on: the first on a downstream key that's switched on, else Output 1 (the primary)
 // if it's on, else the first on a downstream key even though it's off (the card says to turn it on). Output 1 when
 // no output is set up, off (Web links only is off), so the card says so: { id, name, on }.
 function stingerOutput() {
-  let plan;
+  let plan: PlanOut[];
   try { plan = outputsPlan() || []; } catch { plan = []; }
   const dsk = plan.filter(x => x.keyer.startsWith('dsk'));
   const main = plan.find(x => x.id === 'main');
@@ -400,10 +439,10 @@ function stingerOutput() {
 // the middle of the cover, moved by the line-up in frames. test cuts 2 frames after the cover starts instead,
 // so a line-up that's out shows as the old picture flashing before the bands. With no stinger in the scene
 // it's an auto; if the stinger doesn't start within 3 s, a plain cut.
-const sleep = ms => new Promise(r => setTimeout(r, Math.max(0, ms)));
+const sleep = (ms: number) => new Promise(r => setTimeout(r, Math.max(0, ms)));
 // One at a time: a second press while one plays (a nervous double tap) is left out, so there's only ever one cut.
 let stingerBusy = false;
-async function stingerCut(s, a, why, test = false) {
+async function stingerCut(s: Summary, a: Body, why: string, test = false): Promise<string | Fail> {
   if (stingerBusy) {
     log('warn', 'switcher', `${why}: a stinger is already playing, so this one was left out`);
     return { error: 'A stinger is already playing, so this one was left out.', status: 409 };
@@ -411,18 +450,19 @@ async function stingerCut(s, a, why, test = false) {
   stingerBusy = true;
   try { return await stingerPlay(s, a, why, test); } finally { stingerBusy = false; }
 }
-async function stingerPlay(s, a, why, test) {
+async function stingerPlay(s: Summary, a: Body, why: string, test: boolean): Promise<string | Fail> {
   let to = s.preview;
   let onProgram = false; // the input is on program already: the stinger plays (over the graphics changing), with no cut
   if (a.input !== undefined && a.input !== null && a.input !== '') {
     const i = inputOf(s, a.input);
     if (!i) return { error: noInput(s, a.input), status: 404 };
     onProgram = i.id === s.program && !test;
-    if (!onProgram && i.id !== s.preview) await atem.changePreviewInput(i.id, 0);
+    if (!onProgram && i.id !== s.preview) await client().changePreviewInput(i.id, 0);
     to = i.id;
   }
   const name = nameOf(s, to);
-  const src = stingerApi && stingerApi.find(a.source);
+  const api = stingerApi;
+  const src = api && api.find(a.source);
   if (!src) {
     if (onProgram) return `${name} is already on program`;
     log('warn', 'switcher', `${why}: there's no stinger in the scene (add the Stinger page as a source), so an auto instead`);
@@ -431,13 +471,13 @@ async function stingerPlay(s, a, why, test) {
   }
   const where = stingerOutput();
   const lineup = lineups[where.id] || 0;
-  const heard = new Promise(resolve => {
+  const heard = new Promise<Cover | null>(resolve => {
     const timer = setTimeout(() => { stingerWait = null; resolve(null); }, STINGER_WAIT_MS);
     stingerWait = { output: where.id, resolve: c => { clearTimeout(timer); stingerWait = null; resolve(c); } };
   });
-  if (!stingerApi.play(src.id, where.id)) { stingerWait.resolve(null); }
+  if (!api || !api.play(src.id, where.id)) stingerWait?.resolve(null);
   const cover = await heard;
-  if (!atem || atem.status !== 2) throw new Error('the switcher stopped answering during the stinger');
+  if (!ready()) throw new Error('the switcher stopped answering during the stinger');
   if (onProgram) return `stinger only (${name} is already on program)`;
   if (!cover) {
     log('warn', 'switcher', `${why}: the stinger "${src.name}" didn't start within ${STINGER_WAIT_MS / 1000} s, so a plain cut`);
@@ -447,14 +487,14 @@ async function stingerPlay(s, a, why, test) {
   const frame = 1000 / s.fps;
   const at = (test ? cover.from * 1000 + 2 * frame : (cover.from + cover.to) / 2 * 1000) + lineup * frame;
   await sleep(at - (now() - cover.at));
-  if (!atem || atem.status !== 2) throw new Error('the switcher stopped answering during the stinger');
+  if (!ready()) throw new Error('the switcher stopped answering during the stinger');
   const keys = await take(s, 'cut', to);
   const secs = (at / 1000).toFixed(2);
   return `stinger to ${name}${keys} (on ${where.name}, cut at ${secs} s, covered ${cover.from.toFixed(2)} to ${cover.to.toFixed(2)} s${lineup ? `, line-up ${lineup > 0 ? '+' : ''}${lineup} frames` : ''})`;
 }
 // The stinger page (through scene.html on an output's own window) says it has started: [from, to] seconds it covers
 // the frame. Only the output it's playing on for the cut counts (it may be on others too).
-function stingerStarted(cover, output) {
+function stingerStarted(cover: unknown, output: unknown) {
   const c = Array.isArray(cover) ? cover.map(Number) : [];
   if (!stingerWait || String(output || 'main') !== stingerWait.output || c.length !== 2 || !c.every(x => Number.isFinite(x) && x >= 0 && x < 10) || c[1] <= c[0]) return;
   stingerWait.resolve({ from: c[0], to: c[1], at: now() });
@@ -465,17 +505,19 @@ function stingerStarted(cover, output) {
 // 'stinger' (input, source: the stinger source when the scene has more than one; test) }.
 // Keys and macros count from 1, as on the switcher. Gives { ok, ... } or { error }; nothing is queued
 // for later when the switcher isn't answering.
-async function act(a, why = 'Output page') {
+async function act(given: unknown, why = 'Output page'): Promise<Result> {
+  const a = obj(given);
   const s = conn === 'connected' ? summary() : null;
-  const what = a && a.type;
+  const what = str(a.type);
   if (!s) {
     const err = !pick ? 'No switcher is set up: pick one on the Output page, under Switcher.' : `The switcher isn't answering, so nothing was sent (${what || 'nothing'}).`;
     log('warn', 'switcher', `${why}: ${err}`);
     return { error: err, status: 409 };
   }
-  const key = (count, n) => { const k = Math.round(Number(n)); return k >= 1 && k <= count ? k : null; };
-  let done;
+  const key = (count: number, n: unknown) => { const k = Math.round(Number(n)); return k >= 1 && k <= count ? k : null; };
+  let done: string;
   try {
+    const atem = client();
     if (what === 'cut' || what === 'auto') {
       // To an input: it goes on preview first, then the cut or auto takes it (and what was on goes to preview).
       let to = s.preview;
@@ -488,8 +530,9 @@ async function act(a, why = 'Output page') {
       }
       done = `${what} to ${nameOf(s, to)}${await take(s, what, to)}`;
     } else if (what === 'stinger') {
-      done = await stingerCut(s, a, why, !!a.test);
-      if (done.error) return done;
+      const r = await stingerCut(s, a, why, !!a.test);
+      if (typeof r !== 'string') return r;
+      done = r;
     } else if (what === 'ftb') {
       // on: 'on' fades to black, 'off' fades back; left out, it goes whichever way it isn't.
       if ((a.on === 'on' || a.on === true) && s.ftb) return { ok: true, done: 'already faded to black' };
@@ -500,7 +543,7 @@ async function act(a, why = 'Output page') {
     else if (what === 'preview' || what === 'program') {
       const i = inputOf(s, a.input);
       if (!i) return { error: noInput(s, a.input), status: 404 };
-      if (what === 'preview') await atem.changePreviewInput(i.id, 0);
+      if (what === 'preview') { await atem.changePreviewInput(i.id, 0); done = `preview to ${i.name}`; }
       else {
         // Straight to program (the program bus, preview stays): the paired keys follow straight after.
         const changes = pairedChanges(s, i.id);
@@ -509,7 +552,6 @@ async function act(a, why = 'Output page') {
         lastProgram = i.id;
         done = `cut to ${i.name}${keysText(changes)}`;
       }
-      if (what === 'preview') done = `preview to ${i.name}`;
     } else if (what === 'usk' || what === 'dsk') {
       const list = what === 'usk' ? s.usk : s.dsk;
       const k = key(list.length, a.key);
@@ -533,8 +575,8 @@ async function act(a, why = 'Output page') {
       done = `macro ${n}`;
     } else return { error: `Unknown switcher action "${what}".`, status: 400 };
   } catch (err) {
-    log('warn', 'switcher', `${why}: ${what} failed: ${err && err.message || 'the switcher stopped answering'}`);
-    return { error: `The switcher didn't take it (${err && err.message || 'it stopped answering'}).`, status: 502 };
+    log('warn', 'switcher', `${why}: ${what} failed: ${errorMessage(err) || 'the switcher stopped answering'}`);
+    return { error: `The switcher didn't take it (${errorMessage(err) || 'it stopped answering'}).`, status: 502 };
   }
   log('info', 'switcher', `${why}: ${done}`);
   await settled();
@@ -548,14 +590,15 @@ async function act(a, why = 'Output page') {
 // switcher isn't answering). They fire only for what plays on the primary output.
 const ACTION_TYPES = ['cut', 'auto', 'stinger', 'preview', 'usk', 'dsk', 'ftb', 'macro'];
 const MAX_ACTIONS = 8;
-function cleanActions(list) {
-  const out = [];
-  for (const a of Array.isArray(list) ? list : []) {
-    if (!a || typeof a !== 'object' || !ACTION_TYPES.includes(a.type)) continue;
-    const n = (v, lo, hi) => { const x = Math.round(Number(v)); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, x)) : lo; };
+function cleanActions(list: unknown): SwitcherAction[] {
+  const out: SwitcherAction[] = [];
+  for (const v of arr(list)) {
+    if (!isObj(v) || typeof v.type !== 'string' || !ACTION_TYPES.includes(v.type)) continue;
+    const a = v;
+    const n = (v: unknown, lo: number, hi: number) => { const x = Math.round(Number(v)); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, x)) : lo; };
     const atSec = Math.round(Math.min(60, Math.max(0, Number(a.atSec) || 0)) * 10) / 10;
-    const c = { type: a.type };
-    if (['cut', 'auto', 'stinger', 'preview'].includes(a.type)) {
+    const c: SwitcherAction = { type: str(a.type), atSec: 0 };
+    if (['cut', 'auto', 'stinger', 'preview'].includes(c.type)) {
       const input = Math.round(Number(a.input));
       if (Number.isFinite(input) && input >= 1 && input <= 9999) {
         c.input = input;
@@ -564,7 +607,7 @@ function cleanActions(list) {
       } else if (a.type === 'preview') continue; // preview needs an input; cut and auto take what's on preview
     } else if (a.type === 'usk' || a.type === 'dsk') {
       c.key = n(a.key, 1, 4);
-      c.on = ['on', 'off', 'toggle'].includes(a.on) ? a.on : 'on';
+      c.on = typeof a.on === 'string' && ['on', 'off', 'toggle'].includes(a.on) ? a.on : 'on';
       if (a.type === 'dsk' && a.mix) c.mix = true;
     } else if (a.type === 'ftb') c.on = a.on === 'off' ? 'off' : 'on';
     else if (a.type === 'macro') c.macro = n(a.macro, 1, 100);
@@ -575,7 +618,7 @@ function cleanActions(list) {
   return out;
 }
 // One action in words, for the log and the Output page ("cut to Court", "downstream key 1 on (auto)").
-function describe(a) {
+function describe(a: Partial<SwitcherAction>) {
   const to = a.input ? ` to ${a.name || `input ${a.input}`}` : ' to what\'s on preview';
   const what = a.type === 'cut' ? `cut${to}` : a.type === 'auto' ? `auto${to}` : a.type === 'stinger' ? `stinger${to}`
     : a.type === 'preview' ? `${a.name || `input ${a.input}`} on preview`
@@ -588,22 +631,22 @@ function describe(a) {
 // Does actions (cleaned) for owner ('sequence' or 'scene'): those at 0 s now, the rest on timers, each
 // time's in order (a preview before the cut). Anything still waiting for that owner is called off first.
 // When the switcher isn't answering, or hasn't what an action needs, it's skipped and logged, never queued.
-const waiting = new Map(); // owner -> [timer]
+const waiting = new Map<string, NodeJS.Timeout[]>(); // owner -> [timer]
 // owner -> a number that goes up each time its actions are called off, so a group part way through (waiting
 // for a stinger, say) stops before its next action too.
-const runs = new Map();
-function cancel(owner) {
+const runs = new Map<string, number>();
+function cancel(owner: string) {
   for (const t of waiting.get(owner) || []) clearTimeout(t);
   waiting.delete(owner);
   runs.set(owner, (runs.get(owner) || 0) + 1);
 }
-function run(actions, why, owner) {
+function run(actions: SwitcherAction[] | null | undefined, why: string, owner: string) {
   cancel(owner);
   if (!actions || !actions.length) return;
   const mine = runs.get(owner);
-  const at = new Map();
+  const at = new Map<number, SwitcherAction[]>();
   for (const a of actions) at.set(a.atSec || 0, [...(at.get(a.atSec || 0) || []), a]);
-  const go = async group => {
+  const go = async (group: SwitcherAction[]) => {
     for (const a of group) {
       if (runs.get(owner) !== mine) return; // called off
       const r = await act(a, why);
@@ -612,7 +655,7 @@ function run(actions, why, owner) {
       if (r.status === 409) return; // nothing more to send it
     }
   };
-  const timers = [];
+  const timers: NodeJS.Timeout[] = [];
   for (const [sec, group] of [...at].sort((x, y) => x[0] - y[0])) {
     if (!sec) go(group);
     else timers.push(setTimeout(() => go(group), sec * 1000));
@@ -624,38 +667,39 @@ function run(actions, why, owner) {
 // An output on an upstream key with cameras named goes on air with them: its key should be on while one of its
 // cameras is on program and off otherwise. Outputs whose key check has a problem (two on one key, a key the switcher
 // hasn't got) are left alone, as are downstream keys (over every camera) and outputs with no cameras.
-const KEY_BIT = k => 2 << k;  // the switcher's next transition selection: bit 0 the background, bits 1 to 4 upstream keys 1 to 4
-function pairedChanges(s, to) {
-  const out = [];
+const KEY_BIT = (k: number) => 2 << k;  // the switcher's next transition selection: bit 0 the background, bits 1 to 4 upstream keys 1 to 4
+interface KeyChange { k: number; on: boolean; name: string }
+function pairedChanges(s: Summary, to: number | null) {
+  const out: KeyChange[] = [];
   for (const c of keyChecks(s)) {
     if (!c.cameras.length || c.problems.length || !c.keyer.startsWith('usk')) continue;
     const k = Number(c.keyer.slice(3)) - 1;
-    const on = c.cameras.includes(to);
+    const on = to !== null && c.cameras.includes(to);
     if (s.usk[k] !== on) out.push({ k, on, name: c.name });
   }
   return out;
 }
-const keysText = changes => changes.length ? `, with ${changes.map(c => `${c.name}'s key ${c.on ? 'on' : 'off'}`).join(' and ')}` : '';
+const keysText = (changes: KeyChange[]) => changes.length ? `, with ${changes.map(c => `${c.name}'s key ${c.on ? 'on' : 'off'}`).join(' and ')}` : '';
 // Cuts or autos to input to (already on preview), taking the paired keys that need to change in the same
 // transition, so the camera and its graphics change on the same frame. The switcher's next transition selection is
 // put back as it was afterwards, so the panel's BKGD and KEY buttons are as the operator left them. Gives the keys in words.
 // The operator's own next transition selection while Studio's takes have it changed (null otherwise), and how many
 // takes are still to put it back: a second take during an auto (a double tap, a sequence with two transitions) puts
 // back the operator's, not the first take's, and only once the last one is over.
-let heldSelection = null;
+let heldSelection: number[] | null = null;
 let takesOpen = 0;
-async function take(s, kind, to) {
+async function take(s: Summary, kind: string, to: number | null) {
   const changes = pairedChanges(summary() || s, to); // as the keys are now (a stinger may have played meanwhile)
-  const go = () => (kind === 'auto' ? atem.autoTransition(0) : atem.cut(0));
+  const a = client();
+  const go = () => (kind === 'auto' ? a.autoTransition(0) : a.cut(0));
   if (!changes.length) { await go(); return ''; }
   const { Enums } = loadLibrary();
-  const a = atem;
-  const me = () => (a.state.video.mixEffects || [])[0] || {};
-  if (!takesOpen) heldSelection = ((me().transitionProperties || {}).nextSelection || [Enums.TransitionSelection.Background]).slice();
+  const me = () => a.state?.video.mixEffects[0];
+  if (!takesOpen) heldSelection = (me()?.transitionProperties?.nextSelection || [Enums.TransitionSelection.Background]).slice();
   takesOpen++;
   const mask = changes.reduce((m, c) => m | KEY_BIT(c.k), 1);
-  const sel = Object.values(Enums.TransitionSelection).filter(v => typeof v === 'number' && (mask & v));
-  const inMix = () => !!(me().transitionPosition && me().transitionPosition.inTransition);
+  const sel = Object.values(Enums.TransitionSelection).filter((v): v is number => typeof v === 'number' && !!(mask & v));
+  const inMix = () => !!me()?.transitionPosition?.inTransition;
   // A cut is over once the switcher has answered. An auto takes its rate: the switcher answers before it says the
   // mix has started, so wait for it to start (up to a second) and then to end (up to 10 s) before putting the
   // selection back, so it's never changed part way through the mix.
@@ -670,7 +714,7 @@ async function take(s, kind, to) {
     if (a === atem && a.status === 2 && back) await a.setTransitionStyle({ nextSelection: back }, 0).catch(() => {});
   };
   try {
-    await atem.setTransitionStyle({ nextSelection: sel }, 0);
+    await a.setTransitionStyle({ nextSelection: sel }, 0);
     await go();
   } catch (err) { restore(); throw err; }
   if (kind === 'auto') restore(); else await restore();
@@ -680,8 +724,8 @@ async function take(s, kind, to) {
 // later (one or two frames). Only on a change of program camera, so a key turned on or off by hand stays as it is;
 // never while connecting. Studio's own cuts already took the keys, so there's nothing left to send then.
 function followSoon() {
-  const st = atem && atem.status === 2 && atem.state;
-  const program = st ? ((st.video.mixEffects || [])[0] || {}).programInput : null;
+  const st = ready()?.state;
+  const program = st ? st.video.mixEffects[0]?.programInput : null;
   if (program === undefined || program === null || program === lastProgram) return;
   lastProgram = program;
   if (!follow) return;
@@ -695,9 +739,9 @@ async function followNow() {
   const changes = pairedChanges(s, s.program);
   if (!changes.length) return;
   try {
-    for (const c of changes) await atem.setUpstreamKeyerOnAir(c.on, 0, c.k);
+    for (const c of changes) await client().setUpstreamKeyerOnAir(c.on, 0, c.k);
     log('info', 'switcher', `Keys follow the camera: ${nameOf(s, s.program)} on program${keysText(changes)}`);
-  } catch (err) { log('warn', 'switcher', `Keys follow the camera: ${err && err.message || 'the switcher stopped answering'}`); }
+  } catch (err) { log('warn', 'switcher', `Keys follow the camera: ${errorMessage(err) || 'the switcher stopped answering'}`); }
 }
 
 // ─── The outputs' keys: a check of their settings, and setting them up ───────
@@ -709,17 +753,18 @@ async function followNow() {
 // round logos and text, and with Pre Multiplied Key off clip and gain cut into the soft edges instead. It only reads:
 // the key (and Straight) is changed only when Set up this key for me is pressed (keySetup), and never the key's on air,
 // colour, clip, gain or position.
-const KEYER_LABEL = k => `${k.startsWith('dsk') ? 'downstream' : 'upstream'} key ${k.slice(3)}`;
-const ucFirst = t => t.charAt(0).toUpperCase() + t.slice(1);
-function keyChecks(s) {
-  let plan;
+const KEYER_LABEL = (k: string) => `${k.startsWith('dsk') ? 'downstream' : 'upstream'} key ${k.slice(3)}`;
+const ucFirst = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+function keyChecks(s: Summary): KeyCheck[] {
+  let plan: PlanOut[];
   try { plan = outputsPlan() || []; } catch { plan = []; }
-  const st = atem.state;
-  const me = (st.video.mixEffects || [])[0] || {};
-  const src = id => { const i = (st.inputs || {})[id]; return i ? i.longName || `input ${id}` : `input ${id}`; };
-  const yes = b => (b ? 'on' : 'off');
+  const st = atem?.state;
+  if (!st) return [];
+  const me = st.video.mixEffects[0];
+  const src = (id: number | null | undefined) => { const i = id === null || id === undefined ? undefined : st.inputs[id]; return i ? i.longName || `input ${id}` : `input ${id}`; };
+  const yes = (b: boolean | null) => (b ? 'on' : 'off');
   return plan.map(o => {
-    const c = { output: o.id, name: o.name, colour: o.colour, keyer: o.keyer, label: o.keyer === 'none' ? '' : ucFirst(KEYER_LABEL(o.keyer)),
+    const c: KeyCheck = { output: o.id, name: o.name, colour: o.colour, keyer: o.keyer, label: o.keyer === 'none' ? '' : ucFirst(KEYER_LABEL(o.keyer)),
       onAir: false, problems: [], fixes: [], cameras: o.keyer.startsWith('usk') ? o.cameras || [] : [], withCamera: '' };
     if (o.keyer === 'none') return c;
     const usk = o.keyer.startsWith('usk');
@@ -733,7 +778,7 @@ function keyChecks(s) {
     c.onAir = usk ? s.usk[k] : s.dsk[k];
     // With its cameras: "On air with Court", or "Waiting for Court or Bench" while another camera is on program.
     if (c.cameras.length) {
-      c.withCamera = c.cameras.includes(s.program) ? `${c.onAir ? 'On air' : 'Off air'} with ${src(s.program)}`
+      c.withCamera = s.program !== null && c.cameras.includes(s.program) ? `${c.onAir ? 'On air' : 'Off air'} with ${src(s.program)}`
         : `Waiting for ${c.cameras.map(src).join(' or ')}`;
     }
     // Shown on both outputs, so whichever one the operator looks at says so.
@@ -749,13 +794,13 @@ function keyChecks(s) {
     for (const id of [o.fill, chroma ? 0 : o.key]) if (id && !s.inputs.some(i => i.id === id)) c.problems.push(`The ${s.model} has no input ${id}.`);
     if (c.problems.length) return c;
     // What the key has, against what the output needs.
-    const want = { fill: o.fill, cut: chroma ? null : o.key, pre: chroma ? null : true, type: usk ? (chroma ? 1 : 0) : null, straightOff: !chroma && !o.premultiplied };
-    const has = usk ? (() => { const u = (me.upstreamKeyers || [])[k] || {};
-      return { fill: u.fillSource, cut: u.cutSource, pre: !!(u.lumaSettings && u.lumaSettings.preMultiplied), type: u.mixEffectKeyType }; })()
-      : (() => { const d = (st.video.downstreamKeyers || [])[k] || {};
-        return { fill: (d.sources || {}).fillSource, cut: (d.sources || {}).cutSource, pre: !!(d.properties && d.properties.preMultiply), type: null }; })();
+    const want: Want = { fill: o.fill, cut: chroma ? null : o.key, pre: chroma ? null : true, type: usk ? (chroma ? 1 : 0) : null, straightOff: !chroma && !o.premultiplied };
+    const has: { fill?: number; cut?: number; pre: boolean; type?: number | null } = usk ? (() => { const u = me?.upstreamKeyers[k];
+      return { fill: u?.fillSource, cut: u?.cutSource, pre: !!u?.lumaSettings?.preMultiplied, type: u?.mixEffectKeyType }; })()
+      : (() => { const d = st.video.downstreamKeyers[k];
+        return { fill: d?.sources?.fillSource, cut: d?.sources?.cutSource, pre: !!d?.properties?.preMultiply, type: null }; })();
     const TYPES = ['Luma', 'Chroma', 'Pattern', 'DVE'];
-    if (want.type !== null && has.type !== want.type) c.fixes.push(`Key type is ${TYPES[has.type] || 'something else'}, should be ${TYPES[want.type]}`);
+    if (want.type !== null && has.type !== want.type) c.fixes.push(`Key type is ${(has.type != null && TYPES[has.type]) || 'something else'}, should be ${TYPES[want.type]}`);
     if (has.fill !== want.fill) c.fixes.push(`Fill source is ${src(has.fill)}, should be ${src(want.fill)}`);
     if (want.cut !== null && has.cut !== want.cut) c.fixes.push(`Key source is ${src(has.cut)}, should be ${src(want.cut)}`);
     if (want.pre !== null && has.pre !== want.pre) c.fixes.push(`Pre Multiplied Key is ${yes(has.pre)}, should be ${yes(want.pre)}`);
@@ -765,7 +810,7 @@ function keyChecks(s) {
   });
 }
 // Set up this key for me: changes only what the check found different, on the key the output comes into.
-async function keySetup(a) {
+async function keySetup(a: Body): Promise<Result> {
   const s = conn === 'connected' ? summary() : null;
   if (!s) return { error: !pick ? 'No switcher is set up: pick one on the Output page, under Switcher.' : 'The switcher isn\'t answering, so nothing was changed.', status: 409 };
   const c = keyChecks(s).find(x => x.output === String(a.output));
@@ -775,22 +820,24 @@ async function keySetup(a) {
   if (!c.fixes.length) return { ok: true, done: `${c.label} is already set up for ${c.name}` };
   const k = Number(c.keyer.slice(3)) - 1;
   const w = c.want;
+  if (!w) return { ok: true, done: `${c.label} is already set up for ${c.name}` };
   // Straight off first, so the key never goes Pre Multiplied with straight fill coming in.
   if (w.straightOff) straightOff(c.output);
   try {
+    const atem = client();
     if (c.keyer.startsWith('usk')) {
-      await atem.setUpstreamKeyerType({ mixEffectKeyType: w.type }, 0, k);
+      if (w.type !== null) await atem.setUpstreamKeyerType({ mixEffectKeyType: w.type }, 0, k);
       await atem.setUpstreamKeyerFillSource(w.fill, 0, k);
       if (w.cut !== null) await atem.setUpstreamKeyerCutSource(w.cut, 0, k);
       if (w.pre !== null) await atem.setUpstreamKeyerLumaSettings({ preMultiplied: w.pre }, 0, k);
     } else {
       await atem.setDownstreamKeyFillSource(w.fill, k);
-      await atem.setDownstreamKeyCutSource(w.cut, k);
-      await atem.setDownstreamKeyGeneralProperties({ preMultiply: w.pre }, k);
+      if (w.cut !== null) await atem.setDownstreamKeyCutSource(w.cut, k);
+      if (w.pre !== null) await atem.setDownstreamKeyGeneralProperties({ preMultiply: w.pre }, k);
     }
   } catch (err) {
-    log('warn', 'switcher', `Setting up ${KEYER_LABEL(c.keyer)} for ${c.name} failed: ${err && err.message || 'the switcher stopped answering'}`);
-    return { error: `The switcher didn't take it (${err && err.message || 'it stopped answering'}).`, status: 502 };
+    log('warn', 'switcher', `Setting up ${KEYER_LABEL(c.keyer)} for ${c.name} failed: ${errorMessage(err) || 'the switcher stopped answering'}`);
+    return { error: `The switcher didn't take it (${errorMessage(err) || 'it stopped answering'}).`, status: 502 };
   }
   const done = `set up ${KEYER_LABEL(c.keyer)} for ${c.name}: ${c.fixes.map(f => f.replace(/ is .*, should be /, ' ').replace(/ \(.*\)$/, '')).join(', ')}`;
   log('info', 'switcher', `Output page: ${done}`);
@@ -801,7 +848,7 @@ async function keySetup(a) {
 // ─── Settings from the Output page ────────────────────────────────────────
 // { type: 'use', name } a found switcher, { type: 'use', address } a typed one, { type: 'forget' },
 // { type: 'reconnect' }, { type: 'keySetup', output } (an output's key, as its key settings check says).
-async function settings(a) {
+async function settings(a: Body): Promise<Result | null> {
   if (a.type === 'keySetup') return keySetup(a);
   if (a.type === 'follow') {
     follow = a.on !== false;
@@ -835,7 +882,7 @@ async function settings(a) {
   if (a.type !== 'use') return null;
   if (a.name) {
     const f = found.find(x => x.name === a.name);
-    if (!f) return { error: `"${a.name}" wasn't found on the network. Look again, or type its address.`, status: 404 };
+    if (!f) return { error: `"${str(a.name)}" wasn't found on the network. Look again, or type its address.`, status: 404 };
     pick = { kind: 'found', name: f.name, host: f.host, port: f.port, address: f.address };
   } else {
     const p = parseAddress(a.address);
@@ -850,7 +897,7 @@ async function settings(a) {
 
 // ─── HTTP and Stream Deck links ───────────────────────────────────────────
 const ACTIONS = ['cut', 'auto', 'stinger', 'ftb', 'preview', 'program', 'usk', 'dsk', 'macro'];
-async function route(req, res, url, { send, readBody }) {
+async function route(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, url: URL, { send, readBody }: { send: Send; readBody: ReadBody }) {
   if (url.pathname === '/api/switcher/find') {
     if (req.method === 'POST') await find();
     send(res, 200, status());
@@ -868,9 +915,9 @@ async function route(req, res, url, { send, readBody }) {
   }
   if (url.pathname !== '/api/switcher') return false;
   if (req.method === 'POST') {
-    const a = await readBody(req).catch(() => ({}));
-    const r = ACTIONS.includes(a.type) ? await act(a) : await settings(a);
-    if (!r) { send(res, 400, { error: `Unknown switcher request "${a.type}".` }); return true; }
+    const a = await readBody(req).catch((): Body => ({}));
+    const r = ACTIONS.includes(str(a.type)) ? await act(a) : await settings(a);
+    if (!r) { send(res, 400, { error: `Unknown switcher request "${str(a.type)}".` }); return true; }
     // The switcher as it is now, with why the request was refused as error (status() has its own error, the connection's).
     if (r.error) { send(res, r.status || 400, { ...status(), error: r.error }); return true; }
   }
@@ -878,11 +925,11 @@ async function route(req, res, url, { send, readBody }) {
   return true;
 }
 // /deck/switcher/...: { status, body } or null when the link isn't one of the switcher's.
-async function deck(parts) {
+async function deck(parts: string[]) {
   if (parts[0] !== 'switcher') return null;
   const [, what, n, verb] = parts;
   const usage = { status: 404, body: { error: 'Use /deck/switcher/cut, auto, stinger (or stinger/<input>), ftb, preview/<input>, program/<input>, usk/<n>/on|off|toggle, dsk/<n>/on|off|toggle|auto or macro/<n>.' } };
-  let a;
+  let a: Body;
   if (['cut', 'auto', 'ftb'].includes(what) && !n) a = { type: what };
   else if ((what === 'preview' || what === 'program') && n) a = { type: what, input: n };
   else if (what === 'stinger' && !verb) a = n ? { type: what, input: n } : { type: what };
@@ -905,30 +952,30 @@ async function deck(parts) {
 const AUDIO_IN = 2;           // atem-connection's Enums.FairlightInputType.AudioIn
 const MIX_OFF = 1;            // Enums.FairlightAudioMixOption.Off
 function micInputs() {
-  const st = atem && atem.state;
-  if (!st || atem.status !== 2 || !st.fairlight) return [];
+  const st = ready()?.state;
+  if (!st || !st.fairlight) return [];
   return Object.entries(st.fairlight.inputs || {})
-    .filter(([, i]) => i && i.properties && i.properties.inputType === AUDIO_IN)
-    .map(([id, i]) => {
+    .flatMap(([id, i]) => (i && i.properties && i.properties.inputType === AUDIO_IN ? [{ id, i }] : []))
+    .map(({ id, i }) => {
       const n = Number(id);
-      const named = st.inputs && st.inputs[n] && st.inputs[n].longName;
-      const sources = Object.entries(i.sources || {}).filter(([, x]) => x && x.properties)
-        .sort(([a], [b]) => (BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0))
-        .map(([sid, x]) => ({ id: sid, fader: x.properties.faderGain / 100, off: x.properties.mixOption === MIX_OFF }));
+      const named = st.inputs[n]?.longName;
+      const sources = Object.entries(i.sources || {}).flatMap(([sid, x]) => (x && x.properties ? [{ sid, p: x.properties }] : []))
+        .sort((a, b) => (BigInt(a.sid) < BigInt(b.sid) ? -1 : BigInt(a.sid) > BigInt(b.sid) ? 1 : 0))
+        .map(({ sid, p }) => ({ id: sid, fader: p.faderGain / 100, off: p.mixOption === MIX_OFF }));
       return { id: n, name: named || (n > 1300 && n < 1400 ? `Mic ${n - 1300}` : `Audio in ${n}`), sources };
     })
     .sort((a, b) => a.id - b.id);
 }
 // The sound coming into one source of an audio input (dBFS, its loudest over the last half second), or undefined
 // when the switcher isn't sending levels (not connected, or not lately).
-const levels = new Map(); // "input:source" -> { db, at }
+const levels = new Map<string, { db: number; at: number }>(); // "input:source" -> { db, at }
 const LEVEL_HOLD_MS = 500, LEVEL_STALE_MS = 2000;
-function micLevel(input, source) {
+function micLevel(input: number, source: number | string) {
   const l = conn === 'connected' && levels.get(`${input}:${source}`);
   return l && Date.now() - l.at < LEVEL_STALE_MS ? Math.max(-100, Math.min(0, l.db)) : undefined;
 }
 // Moves one source's fader to dB (-100 is all the way down). Resolves false when the switcher isn't connected.
-async function setMicFader(input, source, dB) {
+async function setMicFader(input: number, source: number | string, dB: number) {
   if (!atem || conn !== 'connected') return false;
   try { await atem.setFairlightAudioMixerSourceProps(Number(input), String(source), { faderGain: Math.round(dB * 100) }); return true; }
   catch (err) { log('warn', 'switcher', `Couldn't move the fader of input ${input}: ${errorMessage(err)}`); return false; }
@@ -936,7 +983,8 @@ async function setMicFader(input, source, dB) {
 
 // changed(): the switcher's state changed; stinger: { find, play } (scene.js); outputs(): outputs.js switcherPlan;
 // unstraight(id): untick that output's Straight; mics(): its audio changed (mics.js).
-function init(logger, { changed: onChanged, stinger, outputs, unstraight, mics } = {}) {
+interface Hooks { changed?(): void; stinger?: StingerApi; outputs?(): PlanOut[]; unstraight?(id: string): void; mics?(): void }
+function init(logger: Log, { changed: onChanged, stinger, outputs, unstraight, mics }: Hooks = {}) {
   log = logger;
   if (unstraight) straightOff = unstraight;
   if (mics) micsChanged = mics;
@@ -950,4 +998,6 @@ function init(logger, { changed: onChanged, stinger, outputs, unstraight, mics }
 // The outputs changed: their key settings check may say something else now.
 const refresh = () => changed();
 
-export { init, route, deck, act, run, cancel, cleanActions, describe, status, find, refresh, micInputs, micLevel, setMicFader, stingerOutput, FILE, parseBrowse, parseLookup, parseAddress };
+export type { SwitcherAction, Summary as SwitcherSummary };
+export { init, route,
+ deck, act, run, cancel, cleanActions, describe, status, find, refresh, micInputs, micLevel, setMicFader, stingerOutput, FILE, parseBrowse, parseLookup, parseAddress };
