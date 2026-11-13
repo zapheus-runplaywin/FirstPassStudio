@@ -113,7 +113,7 @@ interface Api {
   sponsorAd?(opts: { house?: boolean }, out: string): { source: string; length: Length; name: string } | null; changed(): void;
 }
 // What a Stream Deck link gives (deck()).
-type DeckResult = { error: string; status: number } | { body: Record<string, unknown> } | null;
+type DeckResult = { error?: string; status?: number; body?: Record<string, unknown> } | null;
 
 const COLOURS = ['blue', 'green', 'grey', 'yellow', 'purple'];
 // Scenes and sequences are listed by their colour group, in the order of a stream (pre-game, live stream,
