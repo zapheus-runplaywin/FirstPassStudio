@@ -167,7 +167,7 @@ function create(deps) {
   // while PlayHQ fails). A column PlayHQ doesn't have for the sport is left out, and the page leaves it out too.
   const ladders = createKeeper();
   async function getLadder(gradeId) {
-    const kept = await ladders.get(gradeId, dataAge(DURING_GAME_MS, ladders.peek(gradeId)), async () => {
+    const kept = await ladders.get(gradeId, dataAge(DURING_GAME_MS, ladders.peek(gradeId), `ladder:${gradeId}`), async () => {
       const l = await api.ladder(gradeId);
       return { grade: l.grade, pools: l.pools, updatedAt: new Date().toISOString() };
     });
@@ -187,7 +187,7 @@ function create(deps) {
   // next time.
   const roundGames = createKeeper();
   async function getRoundGames(roundId, maxAgeMs) {
-    const kept = await roundGames.get(roundId, dataAge(maxAgeMs, roundGames.peek(roundId)), async () => {
+    const kept = await roundGames.get(roundId, dataAge(maxAgeMs, roundGames.peek(roundId), `round:${roundId}`), async () => {
       const games = await api.roundGames(roundId);
       for (const g of games) noteStart(g);
       return games;
@@ -265,7 +265,7 @@ function create(deps) {
   // Read again once older than maxAgeMs: as the live feed is (liveAge) for a game being played, else as the fixtures are.
   async function getGame(gameId, maxAgeMs) {
     const hit = gameCache.get(gameId);
-    const age = pace(gameId) === 'game' ? maxAgeMs : dataAge(maxAgeMs, hit);
+    const age = pace(gameId) === 'game' ? maxAgeMs : dataAge(maxAgeMs, hit, `game:${gameId}`);
     if (hit && Date.now() - hit.at < age) return hit.game;
     if (!gameInFlight.has(gameId)) {
       gameInFlight.set(gameId, api.game(gameId)
@@ -391,16 +391,19 @@ function create(deps) {
     return false;
   }
   // How old the fixtures, ladders and game pages may get: as asked while a game is on, at least 5 minutes otherwise,
-  // and nothing for one read before Refresh list was pressed (askAgain).
+  // and nothing for one read of each that was kept before Refresh list was pressed (askAgain). Each is read afresh once,
+  // by its key, rather than by comparing times: a read finishing in the same millisecond as the press would otherwise
+  // count as before it and be read again on every ask until the clock moved on.
   let askedAgainAt = 0;
-  function dataAge(maxAgeMs, kept) {
-    if (kept && kept.at < askedAgainAt) return 0;
+  const readAgain = new Set(); // the keys read afresh since the last askAgain
+  function dataAge(maxAgeMs, kept, key) {
+    if (kept && kept.at <= askedAgainAt && !readAgain.has(key)) { readAgain.add(key); return 0; }
     return gameOn() ? maxAgeMs : Math.max(maxAgeMs, GENTLE_MS);
   }
   // A game known some other way than the fixtures (picked for the scoreboard with its day and time): its start, for its
   // pace, unless the fixtures have said already.
   function noteGame(g) { if (g && g.id && !gameStarts.has(g.id)) noteStart(g); }
-  function askAgain() { askedAgainAt = Date.now() + 1; } // +1: what was read in this same millisecond is read again too
+  function askAgain() { askedAgainAt = Date.now(); readAgain.clear(); }
 
   // Live score for any game: the live feed first, then the game page data, then the round fixture.
   async function liveScore(game, maxAgeMs) {
