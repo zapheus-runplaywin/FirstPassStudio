@@ -202,7 +202,7 @@ function clean(s: Body, old: Settings = DEFAULTS): Output {
     on: isOneOf(MODES, mode) && mode !== 'off' && pick('on', true) !== false,
     chromaDisplay: String(pick('chromaDisplay', '')),
     chromaColor: hex(pick('chromaColor')),
-    // Chroma key safe graphics (public/chroma.js): solid panels, no soft shadows, nothing half see-through.
+    // Chroma key safe graphics (public/chroma.ts): solid panels, no soft shadows, nothing half see-through.
     // On unless turned off; it only changes how the chroma outputs draw, never any source's own settings.
     chromaSafe: pick('chromaSafe', true) !== false,
     fillDisplay: String(pick('fillDisplay', '')),

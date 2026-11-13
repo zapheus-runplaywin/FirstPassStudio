@@ -22,16 +22,24 @@
 
 'use strict';
 
-(function () {
-  const guards = [];
+// One open editor: what it is, whether it has changes, and how to save or drop them (save resolves false when it can't).
+interface UnsavedGuard { what(): string, changed(): boolean, save(): Promise<unknown> | unknown, discard(): void, settle?: () => Promise<boolean | string> }
+// unsavedDialog(dlg, { what, snapshot, save }) and unsavedPage({ what, changed, save, discard }): see above.
+var unsavedDialog: (dlg: HTMLDialogElement, o: { what: string | (() => string), snapshot: () => unknown, save: () => Promise<unknown> | unknown }) => UnsavedGuard & { opened(): void };
+var unsavedPage: (o: { what: string | (() => string), changed: () => boolean, save: () => Promise<unknown> | unknown, discard: () => void }) => UnsavedGuard;
+// The Mac app's menu asks a page with changes before it loads another (desktop/windows.ts leaving).
+var studioBeforeLeave: (() => Promise<boolean>) | undefined;
 
-  function ask(g) {
+(function () {
+  const guards: UnsavedGuard[] = [];
+
+  function ask(g: UnsavedGuard) {
     return askChoice(`Save your changes to ${g.what() || 'this'}?`, "If you don't save them, they're lost.",
       [{ label: 'Keep editing', value: 'cancel', alt: true }, { label: "Don't save", value: 'discard', alt: true }, { label: 'Save', value: 'save' }]);
   }
 
   // One guard: asks when it has changes; false to stay put, else 'saved', 'discarded' or true.
-  async function settleOne(g) {
+  async function settleOne(g: UnsavedGuard): Promise<boolean | string> {
     if (!g.changed()) return true;
     const choice = await ask(g);
     if (choice === 'discard') { g.discard(); return 'discarded'; }
@@ -45,13 +53,13 @@
     return true;
   }
 
-  function add(g) {
+  function add(g: UnsavedGuard) {
     guards.push(g);
     if (guards.length > 1) return;
-    window.studioBeforeLeave = settle;
+    studioBeforeLeave = settle;
     // Following a link in this window (the tabs at the top) asks first.
     document.addEventListener('click', async e => {
-      const a = e.target.closest && e.target.closest('a[href]');
+      const a = e.target instanceof Element ? e.target.closest<HTMLAnchorElement>('a[href]') : null;
       if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       if (!guards.some(x => x.changed())) return;
       if ((a.target && a.target !== '_self') || a.hasAttribute('download')) return;
@@ -65,8 +73,8 @@
     addEventListener('beforeunload', e => { if (guards.some(x => x.changed())) { e.preventDefault(); e.returnValue = ''; } });
   }
 
-  window.unsavedDialog = function unsavedDialog(dlg, { what, snapshot, save }) {
-    let baseline = null;
+  unsavedDialog = function guardDialog(dlg, { what, snapshot, save }) {
+    let baseline: string | null = null;
     const now = () => { try { return JSON.stringify(snapshot()); } catch { return baseline; } };
     const g = {
       dlg, save,
@@ -87,8 +95,8 @@
     return g;
   };
 
-  window.unsavedPage = function unsavedPage({ what, changed, save, discard }) {
-    const g = { what: typeof what === 'function' ? what : () => what, changed, save, discard };
+  unsavedPage = function guardPage({ what, changed, save, discard }) {
+    const g: UnsavedGuard = { what: typeof what === 'function' ? what : () => what, changed, save, discard };
     g.settle = () => settleOne(g);
     add(g);
     return g;

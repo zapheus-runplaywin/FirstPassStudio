@@ -31,7 +31,7 @@ declare global {
   }
 }
 
-// The Studio pages, in tab order, shared with the tab bar on every page (public/studiobar.js).
+// The Studio pages, in tab order, shared with the tab bar on every page (public/studiobar.ts).
 interface Tab { href: string, label: string, also?: string[], group?: string }
 const { STUDIO_PAGES: TABS } = sharedScript<{ STUDIO_PAGES: Tab[] }>('studiobar.js');
 

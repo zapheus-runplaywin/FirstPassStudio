@@ -5,22 +5,24 @@
 //     invite  Join us again next week / tomorrow / on Saturday / on Saturday 7 November, Grand Final next week,
 //             Finals are next, Thanks for a great season, or Congratulations to all our champions after a final
 //     detail  the next round and its date, or the season
-/* exported wrapWords, wrapDay */
 const wrapDay = (() => {
   const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   // A date (YYYY-MM-DD) as a weekday, or with withDate as "Thursday 29 October".
-  return (date, withDate) => {
+  return (date: string, withDate?: boolean) => {
     const d = new Date(`${date}T12:00:00Z`);
     return Number.isNaN(d.getTime()) ? '' : withDate ? `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}` : DAYS[d.getUTCDay()];
   };
 })();
-function wrapWords(w) {
+// The wrap /api/upnext and /api/introoutro give (server.ts endOfNight).
+interface Wrap { seasonOver?: boolean, finalsNext?: boolean, finalRound?: boolean, season?: string, next?: { days?: number, date?: string, round?: string, finals?: boolean } | null }
+
+function wrapWords(w: Wrap): { title: string, invite: string, detail: string } {
   // When to come back, in words: next week, tomorrow, on Saturday, or on Saturday 7 November.
-  const when = next => {
+  const when = (next: NonNullable<Wrap['next']>) => {
     if (next.days === 7) return 'next week';
     if (next.days === 1) return 'tomorrow';
-    if (next.days > 1 && next.days < 7) return `on ${wrapDay(next.date)}`;
+    if (next.days && next.days > 1 && next.days < 7 && next.date) return `on ${wrapDay(next.date)}`;
     return next.date ? `on ${wrapDay(next.date, true)}` : 'next round';
   };
   const title = w.seasonOver ? 'That\'s the last game of the season' : 'That\'s the last game of the night';

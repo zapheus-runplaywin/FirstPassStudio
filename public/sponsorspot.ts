@@ -9,26 +9,36 @@
 //                                    sponsor that owns it, or the Elite sponsors taking turns; asked each time it plays
 // The page's own ?sponsor= link option wins: ?sponsor=0 shows none, ?sponsor=Golds%20Bakery always that one.
 // All resolve to null when there's no sponsor to show, so a page with no sponsors looks as it always did.
+// A sponsor as Studio's /api/sponsors gives one: its name and logo.
+interface Sponsor { id?: string, name: string, logoUrl?: string | null }
+interface SponsorSpot {
+  naming(place: string): Promise<Sponsor | null>, next(place: string, tiers?: string): Promise<Sponsor | null>,
+  badge(s: Sponsor, opts?: { words?: string }): HTMLElement, footer(place: string): Promise<void>,
+  moment(key: string, box: HTMLElement | null): Promise<Sponsor | null>, off: boolean,
+}
+var sponsorSpot: SponsorSpot;
+
 (function () {
   const params = new URLSearchParams(location.search);
   const own = (params.get('sponsor') || '').trim();
   const off = own === '0';
+  const why = (err: unknown) => err instanceof Error ? err.message : String(err);
 
-  async function ask(q) {
+  async function ask(q: string): Promise<Sponsor | null> {
     try {
-      const r = await (await fetch(`/api/sponsors/${q}`, { cache: 'no-store' })).json();
+      const r: { sponsor?: Sponsor, sponsors?: Sponsor[] } | null = await (await fetch(`/api/sponsors/${q}`, { cache: 'no-store' })).json();
       return r && r.sponsor ? r.sponsor : r && r.sponsors && r.sponsors.length ? r.sponsors[0] : null;
-    } catch (err) { console.warn('Sponsor unavailable:', err.message); return null; }
+    } catch (err) { console.warn('Sponsor unavailable:', why(err)); return null; }
   }
-  const fixed = place => ask(`next?place=${encodeURIComponent(place)}&sponsor=${encodeURIComponent(own)}`);
+  const fixed = (place: string) => ask(`next?place=${encodeURIComponent(place)}&sponsor=${encodeURIComponent(own)}`);
 
   // Naming rights is one sponsor, so the first of the tier (a naming rights tier should only have one).
-  async function naming(place) {
+  async function naming(place: string) {
     if (off) return null;
     if (own) return fixed(place);
     return ask(`pick?tier=naming&place=${encodeURIComponent(place)}`);
   }
-  async function next(place, tiers) {
+  async function next(place: string, tiers?: string) {
     if (off) return null;
     if (own) return fixed(place);
     return ask(`next?place=${encodeURIComponent(place)}${tiers ? `&tiers=${encodeURIComponent(tiers)}` : ''}`);
@@ -49,7 +59,7 @@
   }
 
   // "presented by" and the sponsor's logo on a white plate (or its name, when it has no logo or the logo won't load).
-  function badge(s, opts = {}) {
+  function badge(s: Sponsor, opts: { words?: string } = {}) {
     style();
     const wrap = document.createElement('span');
     wrap.className = 'sponsor-badge';
@@ -69,7 +79,7 @@
   }
 
   // A stat card's footer: the next sponsor in rotation from Major and up, in the box with id "sponsor".
-  async function footer(place) {
+  async function footer(place: string) {
     const box = document.getElementById('sponsor');
     const s = await next(place, params.get('tiers') || undefined);
     if (!s || !box) return;
@@ -81,16 +91,16 @@
   // fades it out with everything else). It comes in at --moment-at (1.1 s) once the stage has class "go",
   // at --moment-top (800px). Asked each time the moment plays, so the Elite sponsors take turns; null hides it.
   const TAG_SECONDS = 2;
-  async function moment(key, box) {
-    let tag = box && box.querySelector(':scope > .sponsor-moment');
-    let s = null;
+  async function moment(key: string, box: HTMLElement | null) {
+    let tag = box && box.querySelector<HTMLElement>(':scope > .sponsor-moment');
+    let s: Sponsor | null = null;
     if (!off) {
       try {
-        const q = new URLSearchParams({ moment: key, seconds: TAG_SECONDS });
+        const q = new URLSearchParams({ moment: key, seconds: String(TAG_SECONDS) });
         if (own) q.set('sponsor', own);
-        const r = await (await fetch(`/api/sponsors/moment?${q}`, { cache: 'no-store' })).json();
+        const r: { sponsor?: Sponsor } | null = await (await fetch(`/api/sponsors/moment?${q}`, { cache: 'no-store' })).json();
         s = r && r.sponsor ? r.sponsor : null;
-      } catch (err) { console.warn('Sponsor unavailable:', err.message); }
+      } catch (err) { console.warn('Sponsor unavailable:', why(err)); }
     }
     if (!box) return s;
     if (!s) { if (tag) tag.hidden = true; return null; }
@@ -121,5 +131,5 @@
     return s;
   }
 
-  window.sponsorSpot = { naming, next, badge, footer, moment, off };
+  sponsorSpot = { naming, next, badge, footer, moment, off };
 })();

@@ -14,7 +14,7 @@ const SCENE_READY = `new Promise(done => !document.getElementById('stage') ? don
 
 // onFrame(bitmap, width, height): each new picture, BGRA with premultiplied alpha, at width x height;
 // returns false when the output didn't take it.
-// chromaKey: draw the scene chroma key safe (public/chroma.js), for NDI's chroma signal.
+// chromaKey: draw the scene chroma key safe (public/chroma.ts), for NDI's chroma signal.
 // output: the output's id when it isn't the primary (scene.html draws that output's sources, with their sound).
 // mute: the window plays no sound (the output's sound goes nowhere, or only to the Mac's other sound outputs
 // through its sound copies, desktop/soundcopy.ts).

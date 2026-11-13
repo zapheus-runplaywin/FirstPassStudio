@@ -21,17 +21,21 @@
 // it in <head>.
 // In a scene the scene filters its whole frame once (scene.html marks its stage with
 // <html data-chroma-alpha="#stage">), so its pages only make their panels and shadows solid.
+// studioChroma: whether this page draws chroma key safe; studioChromaSafe: the style fixes, for the tests.
+var studioChroma: boolean;
+var studioChromaSafe: { solidShadows(v: string): string, solidFilter(v: string): string, noGlows(v: string): string };
+
 (function () {
   const root = document.documentElement;
   const inScene = () => {
     try {
-      for (let w = window; w.parent !== w; w = w.parent) if (w.parent.document.documentElement.classList.contains('chroma-safe')) return true;
+      for (let w: Window = window; w.parent !== w; w = w.parent) if (w.parent.document.documentElement.classList.contains('chroma-safe')) return true;
     } catch {}
     return false;
   };
   const asked = new URLSearchParams(location.search).get('chromaKey');
   const on = asked === 'true' || asked === '1' || inScene();
-  window.studioChroma = on;
+  studioChroma = on;
   if (!on) return;
   root.classList.add('chroma-safe');
   const ID = 'studio-chroma-alpha';
@@ -39,8 +43,8 @@
   const target = root.dataset.chromaAlpha || (inScene() ? '' : ':root');
 
   // Splits at top level separators (not inside brackets).
-  function split(s, sep) {
-    const out = [];
+  function split(s: string, sep: string): string[] {
+    const out: string[] = [];
     let depth = 0, cur = '';
     for (const ch of s) {
       if (ch === '(') depth++;
@@ -53,7 +57,7 @@
   }
   const LENGTH = /^-?(\d+\.?\d*|\.\d+)(px|em|rem|vw|vh)?$/;
   // The colour without its transparency, or null for one that's fully clear.
-  function solidColour(c) {
+  function solidColour(c: string): string | null {
     if (/^transparent$/i.test(c)) return null;
     let m = c.match(/^(rgba?|hsla?)\((.*)\)$/i);
     if (m) {
@@ -72,7 +76,7 @@
   }
   // One shadow (box-shadow, text-shadow or drop-shadow's inside): solid if it has no blur, else gone (null).
   // An inset shadow is inside its box, so it's left alone.
-  function solidShadow(s) {
+  function solidShadow(s: string): string | null {
     const tokens = split(s, ' ');
     if (tokens.some(t => /^inset$/i.test(t))) return s;
     const lengths = tokens.filter(t => LENGTH.test(t));
@@ -83,8 +87,8 @@
     const colour = others[0] ? solidColour(others[0]) : 'currentcolor';
     return colour && [...lengths, colour].join(' ');
   }
-  const solidShadows = v => split(v, ',').map(solidShadow).filter(Boolean).join(', ') || 'none';
-  const solidFilter = v => split(v, ' ').map(f => {
+  const solidShadows = (v: string) => split(v, ',').map(solidShadow).filter(Boolean).join(', ') || 'none';
+  const solidFilter = (v: string) => split(v, ' ').map(f => {
     const m = f.match(/^drop-shadow\((.*)\)$/i);
     if (!m) return f;
     const s = solidShadow(m[1]);
@@ -92,26 +96,27 @@
   }).filter(Boolean).join(' ') || 'none';
   // Soft glows, flashes and vignettes are radial gradients that fade to see-through: cut at half, they'd
   // be hard coloured ovals, so they go. (Gradients that fade in a line, like a stripe's ends, are only cut.)
-  const seeThrough = g => /\btransparent\b/i.test(g) || split(g.replace(/^[a-z-]+\(|\)$/gi, ''), ',').some(stop =>
+  const seeThrough = (g: string) => /\btransparent\b/i.test(g) || split(g.replace(/^[a-z-]+\(|\)$/gi, ''), ',').some(stop =>
     split(stop, ' ').some(t => {
       const m = t.match(/^(rgba?|hsla?)\((.*)\)$/i);
       if (!m) return false;
-      const parts = m[2].includes('/') ? [m[2].split('/').pop()] : split(m[2], ',');
+      const parts = m[2].includes('/') ? [m[2].split('/').pop() || ''] : split(m[2], ',');
       const a = parts.length === 4 || parts.length === 2 || m[2].includes('/') ? parts[parts.length - 1].trim() : '1';
       return parseFloat(a) / (a.endsWith('%') ? 100 : 1) < 1;
     }));
-  const noGlows = v => {
+  const noGlows = (v: string) => {
     const layers = split(v, ',');
     const kept = layers.filter(l => !/^(repeating-)?radial-gradient\(/i.test(l) || !seeThrough(l));
     return kept.length === layers.length ? v : kept.join(', ') || 'none';
   };
-  window.studioChromaSafe = { solidShadows, solidFilter, noGlows }; // for the tests
+  studioChromaSafe = { solidShadows, solidFilter, noGlows }; // for the tests
 
   // What each style was left as, so a style already fixed (and written back the browser's way) isn't fixed again.
-  const fixed = new WeakMap();
-  function fixStyle(style) {
+  const fixed = new WeakMap<CSSStyleDeclaration, Record<string, string | boolean>>();
+  function fixStyle(style: CSSStyleDeclaration) {
     const was = fixed.get(style) || {};
-    for (const [prop, fix] of [['box-shadow', solidShadows], ['text-shadow', solidShadows], ['filter', solidFilter], ['-webkit-filter', solidFilter]]) {
+    const fixes: [string, (v: string) => string][] = [['box-shadow', solidShadows], ['text-shadow', solidShadows], ['filter', solidFilter], ['-webkit-filter', solidFilter]];
+    for (const [prop, fix] of fixes) {
       const v = style.getPropertyValue(prop);
       if (!v || v === 'none' || v === was[prop]) continue;
       const nv = fix(v);
@@ -136,22 +141,23 @@
       if (style.getPropertyValue(prop)) style.setProperty(prop, 'none', style.getPropertyPriority(prop));
     }
   }
-  const done = new WeakSet();
-  function fixRules(rules) {
+  const done = new WeakSet<CSSRule>();
+  function fixRules(rules: CSSRuleList) {
     for (const rule of rules) {
       if (done.has(rule)) continue;
       done.add(rule);
-      if (rule.style) fixStyle(rule.style);
-      if (rule.cssRules) fixRules(rule.cssRules);
+      // Style rules and keyframes have a style; @media, @supports and @keyframes have rules inside.
+      if ('style' in rule && rule.style instanceof CSSStyleDeclaration) fixStyle(rule.style);
+      if ('cssRules' in rule && rule.cssRules instanceof CSSRuleList) fixRules(rule.cssRules);
     }
   }
   function fixAll() {
     for (const sheet of document.styleSheets) {
-      let rules = null;
+      let rules: CSSRuleList | null = null;
       try { rules = sheet.cssRules; } catch { continue; } // another site's style sheet (web fonts): nothing to fix
       if (rules) fixRules(rules);
     }
-    for (const el of document.querySelectorAll('[style]')) fixStyle(el.style);
+    for (const el of document.querySelectorAll<HTMLElement>('[style]')) fixStyle(el.style);
   }
 
   // Solid panels, and the cut. The panel colours come from theme.css (competitions.ts themeCss).
@@ -176,12 +182,12 @@
   // Style sheets and styled elements added later (pages that build their graphic from the helper's data).
   new MutationObserver(list => {
     for (const m of list) {
-      if (m.type === 'attributes') { fixStyle(m.target.style); continue; }
+      if (m.type === 'attributes') { if (m.target instanceof HTMLElement || m.target instanceof SVGElement) fixStyle(m.target.style); continue; }
       for (const n of m.addedNodes) {
-        if (n.nodeType !== 1) continue;
+        if (!(n instanceof HTMLElement || n instanceof SVGElement)) continue;
         if (n.tagName === 'STYLE' || n.tagName === 'LINK') { n.addEventListener('load', fixAll); setTimeout(fixAll); }
         if (n.hasAttribute('style')) fixStyle(n.style);
-        for (const el of n.querySelectorAll('[style]')) fixStyle(el.style);
+        for (const el of n.querySelectorAll<HTMLElement>('[style]')) fixStyle(el.style);
       }
     }
   }).observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });

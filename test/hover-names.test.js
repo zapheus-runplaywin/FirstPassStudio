@@ -1,4 +1,4 @@
-// A name cut short on a Studio page shows in full as a tooltip on hover (public/studiobar.js), so the operator never
+// A name cut short on a Studio page shows in full as a tooltip on hover (public/studiobar.ts), so the operator never
 // clicks a source just to read its name. Only cut names get one, and a source's shows its name without the type tag.
 const test = require('node:test');
 const assert = require('node:assert/strict');

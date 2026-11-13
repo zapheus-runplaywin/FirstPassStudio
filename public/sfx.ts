@@ -6,11 +6,20 @@
 // (an OBS browser source) the page plays it.
 //   StudioSfx.run(ctx, destination, plan)  starts it; returns { stop(fadeSec) }
 //   StudioSfx.EFFECTS                      the effects' names
-/* exported StudioSfx */
+// A plan: a theme song, how loud the effects are, and the effects at their times ([seconds, effect, gain]).
+// buffer: a theme already decoded (the scene's own); onBlocked: the browser wouldn't play the theme until clicked.
+interface SfxPlan {
+  theme?: { file?: string, buffer?: AudioBuffer, volume?: number, at?: number } | null,
+  sfx?: number, cues?: [number, string, number?][], onBlocked?: () => void,
+}
+
 const StudioSfx = (() => {
+  type Ctx = BaseAudioContext;
+  // Where an effect goes: straight out (dry) and into the hall's echo (wet).
+  interface Bus { dry: AudioNode, wet: AudioNode }
   // White noise and a hall's echo, made once for each audio context.
-  const kits = new WeakMap();
-  function kit(ctx) {
+  const kits = new WeakMap<Ctx, { noise: AudioBuffer, ir: AudioBuffer }>();
+  function kit(ctx: Ctx) {
     let k = kits.get(ctx);
     if (k) return k;
     const sr = ctx.sampleRate, noise = ctx.createBuffer(1, sr * 2, sr), d = noise.getChannelData(0);
@@ -24,7 +33,7 @@ const StudioSfx = (() => {
 
   // ─── Building blocks: each sound is sources through a filter into a level that rises and falls ───
   // A level: up to peak over a, then away over d (exponential, as loudness is heard).
-  function level(ctx, to, t, a, peak, d) {
+  function level(ctx: Ctx, to: AudioNode, t: number, a: number, peak: number, d: number) {
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t + a);
@@ -32,7 +41,7 @@ const StudioSfx = (() => {
     g.connect(to);
     return g;
   }
-  function tone(ctx, to, type, f0, f1, t, dur) {
+  function tone(ctx: Ctx, to: AudioNode, type: OscillatorType, f0: number, f1: number, t: number, dur: number) {
     const o = ctx.createOscillator();
     o.type = type;
     o.frequency.setValueAtTime(f0, t);
@@ -42,7 +51,7 @@ const StudioSfx = (() => {
     o.stop(t + dur + .05);
     return o;
   }
-  function hiss(ctx, to, t, dur) {
+  function hiss(ctx: Ctx, to: AudioNode, t: number, dur: number) {
     const s = ctx.createBufferSource();
     s.buffer = kit(ctx).noise;
     s.loop = true;
@@ -51,7 +60,7 @@ const StudioSfx = (() => {
     s.stop(t + dur + .05);
     return s;
   }
-  function filter(ctx, to, type, f0, f1, t, dur, q = 1) {
+  function filter(ctx: Ctx, to: AudioNode, type: BiquadFilterType, f0: number, f1: number, t: number, dur: number, q = 1) {
     const f = ctx.createBiquadFilter();
     f.type = type;
     f.Q.value = q;
@@ -60,7 +69,7 @@ const StudioSfx = (() => {
     f.connect(to);
     return f;
   }
-  function pan(ctx, to, from, end, t, dur) {
+  function pan(ctx: Ctx, to: AudioNode, from: number, end: number, t: number, dur: number): AudioNode {
     if (!ctx.createStereoPanner) return to;
     const p = ctx.createStereoPanner();
     p.pan.setValueAtTime(from, t);
@@ -69,14 +78,14 @@ const StudioSfx = (() => {
     return p;
   }
   // Sends some of a sound to the echo as well as straight out.
-  function out(ctx, bus, wet) {
+  function out(ctx: Ctx, bus: Bus, wet: number) {
     const g = ctx.createGain();
     g.connect(bus.dry);
     if (wet) { const w = ctx.createGain(); w.gain.value = wet; g.connect(w); w.connect(bus.wet); }
     return g;
   }
   // Rushing air, low to high (or high to low), across the stereo.
-  function whoosh(ctx, bus, t, g, { dur = .7, f0 = 250, f1 = 2200, p0 = 0, p1 = 0, peak = .5, wet = .3 } = {}) {
+  function whoosh(ctx: Ctx, bus: Bus, t: number, g: number, { dur = .7, f0 = 250, f1 = 2200, p0 = 0, p1 = 0, peak = .5, wet = .3 } = {}) {
     const lv = ctx.createGain();
     lv.gain.setValueAtTime(0.0001, t);
     lv.gain.linearRampToValueAtTime(peak * g, t + dur * .62);
@@ -85,12 +94,12 @@ const StudioSfx = (() => {
     hiss(ctx, filter(ctx, lv, 'bandpass', f0, f1, t, dur, 1.1), t, dur);
   }
   // A low knock, like a body landing or a ball caught.
-  function knock(ctx, bus, t, g, { f0 = 150, f1 = 55, dur = .22, peak = .7, slap = .35, slapF = 1100, wet = .15 } = {}) {
+  function knock(ctx: Ctx, bus: Bus, t: number, g: number, { f0 = 150, f1 = 55, dur = .22, peak = .7, slap = .35, slapF = 1100, wet = .15 } = {}) {
     const o = out(ctx, bus, wet);
     tone(ctx, level(ctx, o, t, .004, peak * g, dur), 'sine', f0, f1, t, dur);
     if (slap) hiss(ctx, filter(ctx, level(ctx, o, t, .002, slap * g, .06), 'bandpass', slapF, slapF, t, .08, .9), t, .08);
   }
-  function chord(ctx, bus, t, g, notes, { a = .01, d = 1.2, peak = .12, step = .05, type = 'sine', wet = .6 } = {}) {
+  function chord(ctx: Ctx, bus: Bus, t: number, g: number, notes: number[], { a = .01, d = 1.2, peak = .12, step = .05, type = 'sine' as OscillatorType, wet = .6 } = {}) {
     const o = out(ctx, bus, wet);
     notes.forEach((f, i) => {
       const at = t + i * step;
@@ -100,7 +109,8 @@ const StudioSfx = (() => {
   }
 
   // ─── The effects: (ctx, bus, time, gain) ───
-  const FX = {
+  type Effect = (c: Ctx, b: Bus, t: number, g: number) => void;
+  const FX: Record<string, Effect> = {
     // Comes in, from one side to the other.
     whoosh: (c, b, t, g) => whoosh(c, b, t, g, { p0: -.6, p1: .6 }),
     // A long rush that swings round the stereo (logos spiralling in).
@@ -211,7 +221,7 @@ const StudioSfx = (() => {
     },
   };
 
-  function run(ctx, dest, plan) {
+  function run(ctx: Ctx, dest: AudioNode, plan: SfxPlan) {
     const now = ctx.currentTime + .03;
     // A limiter at the end, so effects landing together (and on a loud theme) don't distort.
     const limit = ctx.createDynamicsCompressor();
@@ -230,11 +240,12 @@ const StudioSfx = (() => {
     bus.wet.gain.value = .5;
     bus.wet.connect(verb);
     if (sfx.gain.value > 0) for (const [sec, name, gain] of plan.cues || []) {
-      if (sec < -.05 || !FX[name]) continue;
-      try { FX[name](ctx, bus, now + Math.max(0, sec), gain ?? 1); } catch (err) { console.warn(`Sound effect ${name} failed:`, err.message); }
+      const fx = Object.hasOwn(FX, name) ? FX[name] : null;
+      if (sec < -.05 || !fx) continue;
+      try { fx(ctx, bus, now + Math.max(0, sec), gain ?? 1); } catch (err) { console.warn(`Sound effect ${name} failed:`, err instanceof Error ? err.message : err); }
     }
     // The theme: a song played as it is, from its start at its time (or part way in, if it starts before now).
-    let el = null, src = null, timer = null;
+    let el: HTMLAudioElement | null = null, src: AudioBufferSourceNode | null = null, timer: ReturnType<typeof setTimeout> | undefined;
     const th = plan.theme;
     if (th && (th.file || th.buffer)) {
       const tg = ctx.createGain();
@@ -246,19 +257,19 @@ const StudioSfx = (() => {
         src.buffer = th.buffer;
         src.connect(tg);
         src.start(now + Math.max(0, at), Math.max(0, -at));
-      } else {
-        el = new Audio('/media/' + encodeURIComponent(th.file));
-        el.preload = 'auto';
-        ctx.createMediaElementSource(el).connect(tg);
+      } else if (th.file && ctx instanceof AudioContext) {
+        const audio = el = new Audio('/media/' + encodeURIComponent(th.file));
+        audio.preload = 'auto';
+        ctx.createMediaElementSource(audio).connect(tg);
         const go = () => {
-          if (at < 0) { try { el.currentTime = -at; } catch { /* starts from the top */ } }
-          el.play().catch(err => { console.warn(`Theme "${th.file}" would not play: ${err.message}`); if (plan.onBlocked && err.name === 'NotAllowedError') plan.onBlocked(); });
+          if (at < 0) { try { audio.currentTime = -at; } catch { /* starts from the top */ } }
+          audio.play().catch((err: Error) => { console.warn(`Theme "${th.file}" would not play: ${err.message}`); if (plan.onBlocked && err.name === 'NotAllowedError') plan.onBlocked(); });
         };
         if (at > 0) timer = setTimeout(go, at * 1000); else go();
       }
     }
     return {
-      stop(fade = .4) {
+      stop(fade: number = .4) {
         clearTimeout(timer);
         const t = ctx.currentTime;
         all.gain.cancelScheduledValues(t);

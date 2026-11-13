@@ -9,9 +9,25 @@
 // 31 Oct 2026): Run (Output, Scoreboard control), Plan (Production Planner, Socials) and Set up (Competitions setup,
 // Sponsors, Athletes, Recordings, Stream Deck), with Docs on its own at the right. A tab's `short` is the word the
 // bar shows when the full name is long; the page's title, h1 and the Go menu keep the full label.
+// A tab: its link, name (short: the word the bar shows when the name is long), the other links it covers, its group.
+interface StudioTab { href: string, label: string, short?: string, also?: string[], group?: string }
+// What /api/health gives the chips (server.ts health): only what they show.
+interface StudioHealth {
+  output?: { on?: boolean, outputs?: { name: string, colour?: string, on?: boolean }[] },
+  game?: { label: string, court?: string, phase?: string, ended?: boolean } | null,
+  source?: string,
+  playhq?: { waiting?: boolean, state?: string, trouble?: string, troubleSays?: string, holding?: boolean },
+  clock?: { left?: number | null, running?: boolean, period?: number, periodLabel?: string, following?: boolean },
+  playing?: { name?: string, step: number, steps: number, paused?: boolean, leftMs?: number | null } | null,
+  armed?: { name?: string, leftMs?: number | null } | null,
+  next?: { name?: string, then?: string } | null,
+  switcher?: { setUp?: boolean, connected?: boolean, model?: string },
+  recording?: { on?: boolean, record?: boolean, name?: string },
+}
+
 (function () {
   'use strict';
-  const STUDIO_PAGES = [
+  const STUDIO_PAGES: StudioTab[] = [
     { href: '/output.html', label: 'Output', also: ['/'], group: 'Run' },
     { href: '/planner.html', label: 'Production Planner', short: 'Planner', group: 'Plan' },
     { href: '/control.html', label: 'Scoreboard control', short: 'Scoreboard', group: 'Run' },
@@ -28,14 +44,14 @@
   // On a phone the bar is just the phone pages (Matt, 9 Nov 2026): Socials, the Remote and the Commentator mic. The
   // Remote and Commentator pages have no bar of their own and link to the other two the same way. A phone is a touch
   // screen up to 700 px wide; the Mac and an iPad keep the full bar. The other pages still open at their links.
-  const PHONE_PAGES = [
+  const PHONE_PAGES: StudioTab[] = [
     { href: '/socials.html', label: 'Socials' },
     { href: '/remote.html', label: 'Remote' },
     { href: '/commentator.html', label: 'Commentator' },
   ];
   const PHONE = '(pointer: coarse) and (max-width: 700px)';
 
-  if (typeof module !== 'undefined' && module.exports) { module.exports = { STUDIO_PAGES, GROUPS, PHONE_PAGES, PHONE }; return; }
+  if (typeof module !== 'undefined' && module) { module.exports = { STUDIO_PAGES, GROUPS, PHONE_PAGES, PHONE }; return; }
 
   const bar = document.querySelector('header.fp-bar');
   if (!bar || bar.children.length) return;
@@ -43,8 +59,8 @@
   const phone = matchMedia(PHONE).matches;
   // Studio's own link (/, the Output page on the Mac) opens Socials on a phone.
   if (phone && here === '/') { location.replace('/socials.html'); return; }
-  const current = p => p.href === here || (p.also || []).includes(here);
-  const tab = p => {
+  const current = (p: StudioTab) => p.href === here || (p.also || []).includes(here);
+  const tab = (p: StudioTab) => {
     const a = document.createElement('a');
     a.href = p.href; a.textContent = p.short || p.label;
     if (p.short) a.title = p.label;
@@ -85,18 +101,19 @@
   // switcher is set up (green answering, red not); and REC while a game records (grey while Record games waits for one).
   // They are status, not links: the tabs are the way to a page. One read of /api/health every 2 s while the page is in
   // view; the times count down between reads. Styled by studio.css (.fp-chips).
-  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const mmss = ms => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
-  let health = null, heardAt = 0;
-  const chip = (cls, title, dot, text) => `<span class="chip ${cls}"${title ? ` title="${esc(title)}"` : ''}>${dot ? `<span class="dot ${dot}"></span>` : ''}${text}</span>`;
+  const ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  const esc = (s: unknown) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ESC[c]);
+  const mmss = (ms: number) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+  let health: StudioHealth | null = null, heardAt = 0;
+  const chip = (cls: string, title: string, dot: string, text: string) => `<span class="chip ${cls}"${title ? ` title="${esc(title)}"` : ''}>${dot ? `<span class="dot ${dot}"></span>` : ''}${text}</span>`;
   const render = () => {
     const h = health;
     if (!h) { chips.innerHTML = chip('off', '', 'bad', 'Studio isn\'t answering'); return; }
     const since = Date.now() - heardAt;
-    const left = ms => ms == null ? null : Math.max(0, ms - since);
+    const left = (ms: number | null | undefined) => ms == null ? null : Math.max(0, ms - since);
     const parts = [];
     // ON AIR with a dot per output (one output without a list: its one dot), hollow while that output isn't sending.
-    const outs = h.output && h.output.outputs && h.output.outputs.length ? h.output.outputs : [{ name: 'Output', colour: '#F75C03', on: !!(h.output && h.output.on) }];
+    const outs: { name: string, colour?: string, on?: boolean }[] = h.output && h.output.outputs && h.output.outputs.length ? h.output.outputs : [{ name: 'Output', colour: '#F75C03', on: !!(h.output && h.output.on) }];
     const sending = outs.filter(o => o.on);
     const dots = outs.map(o => `<i class="odot${o.on ? ' on' : ''}" data-colour="${esc(o.colour || '#F75C03')}" title="${esc(o.name)}: ${o.on ? 'sending' : 'off'}"></i>`).join('');
     parts.push(chip(sending.length ? 'air' : 'off', sending.length ? `On air: ${sending.map(o => o.name).join(', ')}` : 'No output is sending', '', `${sending.length ? 'ON AIR' : 'Off air'}<span class="odots">${dots}</span>`));
@@ -107,12 +124,12 @@
     const gtitle = !g ? '' : g.phase === 'upcoming' ? 'Upcoming: the clock hasn\'t started' : g.phase === 'live' ? 'Under way' : g.phase === 'ended' ? 'Ended within the hour' : 'Over';
     parts.push(g ? chip('game', gtitle, gdot, `${esc(g.label)}${g.court ? ` · ${esc(g.court)}` : ''}`) : chip('game off', '', 'off', 'No game on the board'));
     if (g) {
-      const p = h.playhq || {}, c = h.clock || {};
+      const p: NonNullable<StudioHealth['playhq']> = h.playhq || {}, c: NonNullable<StudioHealth['clock']> = h.clock || {};
       // The dot is the link to PlayHQ only (green answering, amber overdue or holding a hand score PlayHQ is behind, red failing, purple not scoring live (the
       // scorebench off line) with the reason on hover, grey by hand or not scoring yet), whatever the game's state; the words carry the game: the quarter and clock, or that it's over.
       const over = g.ended ? (h.source === 'playhq' ? 'game completed' : 'full time') : '';
-      const clock = over ? ` · ${over}` : c.left != null ? ` · ${esc(c.periodLabel || 'Q')}${esc(c.period)} ${mmss(c.left * 1000 - (c.running ? since : 0))}` : '';
-      let dot = 'ok', text;
+      const clock = over ? ` · ${over}` : c.left != null ? ` · ${esc(c.periodLabel || 'Q')}${esc(c.period)} ${mmss((c.left || 0) * 1000 - (c.running ? since : 0))}` : '';
+      let dot = 'ok', text: string;
       if (h.source !== 'playhq') { dot = 'off'; text = 'Scores by hand'; }
       else if (p.waiting) { dot = 'off'; text = 'PlayHQ · not scoring yet'; }
       else if (p.state === 'bad') { dot = 'bad'; text = 'PlayHQ failing'; }
@@ -132,19 +149,19 @@
     }
     // The run order, whatever is playing: ▶ what Play next plays, ⏭ what follows it (and what Skip leaves at the head).
     if (h.next && h.next.name) {
-      const sym = c => `<span class="sym" aria-hidden="true">${c}</span>`;
+      const sym = (c: string) => `<span class="sym" aria-hidden="true">${c}</span>`;
       const title = `Play next plays ${h.next.name}${h.next.then ? `, then ${h.next.then}` : ''}`;
       parts.push(chip('ro', title, '', `Run order ${sym('▶')}${esc(h.next.name)}${h.next.then ? ` ${sym('⏭')}${esc(h.next.then)}` : ''}`));
     }
     // ATEM while a switcher is set up: answering or not. REC while a game records, or waiting for one with Record games on.
-    const sw = h.switcher || {};
+    const sw: NonNullable<StudioHealth['switcher']> = h.switcher || {};
     if (sw.setUp) parts.push(chip(`atem ${sw.connected ? 'ok' : 'bad'}`, sw.connected ? `${sw.model || 'The switcher'} is answering` : `${sw.model || 'The switcher'} isn't answering`, sw.connected ? 'ok' : 'bad', 'ATEM'));
-    const r = h.recording || {};
+    const r: NonNullable<StudioHealth['recording']> = h.recording || {};
     if (r.on) parts.push(chip('rec', `Recording ${r.name || 'this game'}`, 'rec', 'REC'));
     else if (r.record) parts.push(chip('rec wait', 'Records the next PlayHQ game on air', 'off', 'REC'));
     chips.innerHTML = parts.join('');
     // Each output's dot takes that output's colour (the one thing here studio.css can't know).
-    for (const d of chips.querySelectorAll('.odot')) d.style.setProperty('--c', d.dataset.colour);
+    for (const d of chips.querySelectorAll<HTMLElement>('.odot')) d.style.setProperty('--c', d.dataset.colour || '');
   };
   // Page zoom (the Mac app, desktop/windows.ts): the app says the level after each change and each load; while it
   // isn't 100% a chip at the right of the bar shows it, and a click asks for 100% (the app watches for #zoom=100).
@@ -155,11 +172,11 @@
   zoomChip.hidden = true;
   chips.after(zoomChip);
   document.addEventListener('studio-zoom', e => {
-    const pct = Number(e.detail) || 100;
+    const pct = Number(e instanceof CustomEvent ? e.detail : 0) || 100;
     zoomChip.hidden = pct === 100;
     zoomChip.textContent = `${pct}%`;
   });
-  const read = () => fetch('/api/health', { cache: 'no-store' }).then(r => r.json()).then(h => { health = h; heardAt = Date.now(); render(); })
+  const read = () => fetch('/api/health', { cache: 'no-store' }).then(r => r.json()).then((h: StudioHealth) => { health = h; heardAt = Date.now(); render(); })
     .catch(() => { health = null; render(); });
   if (!phone) {
     read();
@@ -175,13 +192,19 @@
   strip.setAttribute('role', 'status');
   strip.hidden = true;
   bar.after(strip);
-  const stop = path => fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"stop":true}' }).then(playback);
-  const show = (text, controls, stopPath) => {
+  const stop = (path: string) => fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"stop":true}' }).then(playback);
+  const show = (text: string, controls: string, stopPath: string) => {
     strip.innerHTML = `<span>${text}</span><a href="/recordings.html">${controls}</a><button type="button">Stop</button>`;
-    strip.querySelector('button').onclick = () => stop(stopPath);
+    const button = strip.querySelector('button');
+    if (button) button.onclick = () => stop(stopPath);
     strip.hidden = false;
   };
-  const playback = () => fetch('/api/playback').then(r => r.json()).then(({ replay: r, practice: p }) => {
+  // What /api/playback gives: a 4K replay and a practice game, each running or not.
+  interface Playback {
+    replay?: { active?: boolean, paused?: boolean, game?: { home: string, away: string } | null },
+    practice?: { active?: boolean, paused?: boolean, demo?: boolean, game: { home: { name: string }, away: { name: string } } },
+  }
+  const playback = (): Promise<void> => fetch('/api/playback').then(r => r.json()).then(({ replay: r, practice: p }: Playback) => {
     if (r && r.active) {
       show(`4K replay${r.paused ? ' (paused)' : ''}${r.game ? `: ${esc(r.game.home)} v ${esc(r.game.away)}` : ''}. The pages show the recorded night; the live scene and scoreboard can't be changed.`, 'Replay controls', '/api/replay');
     } else if (p && p.active) {
@@ -195,9 +218,11 @@
   // operator never has to click a source, tile or line just to read it (Matt, 1 Nov 2026). It only adds a title where
   // the text is cut and nothing set one, and takes it off again when the text fits (the window grew). An element's
   // data-full, when set, is the name to show (a source's name also holds its type tag).
-  const cut = el => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
+  const cut = (el: HTMLElement) => el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
   document.addEventListener('mouseover', e => {
-    for (let el = e.target, i = 0; el && el.nodeType === 1 && i < 4; el = el.parentElement, i++) {
+    for (let at = e.target instanceof Element ? e.target : null, i = 0; at && i < 4; at = at.parentElement, i++) {
+      if (!(at instanceof HTMLElement)) continue;
+      const el = at;
       if (el.hasAttribute('title') && !el.hasAttribute('data-autotitle')) return;
       const st = getComputedStyle(el);
       if (st.overflow !== 'hidden' && st.overflowX !== 'hidden') continue;

@@ -12,9 +12,12 @@
 //   name      what the Output page calls it
 //   group     the group in graphiclinks.js (the Devices tab's Links) it is described in
 //   examples  [[caption, link, milliseconds to wait before the picture], ...] for examples.ts
+interface StudioGraphic { file: string, name: string, group: string, examples?: [string, string, number][] }
+var STUDIO_GRAPHICS: StudioGraphic[];
+
 (function () {
   'use strict';
-  const STUDIO_GRAPHICS = [
+  const STUDIO_GRAPHICS: StudioGraphic[] = [
     { file: 'scoreboard.html', name: 'Scoreboard', group: 'scoreboard', examples: [['Live scoreboard', '/scoreboard.html', 4000]] },
     { file: 'ticker.html', name: 'Score ticker', group: 'gamePages', examples: [['Score ticker', '/ticker.html', 4000]] },
     { file: 'title.html', name: 'Title', group: 'gamePages', examples: [['Title banner', '/title.html', 3000]] },
@@ -51,9 +54,9 @@
     { file: 'fixtureboard.html', name: 'Fixture board (Full Page)', group: 'fixturePages', examples: [['Fixture board', '/fixtureboard.html', 3000]] },
     { file: 'topshooters.html', name: 'Top shooters', group: 'shooterPages' }, // one example per division
     { file: 'logo.html', name: 'Competition logo animation', group: 'logoPages', examples: [['Logo animation: fun (mid animation)', '/logo.html?template=fun', 2200], ['Logo animation: pro (mid animation)', '/logo.html?template=pro', 2600],
-      ...['coin', 'tiles', 'slices', 'glitch', 'badge', 'doors', 'bounce', 'lightning', 'rings', 'title', 'goal', 'court', 'bibs', 'pass', 'net'].map(t => [`Logo animation: ${t} (mid animation)`, `/logo.html?template=${t}`, 2600])] },
+      ...['coin', 'tiles', 'slices', 'glitch', 'badge', 'doors', 'bounce', 'lightning', 'rings', 'title', 'goal', 'court', 'bibs', 'pass', 'net'].map((t): [string, string, number] => [`Logo animation: ${t} (mid animation)`, `/logo.html?template=${t}`, 2600])] },
     { file: 'introoutro.html', name: 'Intro and outro', group: 'introPages', examples: [
-      ...['orbit', 'parade', 'tiles', 'spotlight', 'court', 'blueprint'].map(st => [`Intro: ${st}`, `/introoutro.html?style=${st}&out=0&bg=gradient`, 8000]),
+      ...['orbit', 'parade', 'tiles', 'spotlight', 'court', 'blueprint'].map((st): [string, string, number] => [`Intro: ${st}`, `/introoutro.html?style=${st}&out=0&bg=gradient`, 8000]),
       ['Outro', '/introoutro.html?type=outro&out=0&bg=gradient', 8000]] },
     { file: 'stinger.html', name: 'Stinger (transition)', group: 'stingerPages', examples: [['Stinger (mid transition)', '/stinger.html?sfx=0', 1200]] },
     { file: 'ad.html', name: 'PIVT and FirstPass Studio ad', group: 'adPages', examples: [['PIVT and FirstPass Studio ad (mid animation)', '/ad.html', 6000]] },
@@ -62,6 +65,6 @@
     { file: 'viewers.html', name: 'Viewers', group: 'gamePages', examples: [['Viewers', '/viewers.html', 2500], ['Viewers peak', '/viewers.html?show=peak', 2500]] },
     { file: 'testpattern.html', name: 'Test pattern (checking the outputs)', group: 'testPages' },
   ];
-  if (typeof module !== 'undefined' && module.exports) module.exports = { STUDIO_GRAPHICS };
+  if (typeof module !== 'undefined' && module) module.exports = { STUDIO_GRAPHICS };
   else window.STUDIO_GRAPHICS = STUDIO_GRAPHICS;
 })();

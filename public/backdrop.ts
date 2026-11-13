@@ -6,16 +6,16 @@
 //   ?bg=solid-7f4092  a flat colour
 //   ?bgimage=court.jpg a picture: a file in the competition's brand folder, or a full link
 // studioBackdrop(box, params, label) styles box and shows it (box starts hidden); label starts its warnings.
-/* exported studioBackdrop */
-function studioBackdrop(box, params, label) {
-  function colour(v) {
+function studioBackdrop(box: HTMLElement, params: URLSearchParams, label: string) {
+  function colour(v: string | null): string | null {
     if (!v) return null;
     v = v.trim();
     if (/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(v)) v = '#' + v;
     return CSS.supports('color', v) ? v : null;
   }
-  function darker(c) {
+  function darker(c: string) {
     const ctx = document.createElement('canvas').getContext('2d');
+    if (!ctx) return c;
     ctx.fillStyle = c; ctx.fillRect(0, 0, 1, 1);
     const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
     return `rgb(${Math.round(r * .3)}, ${Math.round(g * .3)}, ${Math.round(b * .3)})`;

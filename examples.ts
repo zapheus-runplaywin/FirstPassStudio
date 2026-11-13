@@ -152,7 +152,7 @@ interface TeamSheets { home?: { players?: { name: string }[] } }
     // An athlete from the picked game's home line up, for the athlete lower third.
     const sheets = await getJson<TeamSheets>('/api/teams').catch((): TeamSheets => ({}));
     const athlete = ((sheets.home && sheets.home.players) || []).map(p => p.name).find(Boolean);
-    // Every graphic's example pictures come from the one list of pages (public/pages.js); the ladder, top shooters
+    // Every graphic's example pictures come from the one list of pages (public/pages.ts); the ladder, top shooters
     // and finals get one per division, and the athlete lower third one athlete from the picked game.
     const pages: Example[] = [
       ...STUDIO_GRAPHICS.flatMap(p => p.examples || []),

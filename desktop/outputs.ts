@@ -74,7 +74,7 @@ function create({ port, log }: { port: number, log: (message: string) => void })
     if (w.kind === 'key') q.set('key', '1');
     if (w.output && w.output !== 'main') q.set('output', w.output); // another output's sources and their sound
     q.set('bg', w.kind === 'chroma' ? (w.color || '#00ff00').replace('#', '') : '000000');
-    if (w.safe) q.set('chromaKey', 'true'); // chroma key safe (public/chroma.js)
+    if (w.safe) q.set('chromaKey', 'true'); // chroma key safe (public/chroma.ts)
     return `http://localhost:${port}/scene.html?${q}`;
   };
 

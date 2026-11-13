@@ -9,22 +9,25 @@
 
 'use strict';
 
-window.linkSets = async function linkSets(select, onBase) {
+async function linkSets(select: HTMLSelectElement, onBase: (base: string) => void): Promise<boolean> {
   const REMEMBER = 'deckLinkSet';
   const MAC = 'mac-links';
   let chosen = MAC;
   try { chosen = localStorage.getItem(REMEMBER) || MAC; } catch { /* storage off */ }
   const r = await fetch('/api/devices').catch(() => null);
   if (!r || !r.ok) return false;
-  const sets = ((await r.json()).devices || []).filter(d => d.kind === 'links');
+  // The link sets in Studio's own /api/devices answer.
+  interface LinkSet { id: string, name: string, kind: string, base: string }
+  const answer: { devices?: LinkSet[] } = await r.json();
+  const sets = (answer.devices || []).filter(d => d.kind === 'links');
   if (!sets.some(d => d.id === chosen)) chosen = MAC;
-  const remember = id => { chosen = id; try { localStorage.setItem(REMEMBER, id); } catch { /* storage off */ } };
+  const remember = (id: string) => { chosen = id; try { localStorage.setItem(REMEMBER, id); } catch { /* storage off */ } };
   const fill = () => {
     select.replaceChildren(...sets.map(d => new Option(d.name, d.id)), new Option('New link set…', '+'));
     select.value = chosen;
   };
-  async function use(id) {
-    const k = await fetch(`/api/devices/${encodeURIComponent(id)}/key`).then(res => res.ok ? res.json() : null).catch(() => null);
+  async function use(id: string) {
+    const k: { base: string } | null = await fetch(`/api/devices/${encodeURIComponent(id)}/key`).then(res => res.ok ? res.json() : null).catch(() => null);
     if (!k) { fill(); return; }
     remember(id);
     onBase(k.base);
@@ -33,10 +36,10 @@ window.linkSets = async function linkSets(select, onBase) {
     if (select.value !== '+') return use(select.value);
     const name = await askText('Name the new link set, after the Stream Deck it is for (such as "Office Stream Deck")');
     if (!name) { fill(); return; }
-    const made = await fetch('/api/devices/links', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) })
+    const made: Partial<LinkSet> = await fetch('/api/devices/links', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) })
       .then(res => res.json()).catch(() => ({}));
-    if (!made.id) { fill(); return; }
-    sets.push(made);
+    if (!made.id || !made.base) { fill(); return; }
+    sets.push({ id: made.id, name: made.name || '', kind: 'links', base: made.base });
     remember(made.id);
     fill();
     onBase(made.base);
@@ -44,4 +47,4 @@ window.linkSets = async function linkSets(select, onBase) {
   fill();
   await use(chosen);
   return true;
-};
+}

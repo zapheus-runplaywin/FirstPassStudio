@@ -7,14 +7,20 @@
 // follow by themselves; a canvas doesn't, so a page that draws on one gets it from sharpCanvas(canvas): its backing
 // is sized for every real pixel (devicePixelRatio times the zoom) and kept so when that changes, and the context
 // it gives back draws in the page's own 1920 x 1080 units. Load it in <head>, after log.js.
+// studioZoom: how many times the page is zoomed (1, or 2 in a 3840 x 2160 window); sharpCanvas: see above.
+var studioZoom: number;
+var sharpCanvas: (canvas: HTMLCanvasElement) => CanvasRenderingContext2D;
+
 (function () {
   'use strict';
-  window.studioZoom = 1;
+  studioZoom = 1;
   // Called again for the same canvas (an animation played again), it gives back the same context.
-  const sharp = new WeakMap();
-  window.sharpCanvas = canvas => {
-    if (sharp.has(canvas)) return sharp.get(canvas);
+  const sharp = new WeakMap<HTMLCanvasElement, CanvasRenderingContext2D>();
+  sharpCanvas = canvas => {
+    const had = sharp.get(canvas);
+    if (had) return had;
     const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('This browser has no 2D canvas');
     sharp.set(canvas, ctx);
     const w = canvas.width, h = canvas.height;
     canvas.style.width = `${w}px`;

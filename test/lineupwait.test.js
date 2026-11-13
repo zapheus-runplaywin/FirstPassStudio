@@ -1,7 +1,7 @@
 // What the position match ups (positions.html) show before the line ups arrive.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { lineupWait } = require('../public/lineupwait.js');
+const { lineupWait } = require('../out/public/lineupwait.js');
 
 const player = (name, position, extra) => ({ name, position, ...extra });
 const team = (name, players = []) => ({ name, players });

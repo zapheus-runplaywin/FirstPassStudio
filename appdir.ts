@@ -12,8 +12,11 @@ export const VERSION: string = (() => {
   try { return JSON.parse(fs.readFileSync(path.join(APP_DIR, 'package.json'), 'utf8')).version; } catch { return ''; }
 })();
 
-// One of the scripts in public/ that the pages and the app share (pages.js, studiobar.js): a page loads it with a script
-// tag, and the app reads the same file for its lists. It sits in public/ beside the pages rather than in out/.
+// The pages' scripts, compiled from public/*.ts (npm run build); Studio serves them from here first.
+export const BUILT_PUBLIC_DIR = path.join(APP_DIR, 'out', 'public');
+
+// One of the pages' scripts that the app shares (pages.js, studiobar.js): a page loads it with a script tag, and the
+// app reads the same compiled file for its lists.
 export function sharedScript<T>(name: string): T {
-  return require(path.join(APP_DIR, 'public', name)) as T;
+  return require(path.join(BUILT_PUBLIC_DIR, name)) as T;
 }

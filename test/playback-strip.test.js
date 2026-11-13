@@ -30,7 +30,7 @@ test('the polled reads of every page and the Replay keys stay out of the log whi
 });
 
 test('the strip is styled by studio.css and hidden while nothing plays back', async t => {
-  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'studiobar.js'), 'utf8');
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'studiobar.ts'), 'utf8');
   assert.doesNotMatch(js, /style\.cssText|style="/, 'studiobar.js carries no inline styles');
   assert.match(js, /\/api\/playback/);
   assert.match(fs.readFileSync(path.join(__dirname, '..', 'public', 'studio.css'), 'utf8'), /\.fp-practice\[hidden\]/);

@@ -5,6 +5,8 @@
 //   studioDone(ms)              done in ms, once the page's own exit animation has had time to finish
 //   studioDone.afterAnimations() done once every CSS animation that ends has ended (pages timed all in CSS)
 // On its own (not in the scene, like an OBS browser source) it does nothing.
+var studioDone: ((ms?: number) => void) & { afterAnimations(): Promise<void> };
+
 (function () {
   let sent = false;
   function send() {
@@ -13,11 +15,11 @@
     window.pageLog && window.pageLog('info', 'Animated away: telling the scene to switch this source off');
     window.parent.postMessage({ studio: 'done' }, '*');
   }
-  const wait = ms => new Promise(r => setTimeout(r, ms));
-  const frame = () => new Promise(r => requestAnimationFrame(() => r()));
-  window.studioDone = (ms = 0) => { setTimeout(send, Math.max(0, ms)); };
+  const wait = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+  const frame = () => new Promise<void>(r => requestAnimationFrame(() => r()));
+  const done = (ms = 0) => { setTimeout(send, Math.max(0, ms)); };
   // Animations that loop for ever (or are paused) are left out; anything still going after a minute is given up on.
-  window.studioDone.afterAnimations = async () => {
+  const afterAnimations = async () => {
     const until = Date.now() + 60000;
     await frame(); await frame(); // let classes just added start their animations
     while (Date.now() < until) {
@@ -28,4 +30,5 @@
     }
     send();
   };
+  studioDone = Object.assign(done, { afterAnimations });
 })();

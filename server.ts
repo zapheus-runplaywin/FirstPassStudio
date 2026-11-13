@@ -9,7 +9,7 @@
 // Run:  npm start        (after npm install: it compiles the TypeScript into out/ and runs out/server.js)
 // Then: http://localhost:8080/ lists the pages.
 
-import { APP_DIR, VERSION } from './appdir';
+import { APP_DIR, VERSION, BUILT_PUBLIC_DIR } from './appdir';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -346,7 +346,7 @@ function gameSnapshot() {
   const left = clockLeft(b), l = left ?? 0;
   const following = b.source === 'playhq' && b.followPlayhqClock;
   // The super shot period: the last superShotMinutes of the quarter in a division with super shots, as the
-  // scoreboard's Super shot tab shows it (public/scoreboard.js superShotTime).
+  // scoreboard's Super shot tab shows it (public/scoreboard.ts superShotTime).
   const window = (CONFIG.superShotMinutes ?? 3) * 60;
   const superShot = competitions.superShotsFor(CONFIG, b.division) && window > 0 && l > 0 && l <= window && l < b.clock.lengthSec;
   return {
@@ -517,7 +517,7 @@ function pageVersion() {
       if (e.isDirectory()) walk(p); else latest = Math.max(latest, fs.statSync(p).mtimeMs);
     }
   };
-  try { walk(PUBLIC_DIR); latest = Math.max(latest, fs.statSync(path.join(ROOT, 'config.json')).mtimeMs); } catch {}
+  try { walk(PUBLIC_DIR); if (fs.existsSync(BUILT_PUBLIC_DIR)) walk(BUILT_PUBLIC_DIR); latest = Math.max(latest, fs.statSync(path.join(ROOT, 'config.json')).mtimeMs); } catch {}
   // The competition setup too: switching competition, or saving its settings, logos, photos or fonts, reloads every
   // page. Not the other files Studio keeps beside them (its sequences, the athlete register, which grows as PlayHQ's
   // line-ups are read mid-game): saving those mustn't reload the graphics on air.
@@ -1191,8 +1191,12 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     const ALIASES: Record<string, string> = { '/': 'output.html', '/results.html': 'fixtures.html' };
     // The Docs page (graphics.html, the home page at /index.html before that) is now the user guide: old links still find it.
     if (url.pathname === '/index.html' || url.pathname === '/graphics.html') { res.writeHead(302, { location: '/guide/' }); return res.end(); }
-    let file = path.normalize(path.join(PUBLIC_DIR, ALIASES[url.pathname] || decodeURIComponent(url.pathname)));
+    const rel = ALIASES[url.pathname] || decodeURIComponent(url.pathname);
+    let file = path.normalize(path.join(PUBLIC_DIR, rel));
     if (file !== PUBLIC_DIR && !file.startsWith(PUBLIC_DIR + path.sep)) return send(res, 403, 'Forbidden', 'text/plain');
+    // A page's script compiled from TypeScript (public/*.ts into out/public/) comes from there.
+    const built = path.normalize(path.join(BUILT_PUBLIC_DIR, rel));
+    if (built.startsWith(BUILT_PUBLIC_DIR + path.sep) && built.endsWith('.js') && fs.existsSync(built)) file = built;
     fs.readFile(file, (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file)] || 'application/octet-stream'));
   } catch (err) {
     const stack = errorStack(err);

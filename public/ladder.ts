@@ -1,3 +1,11 @@
+// The ladder page's script (ladder.html): what /api/ladder gives, drawn as one table per pool.
+interface LadderRow { position: number, [column: string]: string | number | null | undefined }
+interface LadderAnswer {
+  organisation?: string, competition?: string, division?: string, pools?: LadderRow[][], stale?: boolean, error?: string,
+  rules?: { competitionLogo?: string, competitionLogoLight?: string, competitionLogoDark?: string, finalsPlaces?: number },
+  finals?: { places: number, marks: string[], legend: { mark: string, label: string }[] },
+}
+
 (function () {
   const params = new URLSearchParams(location.search);
   const division = params.get('division') || ''; // blank = the division of the game picked on the control page
@@ -5,7 +13,7 @@
   const maxRows = Number(params.get('rows')) || 0;
 
   // Columns shown when PlayHQ provides them. Edit the labels here.
-  const COLUMNS = [
+  const COLUMNS: { key: string, label: string, cls?: string, format?: (v: unknown) => string }[] = [
     { key: 'position', label: '#', cls: 'position' },
     { key: 'team', label: 'Team', cls: 'team' },
     { key: 'played', label: 'P' },
@@ -19,18 +27,19 @@
     { key: 'points', label: 'Pts', cls: 'points' },
   ];
 
-  const $ = id => document.getElementById(id);
+  // The page's own elements, which ladder.html always has.
+  const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
   let lastJson = '';
   let loadedOnce = false;
 
-  function cell(tag, text, cls) {
+  function cell(tag: string, text: string | number, cls?: string) {
     const el = document.createElement(tag);
-    el.textContent = text;
+    el.textContent = String(text);
     if (cls) el.className = cls;
     return el;
   }
 
-  function render(data) {
+  function render(data: LadderAnswer) {
     $('org').textContent = data.organisation || '';
     $('comp').textContent = data.competition || '';
     $('division').textContent = data.division || '';
@@ -39,7 +48,7 @@
     // The logo sits on the coloured header, so it uses the dark mode logo unless ?mode=light.
     const logo = (params.get('mode') === 'light' ? rules.competitionLogoLight : rules.competitionLogoDark) || rules.competitionLogo;
     $('logo').hidden = !logo || params.get('logo') === '0';
-    if (!$('logo').hidden) $('logo').src = logo;
+    if (logo && !$('logo').hidden) $<HTMLImageElement>('logo').src = logo;
 
     const finals = data.finals || { places: rules.finalsPlaces || 0, marks: Array(rules.finalsPlaces || 0).fill('elim'), legend: [] };
     const tables = $('tables');
@@ -78,7 +87,7 @@
     $('ladder').hidden = false;
   }
 
-  function showMessage(text) {
+  function showMessage(text: string) {
     // Only shown before the first successful load, so a hiccup never appears on stream.
     if (loadedOnce) return console.warn(text);
     $('message').textContent = text;
@@ -88,7 +97,7 @@
   async function load() {
     try {
       const res = await fetch(`/api/ladder?division=${encodeURIComponent(division)}`, { cache: 'no-store' });
-      const data = await res.json();
+      const data: LadderAnswer = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       if (data.stale) console.warn('Showing the last good ladder:', data.error);
       const json = JSON.stringify([data.division, data.pools, data.rules, data.finals]);
@@ -96,10 +105,11 @@
       loadedOnce = true;
       $('message').hidden = true;
     } catch (err) {
-      console.warn("Ladder unavailable:", err.message);
+      const why = err instanceof Error ? err.message : String(err);
+      console.warn("Ladder unavailable:", why);
       showMessage(location.protocol === 'file:'
         ? 'Open this page through Studio (http://localhost:8080/ladder.html), not as a file.'
-        : `Ladder unavailable: ${err.message}`);
+        : `Ladder unavailable: ${why}`);
     }
   }
 

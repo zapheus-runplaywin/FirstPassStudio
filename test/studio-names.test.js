@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { STUDIO_PAGES } = require('../public/studiobar.js');
+const { STUDIO_PAGES } = require('../out/public/studiobar.js');
 
 test('each tab\'s label is its page\'s title and heading', () => {
   // The Docs tab is the user guide, which keeps its own title.

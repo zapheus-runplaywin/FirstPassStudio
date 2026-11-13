@@ -3,50 +3,57 @@
   const superTab = params.get('supershot') !== '0';
   document.body.classList.add(params.get('position') || 'above-ticker');
 
-  const $ = id => document.getElementById(id);
-  let state = null;
+  // The board as Studio's scene socket sends it (the fields this bug reads).
+  interface Team { name: string, score?: number | null }
+  interface Board {
+    home: Team, away: Team, period: number, periodLabel: string, court?: string, source?: string, showClock?: boolean,
+    teamColours?: { home?: string, away?: string }, rules?: { superShots?: boolean, superShotMinutes?: number | string },
+    clock: { running: boolean, lengthSec: number }, clockElapsedMs: number, serverNow: number,
+  }
+  const $ = (id: string) => document.getElementById(id) as HTMLElement;
+  let state: Board | null = null;
   let clockOffset = 0; // server time minus local time
-  const textOn = hex => {
+  const textOn = (hex: string) => {
     const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
     return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.4 ? '#111111' : '#ffffff';
   };
 
-  function setText(id, text) { if ($(id).textContent !== String(text)) $(id).textContent = text; }
+  function setText(id: string, text: string | number) { if ($(id).textContent !== String(text)) $(id).textContent = String(text); }
 
   // Shrink a team or court name until it fits its panel.
-  function fitName(id) {
-    const el = $(id), box = el.parentElement, cs = getComputedStyle(box);
+  function fitName(id: string) {
+    const el = $(id), box = el.parentElement as HTMLElement, cs = getComputedStyle(box);
     el.style.fontSize = '';
     const room = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     let size = parseFloat(getComputedStyle(el).fontSize);
     while (el.scrollWidth > room && size > 12) { size -= 1; el.style.fontSize = size + 'px'; }
   }
-  function setName(id, text) {
+  function setName(id: string, text: string) {
     if ($(id).textContent === String(text)) return;
     $(id).textContent = text;
     fitName(id);
   }
 
-  function setScore(id, value) {
+  function setScore(id: string, value: number) {
     const el = $(id);
     if (el.textContent !== String(value)) {
       const changed = el.textContent !== '';
-      el.textContent = value;
+      el.textContent = String(value);
       if (changed) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
     }
   }
 
   // A team colour from the competition setup page goes behind that team's name, with
   // dark or white text, whichever reads better on it. No colour: the competition's.
-  function setTeamColour(id, colour) {
-    const box = $(id).parentElement;
+  function setTeamColour(id: string, colour: string | undefined) {
+    const box = $(id).parentElement as HTMLElement;
     if ((box.dataset.colour || '') === (colour || '')) return;
     box.dataset.colour = colour || '';
     box.style.background = colour || '';
     box.style.color = colour ? textOn(colour) : '';
   }
 
-  function msLeft() {
+  function msLeft(state: Board) {
     const c = state.clock;
     const elapsed = state.clockElapsedMs + (c.running ? Date.now() + clockOffset - state.serverNow : 0);
     return Math.max(0, c.lengthSec * 1000 - elapsed);
@@ -54,17 +61,17 @@
 
   // Super shots count in the last superShotMinutes of each quarter (competition setup, default 3): the "Super shot"
   // tab shows from then (or straight away for a game picked later on) until the quarter's clock runs out or is reset.
-  function superShotTime() {
+  function superShotTime(state: Board) {
     const r = state.rules || {};
     if (!superTab || !r.superShots || !state.clock) return false;
     const window = Number(r.superShotMinutes ?? 3) * 60000;
-    const left = msLeft();
+    const left = msLeft(state);
     return window > 0 && left > 0 && left <= window && left < state.clock.lengthSec * 1000;
   }
 
   function clockText() {
     if (!state || !state.showClock) return '';
-    const s = Math.ceil(msLeft() / 1000);
+    const s = Math.ceil(msLeft(state) / 1000);
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   }
 
@@ -85,16 +92,16 @@
     $('bug').classList.toggle('has-court', !!state.court);
     setName('court', state.court || '');
     $('live').hidden = state.source !== 'playhq';
-    const superOn = superShotTime();
+    const superOn = superShotTime(state);
     $('super').classList.toggle('on', superOn);
     $('bug').classList.toggle('super-on', superOn);
     $('bug').hidden = false;
   }
 
   // The board arrives over Studio's scene socket (sceneevents.js) as it changes, rather than by asking every second.
-  function take(s) {
+  function take(s: Board) {
     state = s;
-    clockOffset = state.serverNow - Date.now();
+    clockOffset = s.serverNow - Date.now();
     render();
   }
 

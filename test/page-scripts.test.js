@@ -7,16 +7,17 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
+const BUILT = path.join(__dirname, '..', 'out', 'public'); // the TypeScript ones, as npm run build compiles them
 const scripts = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e =>
   e.isDirectory() ? scripts(path.join(dir, e.name)) : e.name.endsWith('.js') ? [path.join(dir, e.name)] : []);
 
 test('every page script parses', () => {
-  const files = scripts(PUBLIC);
+  const files = scripts(PUBLIC).concat(scripts(BUILT));
   assert.ok(files.length > 10);
   for (const f of files) {
     const code = fs.readFileSync(f, 'utf8');
     // Modules can't be parsed as plain scripts; they're checked as functions' bodies would reject import/export.
     if (/^\s*(import|export)\s/m.test(code)) continue;
-    assert.doesNotThrow(() => new vm.Script(code, { filename: f }), path.relative(PUBLIC, f));
+    assert.doesNotThrow(() => new vm.Script(code, { filename: f }), path.relative(path.join(__dirname, '..'), f));
   }
 });

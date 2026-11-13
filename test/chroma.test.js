@@ -1,4 +1,4 @@
-// Chroma key safe graphics (public/chroma.js): for the chroma output, every graphic goes out with nothing half
+// Chroma key safe graphics (public/chroma.ts): for the chroma output, every graphic goes out with nothing half
 // see-through, so a key on a colour cuts it cleanly. It's on by default with Chroma picked, only overrides how
 // pages draw (?chromaKey=true, or inside a chroma key safe scene), and never changes a saved setting.
 const test = require('node:test');
