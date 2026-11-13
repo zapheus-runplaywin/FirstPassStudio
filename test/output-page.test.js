@@ -1,4 +1,4 @@
-// The Output page as one view (public/output/mode.js, board.js, sources.js): the picture with the status board beside
+// The Output page as one view (public/output/mode.js, board.ts, sources.js): the picture with the status board beside
 // it, the output's set-up behind Settings over the picture, each source's settings under its row behind the pencil,
 // and Music's settings behind its Settings button. Every element keeps its id, so Stream Deck links and the other
 // tests do too.

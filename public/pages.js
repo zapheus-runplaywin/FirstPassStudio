@@ -3,7 +3,7 @@
 // Every graphic (the pages that go on air, not the Studio pages you work in) is listed here once, in the
 // order the Output page's Add a page offers them: the link, the name, the group of the Devices tab's Links it is
 // described in, and the example pictures the Make Examples script takes of it. The Output page and
-// examples.js read this list; a test checks that every graphic in public/ is here, that every page with
+// examples.ts read this list; a test checks that every graphic in public/ is here, that every page with
 // link options (pageoptions.js) is here, and that graphiclinks.js describes every page here. Add a new
 // graphic here first, then write it up in graphiclinks.js and give it its options in pageoptions.js.
 //
@@ -11,7 +11,7 @@
 //   file      its link, like 'ladder.html' (results.html is the fixture page's alias for finished games)
 //   name      what the Output page calls it
 //   group     the group in graphiclinks.js (the Devices tab's Links) it is described in
-//   examples  [[caption, link, milliseconds to wait before the picture], ...] for examples.js
+//   examples  [[caption, link, milliseconds to wait before the picture], ...] for examples.ts
 (function () {
   'use strict';
   const STUDIO_GRAPHICS = [
@@ -38,7 +38,7 @@
       ['Goal for goal (mid animation)', '/streak.html?play=goalforgoal', 2200], ['Hits the front: home (mid animation)', '/streak.html?play=lead&team=home', 2200],
       ['All square (mid animation)', '/streak.html?play=level', 2200], ['Coming back: away (mid animation)', '/streak.html?play=comeback&team=away', 2200],
       ['On the siren: home (mid animation)', '/streak.html?play=siren&team=home', 2200], ['Back to back super shots: home (mid animation)', '/streak.html?play=backtoback&team=home', 2400]] },
-    { file: 'ladder.html', name: 'Ladder', group: 'ladders' }, // one example per division, taken by examples.js
+    { file: 'ladder.html', name: 'Ladder', group: 'ladders' }, // one example per division, taken by examples.ts
     { file: 'ladderbar.html', name: 'Ladder lower third', group: 'gamePages', examples: [['Ladder lower third', '/ladderbar.html', 3000]] },
     { file: 'lowerthird.html', name: 'Person lower third (athlete or guest)', group: 'personPages', examples: [['Guest lower third', '/lowerthird.html?type=guest&name=Sam%20Lee&title=Commentator', 2500]] },
     { file: 'commentators.html', name: 'Commentators', group: 'personPages', examples: [

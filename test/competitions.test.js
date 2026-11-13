@@ -1,4 +1,4 @@
-// Competition setups (competitions.js): settings checked and tidied, clubs, super shots by
+// Competition setups (competitions.ts): settings checked and tidied, clubs, super shots by
 // division, setups made, switched and deleted, logos, and template files exported and imported,
 // including every template in templates/ and every import config in imports/.
 const test = require('node:test');
@@ -8,7 +8,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-competitions-'));
-const competitions = require('../competitions');
+const competitions = require('../out/competitions');
 competitions.init(() => {});
 
 const ROOT = path.join(__dirname, '..');
@@ -224,7 +224,7 @@ test('setup: Text size is a percentage from 80 to 130', () => {
 });
 
 test('fonts: every bundled font is in public/vendor/fonts, with its licence and files', () => {
-  const fonts = require('../fonts');
+  const fonts = require('../out/fonts');
   for (const [name, id] of Object.entries(fonts.BUNDLED)) {
     const dir = path.join(fonts.VENDOR, id);
     assert.ok(fs.existsSync(path.join(dir, 'LICENSE')), `${name} has no licence; run npm run fonts`);
@@ -235,7 +235,7 @@ test('fonts: every bundled font is in public/vendor/fonts, with its licence and 
 });
 
 test('fonts: a Mac font is used by name, and an added font file by its family, weight and style', () => {
-  const fonts = require('../fonts');
+  const fonts = require('../out/fonts');
   let css = competitions.themeCss(clean({ font: 'Helvetica Neue' }));
   assert.match(css, /--font: "Helvetica Neue", "Montserrat"/);
   assert.doesNotMatch(css, /@font-face/, 'nothing to load: it is on the Mac');

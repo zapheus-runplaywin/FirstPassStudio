@@ -18,7 +18,7 @@ Module._load = function (request, parent, ...rest) {
   if (request === './scenewindow') return () => ({ destroy() {}, contents: () => null });
   return load.call(this, request, parent, ...rest);
 };
-const ndi = require('../desktop/ndi');
+const ndi = require('../out/desktop/ndi');
 Module._load = load;
 
 test('a sender that failed to start is tried again on the next change, and its error shows until then', t => {

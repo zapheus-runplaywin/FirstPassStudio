@@ -1,4 +1,4 @@
-// Saving files so they are never half written (savefile.js): a save replaces the file in one
+// Saving files so they are never half written (savefile.ts): a save replaces the file in one
 // step and leaves no temporary file behind, a failed save leaves the old file as it was, and a
 // file that is there but broken is moved aside and reported rather than silently taken as empty.
 const test = require('node:test');
@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const savefile = require('../savefile');
+const savefile = require('../out/savefile');
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'studio-savefile-'));
 
@@ -74,7 +74,7 @@ test('flushSync: a process exiting with saves still in the background leaves the
   const file = path.join(dir, 'scoreboard-state.json');
   // As Studio going off air: saves started, then exit straight away, with the flush on exit.
   const script = `
-    const savefile = require(${JSON.stringify(path.join(__dirname, '..', 'savefile'))});
+    const savefile = require(${JSON.stringify(path.join(__dirname, '..', 'out', 'savefile'))});
     process.on('exit', () => savefile.flushSync());
     const file = ${JSON.stringify(file)};
     savefile.writeFile(file, JSON.stringify({ n: 0, pad: 'x'.repeat(5e6) }));

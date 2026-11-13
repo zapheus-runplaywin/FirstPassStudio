@@ -1,4 +1,4 @@
-// Switcher actions on sequence steps and scenes (switcher.js run, fired from sequences.js and scene.js):
+// Switcher actions on sequence steps and scenes (switcher.ts run, fired from sequences.ts and scene.ts):
 // what's saved, and that they fire only for what plays on the primary output, with a step's actions still
 // to come called off as the sequence moves on. The switcher itself is stood in for by a recorder here;
 // test/switcher.test.js has them reaching the stand-in ATEM.
@@ -11,9 +11,9 @@ const path = require('node:path');
 
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-switcher-actions-'));
 mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
-const switcher = require('../switcher');
-const outputs = require('../outputs');
-const scene = require('../scene');
+const switcher = require('../out/switcher');
+const outputs = require('../out/outputs');
+const scene = require('../out/scene');
 outputs.init(() => {}, { removed: id => scene.dropOutput(id) });
 scene.init(() => {}, { outputs: { find: outputs.find, summary: outputs.summary } });
 outputs.apply({ add: true });

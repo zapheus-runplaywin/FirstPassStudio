@@ -41,8 +41,8 @@ jobs:
           cache: npm
       # No install scripts (as in mac-app.yml); Electron's binary is fetched on its own below, for the app's test.
       - run: npm ci --ignore-scripts
-      # FirstPass's own packages in packages/ (@firstpass/playhq), built to dist/ for Studio's require(), then
-      # their own tests: vitest against a stand-in PlayHQ, the type check, and the built files loaded as Studio does.
+      # FirstPass's own packages in packages/ (@firstpass/playhq) built to dist/ for Studio's require(), and Studio compiled into out/;
+      # then the packages' own tests: vitest against a stand-in PlayHQ, the type check, and the built files loaded as Studio does.
       - run: npm run build
       - run: npm test --workspaces
       - run: npm run typecheck --workspaces
@@ -120,12 +120,9 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             plugins/studio-deck/package-lock.json
-      # The end-to-end test starts a real Studio (server.js), which needs Studio's own packages: the
+      # The end-to-end test starts a real Studio (out/server.js), which needs Studio's own packages and its build: the
       # Switcher key's test drives Studio's ATEM connection (atem-connection) against the stand-in switcher.
-      # Build-time packages too, to build FirstPass's own packages in packages/ (@firstpass/playhq).
-      - run: npm ci --ignore-scripts
-        working-directory: .
-      - run: npm run build
+      - run: npm ci --ignore-scripts && npm run build
         working-directory: .
       - run: npm ci --ignore-scripts
       # The plugin's shipped packages (@elgato/streamdeck and what it pulls in), as above. A warning rather

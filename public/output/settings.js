@@ -704,7 +704,7 @@ function renderQuality(o) {
     b.setAttribute('aria-pressed', String(b.dataset.q === q));
   }
   $('outQualityNote').classList.toggle('hidden', !o.app || q !== 'uhd');
-  // What will look soft in 4K, by name, so a bigger file can go in (outputs.js soft, from picturesize.js).
+  // What will look soft in 4K, by name, so a bigger file can go in (outputs.js soft, from picturesize.ts).
   const soft = (o.app && q === 'uhd' && o.soft) || [];
   const logos = soft.filter(x => x.what === 'logo'), videos = soft.filter(x => x.what === 'video');
   const name = x => `${esc(x.name)} (${x.width} × ${x.height})`;

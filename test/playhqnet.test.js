@@ -1,7 +1,7 @@
-// playhqnet.js: what talking to PlayHQ costs, for the PlayHQ line above the score on the Output page's status board.
+// playhqnet.ts: what talking to PlayHQ costs, for the PlayHQ line above the score on the Output page's status board.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { create, answerBytes } = require('../playhqnet');
+const { create, answerBytes } = require('../out/playhqnet');
 
 const clock = () => { let t = 1_000_000; const now = () => t; now.add = ms => { t += ms; }; return now; };
 

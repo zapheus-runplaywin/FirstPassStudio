@@ -1,4 +1,4 @@
-// NDI video formats (outputs.js): 1080p at the rates a Blackmagic device can name (23.98 to 120 fps) and 720p at 25 to 60, each sent at its exact
+// NDI video formats (outputs.ts): 1080p at the rates a Blackmagic device can name (23.98 to 120 fps) and 720p at 25 to 60, each sent at its exact
 // rate (23.98 is 24000/1001). A format Studio doesn't know falls back to 1080p50.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -10,7 +10,7 @@ const DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-ndi-formats-'));
 process.env.FIRSTPASS_DATA_DIR = DIR;
 fs.writeFileSync(path.join(DIR, 'outputs.json'), JSON.stringify({ mode: 'ndi', on: true, ndiSignal: 'alpha', ndiName: 'Studio', ndiFormat: '2160p50' }));
 
-const outputs = require('../outputs');
+const outputs = require('../out/outputs');
 outputs.init(() => {});
 outputs.message({ type: 'ndi', ok: true, version: '6' });
 

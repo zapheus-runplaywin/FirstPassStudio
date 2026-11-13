@@ -1,4 +1,4 @@
-// Cameras per output (switcher.js): an output on an upstream key names the cameras its graphics go with. Studio's own
+// Cameras per output (switcher.ts): an output on an upstream key names the cameras its graphics go with. Studio's own
 // cuts, autos and program presses take its key on with them and off with any other camera, in the same transition
 // (the switcher's next transition selection, put back afterwards); with Keys follow the camera on, a cut made on the
 // switcher itself brings the keys straight after. Against the stand-in switcher (test/support/atem.js).

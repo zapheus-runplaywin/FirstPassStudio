@@ -1,11 +1,11 @@
-// Files people add (uploads.js): served as plain files with headers that stop a browser running one as a
+// Files people add (uploads.ts): served as plain files with headers that stop a browser running one as a
 // page of Studio's, refused when an image's bytes don't match its name, and browser sources only point
 // at http(s) pages.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const uploads = require('../uploads');
+const uploads = require('../out/uploads');
 const { startStudio } = require('./support/studio');
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
@@ -30,7 +30,7 @@ test('looksLikeImage: the first bytes match the name', () => {
 });
 
 test('cleanUrl: Studio pages and http(s) pages only', () => {
-  const { cleanUrl } = require('../scene');
+  const { cleanUrl } = require('../out/scene');
   assert.equal(cleanUrl('scoreboard.html?position=top'), 'scoreboard.html?position=top');
   assert.equal(cleanUrl('/ladder.html'), 'ladder.html');
   assert.equal(cleanUrl('http://localhost:8080/ladder.html'), 'ladder.html');

@@ -1,14 +1,14 @@
 // FirstPass Studio - the Mac app.
 //
-// A menu bar app around the helper (server.js): it opens Studio's pages in its own window
+// A menu bar app around the helper (server.ts): it opens Studio's pages in its own window
 // (windows.js), or the browser if chosen, and runs the helper in the background only while a
 // Studio window is open. Opening a window puts Studio on air; closing the last one takes it off
 // air, so nothing talks to PlayHQ while Studio isn't on screen. The Output page and the Stream Deck use the
 // links on the Graphics page (the Mac's .local name, or localhost).
 //
-// Settings are saved in ~/Library/Application Support/FirstPass Studio (datadir.js), which
+// Settings are saved in ~/Library/Application Support/FirstPass Studio (datadir.ts), which
 // installing or updating the app never touches, or in a folder in iCloud Drive picked from the
-// menu (datalocation.js), in a subfolder named after this Mac. Updates download in the background and
+// menu (datalocation.ts), in a subfolder named after this Mac. Updates download in the background and
 // are installed when the app quits, so they never interrupt a stream.
 
 'use strict';
@@ -24,10 +24,10 @@ const { INSTALL_TIMEOUT } = require('./updates');
 const whatsnew = require('./whatsnew');
 const { unpacked } = require('../unpacked');
 
-// server.js exits with this when its port is already taken (EXIT_PORT_IN_USE there).
+// server.ts exits with this when its port is already taken (EXIT_PORT_IN_USE there).
 const EXIT_PORT_IN_USE = 3;
 
-const APP_DIR = path.join(__dirname, '..');
+const { APP_DIR } = require('../appdir'); // this file runs compiled, from out/desktop/
 // Studio's Stream Deck plugin, packed into the app by its build (plugins/studio-deck).
 const STREAMDECK_PLUGIN = unpacked(path.join(APP_DIR, 'plugins', 'studio-deck', 'dist', 'com.runplaywin.firstpass-studio.streamDeckPlugin'));
 // Electron names this folder after productName: ~/Library/Application Support/FirstPass Studio,
@@ -84,7 +84,7 @@ function setMachineConfig(key, value) {
   catch (err) { log(`Couldn't save ${key} to config.json: ${err.message}`); dialog.showMessageBox({ type: 'error', message: `Couldn't save the setting`, detail: err.message }); }
 }
 const PORT = Number(MACHINE.port) || 8080;
-// Links opened and copied from the menu use the Mac's Bonjour name (linkhost.js), the same as
+// Links opened and copied from the menu use the Mac's Bonjour name (linkhost.ts), the same as
 // the Graphics page shows. The app checks the helper on localhost, which always works.
 const HOST = linkHost(MACHINE.linkHost);
 const pageUrl = p => `http://${HOST}:${PORT}${p}`;
@@ -101,7 +101,7 @@ async function openPage(p, { guide = false } = {}) {
   if (whatsNewLater) { const later = whatsNewLater; whatsNewLater = null; showWhatsNew(later); }
 }
 
-// Whether something already answers on the port (another copy, or server.js run by hand).
+// Whether something already answers on the port (another copy, or server.ts run by hand).
 function answering() {
   return new Promise(resolve => {
     const req = http.get(`http://localhost:${PORT}/api/version`, { timeout: 1500 }, res => { res.resume(); resolve(true); });
@@ -148,8 +148,8 @@ let helper = null, wanted = false, status = 'Studio is off air', quitting = fals
 function startHelper() {
   status = 'Starting…'; refreshMenu();
   // The working directory is the local data folder, not the app's: the app's code is inside its
-  // archive (app.asar), which can't be a working directory; server.js finds its own files by __dirname.
-  const child = helper = utilityProcess.fork(path.join(APP_DIR, 'server.js'), [], {
+  // archive (app.asar), which can't be a working directory; the helper finds its own files from appdir.ts.
+  const child = helper = utilityProcess.fork(path.join(APP_DIR, 'out', 'server.js'), [], {
     cwd: LOCAL_DIR,
     serviceName: 'FirstPass Studio helper',
     stdio: 'ignore',
@@ -170,7 +170,7 @@ function startHelper() {
     if (quitting || child.restarting || child.stopping) return;
     log(`Helper stopped (code ${code})`);
     if (code === EXIT_PORT_IN_USE) {
-      // server.js found the port taken (by something that doesn't answer like Studio, or a copy
+      // server.ts found the port taken (by something that doesn't answer like Studio, or a copy
       // that started between the check and the start). Restarting won't help: say so, and offer to try again.
       wanted = false; status = `Studio is off air: port ${PORT} is in use`; refreshMenu();
       dialog.showMessageBox({
@@ -189,7 +189,7 @@ function startHelper() {
   });
 }
 
-// A device on the network asking to control Studio (devices.js ask()): Allow or Deny on the Mac, Deny the default so a
+// A device on the network asking to control Studio (devices.ts ask()): Allow or Deny on the Mac, Deny the default so a
 // stray Return can't let anything in. A phone or browser (pair.html) is allowed to score only, or to change everything.
 // The dialog closes by itself when the request is answered on the Devices page or runs out (five minutes); the helper
 // says so with pairDone.
@@ -220,7 +220,7 @@ function askToPair(child, msg) {
 }
 
 // Starts the helper unless something else already answers on the port (another copy, or
-// server.js run by hand from the repository). Resolves true if it started.
+// server.ts run by hand from the repository). Resolves true if it started.
 async function startHelperChecked() {
   if (helper) return true;
   status = 'Starting…'; refreshMenu();
@@ -282,7 +282,7 @@ function restartHelper() {
 const menuIcons = {};
 function menuIcon(name) {
   if (!menuIcons[name]) {
-    menuIcons[name] = nativeImage.createFromPath(path.join(__dirname, `${name}Template.png`));
+    menuIcons[name] = nativeImage.createFromPath(path.join(APP_DIR, 'desktop', `${name}Template.png`));
     menuIcons[name].setTemplateImage(true);
   }
   return menuIcons[name];
@@ -304,7 +304,7 @@ function refreshMenu() {
     { label: 'Scoreboard control', click: () => openPage('/control.html') },
     { label: 'Competitions setup', click: () => openPage('/setup.html') },
     { label: 'Copy the Studio link', click: () => clipboard.writeText(pageUrl('/')) },
-    // What may change things from another device (devices.js); the page answers on this Mac only.
+    // What may change things from another device (devices.ts); the page answers on this Mac only.
     { label: 'Devices', click: () => openPage('/api.html') },
     // Opening the file hands it to the Stream Deck app, which installs or updates the plugin.
     { label: 'User guide', click: () => openPage('/guide/', { guide: true }) },
@@ -324,7 +324,7 @@ function refreshMenu() {
     // nativeTheme.themeSource is what the pages see, so a change applies to every open window at once. The graphics
     // keep the competition's own colours whichever is picked.
     { label: 'Appearance', submenu: ['system', 'light', 'dark'].map(v => ({ label: { system: 'Follow the Mac', light: 'Light', dark: 'Dark' }[v], type: 'radio', checked: appearance() === v, click: () => setAppearance(v) })) },
-    // config.json remoteChanges (access.js): off (ticked), only this Mac can change scores, the scene, settings and media;
+    // config.json remoteChanges (access.ts): off (ticked), only this Mac can change scores, the scene, settings and media;
     // other devices can still open every page. Ticked again at every launch (start()); unticking lasts until Quit. The
     // helper reads config.json when it starts, so it restarts on a change.
     { label: 'Only this Mac can change things', type: 'checkbox', checked: machineConfig().remoteChanges === false, toolTip: 'Phones and other computers on this network can see every graphic but not change scores, the scene or settings, or read backups, the athlete register, the log and sponsor reports, unless they are paired (Devices). Untick to let every device until Studio quits; it is ticked again each time Studio opens.',
@@ -337,7 +337,7 @@ function refreshMenu() {
 }
 
 // ─── Settings folder ────────────────────────────────────────────────────────
-// On this Mac, or in iCloud Drive in a subfolder named after this Mac (datalocation.js).
+// On this Mac, or in iCloud Drive in a subfolder named after this Mac (datalocation.ts).
 
 function settingsFolderMenu() {
   const where = location.current(LOCAL_DIR);
@@ -764,7 +764,7 @@ function showWhatsNew(releases, options) {
 // ─── Start ──────────────────────────────────────────────────────────────────
 async function start() {
   if (process.platform === 'darwin') app.dock.hide(); // a menu bar app (Info.plist LSUIElement does the same when installed)
-  const icon = nativeImage.createFromPath(path.join(__dirname, 'trayTemplate.png'));
+  const icon = nativeImage.createFromPath(path.join(APP_DIR, 'desktop', 'trayTemplate.png'));
   icon.setTemplateImage(true);
   tray = new Tray(icon);
   outputs = require('./outputs')({ port: PORT, log });

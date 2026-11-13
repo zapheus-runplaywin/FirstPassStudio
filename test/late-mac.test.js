@@ -1,4 +1,4 @@
-// A Studio Mac turned on part way through a game another Studio Mac is following (board.js fillFromPeers, stories.js
+// A Studio Mac turned on part way through a game another Studio Mac is following (board.ts fillFromPeers, stories.ts
 // liveFrom): it picks the game up at the score then, with a gap, asks the other Mac for its story of the game so far,
 // fills the gap with its goals there and then, and carries on following the game by itself. Against the stand-in
 // PlayHQ (test/support/playhq.js), both Studios reading the same game.

@@ -1,4 +1,4 @@
-// Keeping the settings in iCloud Drive (datalocation.js): moving them in and back safely, a
+// Keeping the settings in iCloud Drive (datalocation.ts): moving them in and back safely, a
 // subfolder per Mac, and the files that stay on the Mac.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -8,7 +8,7 @@ const path = require('node:path');
 
 const HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-home-'));
 process.env.HOME = HOME;
-const location = require('../datalocation.js');
+const location = require('../out/datalocation');
 
 const ICLOUD = path.join(HOME, 'Library', 'Mobile Documents', 'com~apple~CloudDocs');
 let n = 0;
@@ -114,7 +114,7 @@ test('Studio follows data-location.json and refuses to start on a missing iCloud
   const local = setup();
   const dataDir = path.join(ICLOUD, 'gone', 'Mac');
   fs.writeFileSync(path.join(local, location.LOCATION_FILE), JSON.stringify({ provider: 'icloud', folder: path.dirname(dataDir), dataDir, computer: 'Mac' }));
-  const run = () => execFileSync(process.execPath, ['-e', 'const d = require("./datadir"); console.log(d.DATA_DIR + "|" + d.local("logs"))'],
+  const run = () => execFileSync(process.execPath, ['-e', 'const d = require("./out/datadir"); console.log(d.DATA_DIR + "|" + d.local("logs"))'],
     { cwd: path.join(__dirname, '..'), env: { ...process.env, FIRSTPASS_LOCAL_DIR: local, FIRSTPASS_DATA_DIR: '' }, encoding: 'utf8', stdio: 'pipe' });
   assert.throws(run, /can't be found/);
   assert.ok(!fs.existsSync(dataDir));
@@ -185,7 +185,7 @@ test('restored settings never bring another Mac\'s lock, ffmpeg or PlayHQ addres
   assert.deepEqual(JSON.parse(read(path.join(mine, 'config.json'))), { remoteChanges: false, playhqRefreshSeconds: 3 },
     'this Mac\'s lock stays, their machine settings are dropped, the rest comes across');
   // From a backup zip too, onto a Mac with no config.json of its own.
-  const zip = require('../zip');
+  const zip = require('../out/zip');
   const file = path.join(folder, 'backup.zip');
   const out = fs.createWriteStream(file);
   const done = new Promise((resolve, reject) => { out.on('finish', resolve); out.on('error', reject); });
@@ -204,7 +204,7 @@ test('restored settings never bring another Mac\'s lock, ffmpeg or PlayHQ addres
 test('every file Studio saves is either a setting that moves or one that stays on the Mac', () => {
   const ROOT = path.join(__dirname, '..');
   const names = { file: new Set(), local: new Set() };
-  for (const f of fs.readdirSync(ROOT).filter(f => f.endsWith('.js'))) {
+  for (const f of fs.readdirSync(ROOT).filter(f => /\.(js|ts)$/.test(f) && !f.endsWith('.d.ts'))) {
     const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
     for (const [, kind, name] of src.matchAll(/(?:datadir\.(file|local)|\b(?:DATA))\(['"]([^'"\/]+)['"]/g)) names[kind === 'local' ? 'local' : 'file'].add(name);
   }

@@ -1,5 +1,5 @@
 // FirstPass Studio - sponsor spots on the graphics: "presented by" a sponsor of the competition in use
-// (Sponsors page, sponsors.js). Each page asks for its sponsor once when it loads:
+// (Sponsors page, sponsors.ts). Each page asks for its sponsor once when it loads:
 //   sponsorSpot.naming(place)        the naming rights sponsor (or what the competition's empty-tier rule gives
 //                                    instead), for the title, scoreboard tab and countdown
 //   sponsorSpot.next(place, tiers)   the next sponsor in rotation from those tiers (Major and up by default), for

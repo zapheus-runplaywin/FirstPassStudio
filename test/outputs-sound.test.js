@@ -1,4 +1,4 @@
-// The Scene View (the Output page's, or its pop-out window) never plays sound (outputs.js, output.html): an output's
+// The Scene View (the Output page's, or its pop-out window) never plays sound (outputs.ts, output.html): an output's
 // sound plays where its Sound goes to says, on or off, so nothing plays twice and nothing plays from a page that
 // happens to be open. There's no tick box for it, and no listen API, any more.
 const test = require('node:test');
@@ -8,7 +8,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-outputs-'));
-const outputs = require('../outputs');
+const outputs = require('../out/outputs');
 outputs.init(() => {});
 
 // The Mac app telling Studio about its displays: the Mac's own and one more for a chroma output.

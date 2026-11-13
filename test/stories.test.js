@@ -1,4 +1,4 @@
-// Game stories shared between Studio Macs (stories.js): over the network (GET /api/stories) and through iCloud Drive.
+// Game stories shared between Studio Macs (stories.ts): over the network (GET /api/stories) and through iCloud Drive.
 'use strict';
 
 const test = require('node:test');
@@ -7,8 +7,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const http = require('http');
-const savefile = require('../savefile');
-const { create, browsed, reached, better } = require('../stories');
+const savefile = require('../out/savefile');
+const { create, browsed, reached, better } = require('../out/stories');
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'studio-stories-'));
 const story = (id, extra = {}) => ({ gameId: id, date: '2026-11-03', division: 'Div 1', round: 'Round 4', ended: true, savedAt: Date.now(),
@@ -16,7 +16,7 @@ const story = (id, extra = {}) => ({ gameId: id, date: '2026-11-03', division: '
 const send = (res, status, body) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
 const store = (studio, more = {}) => create({ dir: tmp(), savefile, studio, bonjour: false, ...more });
 
-// One Studio answering /api/stories on a free port, as server.js does.
+// One Studio answering /api/stories on a free port, as server.ts does.
 async function serve(s) {
   const server = http.createServer((req, res) => { if (!s.route(req, res, new URL(req.url, 'http://x'), { send })) send(res, 404, {}); });
   await new Promise(r => server.listen(0, '127.0.0.1', r));

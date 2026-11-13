@@ -1,5 +1,5 @@
 // The stinger's Music under it (?music=quiet or duck, on the Switcher card and in the source's options): it goes by the
-// output the stinger plays on (switcher.js stingerOutput), so it ducks the music on a night Output 1 is off and the stinger
+// output the stinger plays on (switcher.ts stingerOutput), so it ducks the music on a night Output 1 is off and the stinger
 // plays on another output's downstream key; the stinger shown by hand on an output it doesn't play on leaves the music
 // alone. The Switcher card reads the choice from /api/switcher (stingerId, stingerMusic) and sets it on the source.
 const test = require('node:test');

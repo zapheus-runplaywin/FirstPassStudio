@@ -1,4 +1,4 @@
-// PlayHQ not scoring live (board.js playhqTrouble): a scorebench off line doesn't make PlayHQ fail, it just stops
+// PlayHQ not scoring live (board.ts playhqTrouble): a scorebench off line doesn't make PlayHQ fail, it just stops
 // the score moving. Studio says so on the bar's PlayHQ chip and the status board, from two signs: the live feed says
 // the game isn't scored while it's under way, or nothing new comes from the scorer for 4 minutes while its clock
 // runs. The first against the stand-in PlayHQ (as on 3 November, when a scorebench's wifi dropped until quarter
@@ -38,7 +38,7 @@ test('the live feed not scoring a game PlayHQ says is under way turns the PlayHQ
 function boardWith(seen) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-trouble-'));
   const control = { boards: {} };
-  const b = require('../board').create({
+  const b = require('../out/board').create({
     log: () => {}, datadir: { local: f => path.join(dir, f) },
     savefile: { readJson: (f, d) => d, writeFile: () => {} }, machine: {}, config: () => ({}),
     competitions: { superShotsFor: () => true }, scene: { publishBoard() {} },

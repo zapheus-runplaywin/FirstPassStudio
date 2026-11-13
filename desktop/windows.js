@@ -16,7 +16,8 @@ const { app, BrowserWindow, Menu, shell, clipboard, screen, dialog, protocol, na
 const fs = require('fs');
 const path = require('path');
 // The Studio pages, in tab order, shared with the tab bar on every page (public/studiobar.js).
-const { STUDIO_PAGES: TABS } = require('../public/studiobar.js');
+const { APP_DIR: APP_ROOT, sharedScript } = require('../appdir'); // this file runs compiled, from out/desktop/
+const { STUDIO_PAGES: TABS } = sharedScript('studiobar.js');
 
 // The pages with the Studio header (body class "fp"); everything else (the overlays, the
 // debug log) gets a normal title bar.
@@ -34,7 +35,6 @@ const HEADER_CSS = `
 // file://, since the shipped app's fuses (package.json) leave file:// as a browser has it, which
 // can't read inside app.asar: the pages failed to load, so the splash had no logo and What's new
 // never opened. Only files in desktop/ and public/ are served.
-const APP_ROOT = path.join(__dirname, '..');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.png': 'image/png', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
 protocol.registerSchemesAsPrivileged([{ scheme: 'studio', privileges: { standard: true, secure: true } }]);
 // Answers studio:// from the first page loaded on. Set up then, not on app.whenReady: main.js's own

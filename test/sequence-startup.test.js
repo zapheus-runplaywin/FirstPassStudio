@@ -1,5 +1,5 @@
 // A sequence set to start N minutes before the game starts only when Studio was running at that
-// moment (sequences.js gameTick). Opened inside the window, it's left to the operator, who can
+// moment (sequences.ts gameTick). Opened inside the window, it's left to the operator, who can
 // start it by hand. Its own file, so Studio "starts" at a known time.
 const test = require('node:test');
 const { mock } = require('node:test');
@@ -10,7 +10,7 @@ const path = require('node:path');
 
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-startup-'));
 mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
-const scene = require('../scene');
+const scene = require('../out/scene');
 const logged = [];
 scene.init((level, area, text) => logged.push(text));
 

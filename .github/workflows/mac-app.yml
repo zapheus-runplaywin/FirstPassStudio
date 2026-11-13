@@ -74,7 +74,8 @@ jobs:
       # Install scripts don't run (a package's postinstall is code from outside this repository running next
       # to the signing certificate); Electron's own download, the one script the build needs, runs on purpose.
       - run: npm ci --ignore-scripts
-      # FirstPass's own packages in packages/ (@firstpass/playhq), built to dist/ for Studio's require().
+      # FirstPass's own packages in packages/ (@firstpass/playhq), built to dist/ for Studio's require(), then the helper
+      # and the Mac app compiled from TypeScript into out/, which the app packs.
       - run: npm run build
       # Electron's download, and electron-builder's own tools (the DMG and 7-Zip bundles, the icon set), come from
       # GitHub releases, which sometimes answer 504 for a while. A copy of each is kept between builds under its

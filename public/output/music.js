@@ -3,7 +3,7 @@
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
 // ─── Music ─────────────────────────────────────────────────────────────
-// The player Studio keeps (music.js): what's loaded, the buttons, the songs in the media folder, and the playlists.
+// The player Studio keeps (music.ts): what's loaded, the buttons, the songs in the media folder, and the playlists.
 const tracks = () => media.filter(m => m.kind === 'audio' && !m.converting).map(m => m.name);
 const songName = f => String(f || '').replace(/\.[^.]+$/, '');
 const playlistsOf = () => scene.playlists || [];
@@ -31,7 +31,7 @@ function renderMusic() {
   if (document.activeElement !== $('mVolume')) $('mVolume').value = m.volume;
   const set = scene.musicSettings || {};
   for (const [id, key] of [['mFadeIn', 'fadeInSec'], ['mFadeOut', 'fadeOutSec'], ['mQuick', 'quickSec'], ['mDuckTo', 'duckTo']]) if (document.activeElement !== $(id)) $(id).value = set[key];
-  if (Date.now() - mxTicked > 1500) $('dkMusicVideo').checked = set.underVideo !== 'leave'; // as the mics' ticks (mics.js)
+  if (Date.now() - mxTicked > 1500) $('dkMusicVideo').checked = set.underVideo !== 'leave'; // as the mics' ticks (mics.ts)
   if (typeof renderDuck === 'function') renderDuck();
   const pick = $('mTrackPick'), keep = pick.value;
   pick.innerHTML = '';

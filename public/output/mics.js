@@ -3,7 +3,7 @@
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
 // ─── Mics ──────────────────────────────────────────────────────────────
-// The mics Studio keeps (mics.js) and what the output windows hear from them (/api/scene/mics/live, asked every half
+// The mics Studio keeps (mics.ts) and what the output windows hear from them (/api/scene/mics/live, asked every half
 // second while this section is open). The Mac's mics are Output 1's: its window opens and mixes them. The Mac's inputs
 // are listed by that window, or by this page when it's open in the Mac app (Find inputs), since a page on another
 // computer would list its own. A mic plugged into

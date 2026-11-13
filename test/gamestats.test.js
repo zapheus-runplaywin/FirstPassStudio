@@ -1,5 +1,5 @@
 // Game stats for gamestats.html: points by quarter from the score on the board, quarters won,
-// best quarter, super shots and goal runs. Runs server.js and presses the scores like the control page.
+// best quarter, super shots and goal runs. Runs server.ts and presses the scores like the control page.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

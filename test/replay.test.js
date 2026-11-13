@@ -1,4 +1,4 @@
-// 4K replay (replay.js): a recorded night's on-air layer goes back on the pages exactly as it went to air: the
+// 4K replay (replay.ts): a recorded night's on-air layer goes back on the pages exactly as it went to air: the
 // scene, the scoreboard and a graphic's reads come from the recording at the replay's point, the live scene and
 // scoreboard are left as they were and can't be changed while it runs, and Stop puts the live ones back.
 const test = require('node:test');
@@ -88,9 +88,9 @@ test('a replay puts the recorded night on the pages, leaves the live setup alone
   assert.equal((await studio.request('POST', '/api/scoreboard', { type: 'score', side: 'home', delta: 1 })).status, 200);
 });
 
-// Following a HyperDeck (hyperdeck.js): its protocol's answers, and its timecode as the moment of the night.
+// Following a HyperDeck (hyperdeck.ts): its protocol's answers, and its timecode as the moment of the night.
 const net = require('node:net');
-const hyperdeck = require('../hyperdeck');
+const hyperdeck = require('../out/hyperdeck');
 
 test("a HyperDeck's answers and timecode are read", () => {
   const { blocks, rest } = hyperdeck.parseBlocks('500 connection info:\r\nprotocol version: 1.12\r\nmodel: HyperDeck Studio 4K Pro\r\n\r\n200 ok\r\n208 transport info:\r\nstatus: play\r\nspeed: 100\r\n');
@@ -196,9 +196,9 @@ test("a replay follows a HyperDeck's timecode, and Jump there and the nudge sync
   assert.equal((await studio.request('POST', '/api/replay', { follow: { kind: 'hyperdeck', address: 'not an address!' } })).status, 400);
 });
 
-// Following the SDI input's timecode (sditimecode.js): the Mac app sends what comes into the UltraStudio.
+// Following the SDI input's timecode (sditimecode.ts): the Mac app sends what comes into the UltraStudio.
 test("the SDI input's timecode is followed: moving on a frame at a time is playing, the same one is stopped", async () => {
-  const sdi = require('../sditimecode');
+  const sdi = require('../out/sditimecode');
   const { EventEmitter } = require('node:events');
   const port = new EventEmitter();
   const asked = [];

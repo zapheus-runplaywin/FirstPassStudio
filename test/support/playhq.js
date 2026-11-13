@@ -1,5 +1,5 @@
 // A stand-in for PlayHQ for the tests: the answers playhq.com's GraphQL API and its live
-// scoring feed (spectator.playhq.com) give, shaped as server.js asks for them, for a small
+// scoring feed (spectator.playhq.com) give, shaped as server.ts asks for them, for a small
 // Thunder League season. PlayHQ can't be reached from where the tests run, and real games
 // move on, so the season is made up around the time the tests run:
 //   Rounds 1 and 2 were played 14 and 7 days ago (finished, with line ups and shooting).

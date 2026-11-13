@@ -1,4 +1,4 @@
-// How hard each output is working (outputs.js perf): the app reports every few seconds while an output
+// How hard each output is working (outputs.ts perf): the app reports every few seconds while an output
 // is showing; the Output page gets each output's numbers and Studio's total, and the log a line a minute.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-outputs-perf-'));
-const outputs = require('../outputs');
+const outputs = require('../out/outputs');
 const lines = [];
 outputs.init((level, area, text) => lines.push(text));
 outputs.apply({ add: true });

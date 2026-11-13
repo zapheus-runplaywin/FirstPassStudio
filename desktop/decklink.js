@@ -11,7 +11,7 @@
 // and how many times the sound ran dry in the last minute, for the status board's Sound out.
 //
 // It also reads the timecode coming into the device's SDI input, while a 4K replay follows it (the helper's
-// sditimecode.js asks with readInput): the timecode goes to the helper each time it changes, and every half second
+// sditimecode.ts asks with readInput): the timecode goes to the helper each time it changes, and every half second
 // besides, so the helper can tell playing from stopped.
 
 'use strict';
@@ -20,7 +20,7 @@ const path = require('path');
 const sceneWindow = require('./scenewindow');
 const soundTap = require('./soundtap');
 
-const MODULE = require('../unpacked').unpacked(path.join(__dirname, '..', 'native', 'decklink', 'build', 'Release', 'decklink.node'));
+const MODULE = require('../unpacked').unpacked(path.join(require('../appdir').APP_DIR, 'native', 'decklink', 'build', 'Release', 'decklink.node'));
 let addon = null;
 let loadError = '';
 try { addon = require(MODULE); } catch (err) { loadError = err.message; }

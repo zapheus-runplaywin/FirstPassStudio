@@ -8,7 +8,7 @@
 // Then, so the list is the night's plan and each sequence's Then is the fallback when the list runs out. Add… puts a
 // scene or sequence at the end; rows drag to reorder (or use their arrows); Saved… loads an order kept under a name,
 // saves tonight's, or renames or deletes a saved one. The Production Planner can load a game's saved order as the
-// scoreboard moves to that game; when that cleared what was queued, a note above Play next says so until OK is pressed. The runner (sequences.js in Studio) owns the list; this only draws it and sends changes.
+// scoreboard moves to that game; when that cleared what was queued, a note above Play next says so until OK is pressed. The runner (sequences.ts in Studio) owns the list; this only draws it and sends changes.
 // Above the queue, like a playlist: the last of what the run order has played tonight, greyed with a tick, then
 // what's on air now in the on-air orange (the sequence playing with its step and time left, else the scene on),
 // so a glance says where the night is (Matt, 2 Nov 2026).

@@ -1,4 +1,4 @@
-// Music (music.js, through scene.js): the player, playlists, fades, getting out of the way of a video's
+// Music (music.ts, through scene.ts): the player, playlists, fades, getting out of the way of a video's
 // sound, a sequence's own music, Ducks the music, and the /deck/music links.
 const test = require('node:test');
 const { mock } = require('node:test');
@@ -12,7 +12,7 @@ const MEDIA = path.join(process.env.FIRSTPASS_DATA_DIR, 'media');
 fs.mkdirSync(MEDIA, { recursive: true });
 for (const f of ['Pre-game bed.mp3', 'Walk out.m4a', 'Break.mp3', 'Ad.mp4']) fs.writeFileSync(path.join(MEDIA, f), '');
 mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
-const scene = require('../scene');
+const scene = require('../out/scene');
 scene.init(() => {});
 
 const ok = a => assert.equal(scene.apply(a), null, JSON.stringify(a));

@@ -1,4 +1,4 @@
-// Sponsored moments (sponsors.js moment, /api/sponsors/moment, sponsorSpot.moment): the super shot, hot streak and
+// Sponsored moments (sponsors.ts moment, /api/sponsors/moment, sponsorSpot.moment): the super shot, hot streak and
 // game moment animations say who they're "brought to you by": the moment's owner, or the Elite sponsors taking turns.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -8,8 +8,8 @@ const path = require('node:path');
 const { startStudio } = require('./support/studio');
 
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-moments-'));
-const competitions = require('../competitions');
-const sponsors = require('../sponsors');
+const competitions = require('../out/competitions');
+const sponsors = require('../out/sponsors');
 competitions.init(() => {});
 const comp = competitions.create('Thunder League');
 const add = (name, tier, extra = {}) => sponsors.save({ name, ...extra, competitions: { [comp]: { tier } } });

@@ -3,7 +3,7 @@
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
 // ─── Switcher ──────────────────────────────────────────────────────────
-// What switcher.js says (over the scene's socket, as it changes): whether one is set up and answering, its
+// What switcher.ts says (over the scene's socket, as it changes): whether one is set up and answering, its
 // inputs (red on program, green on preview) and its upstream and downstream keys (red while on air).
 let sw = null;
 let swFormOpen = false;
@@ -148,7 +148,7 @@ $('swFtb').onclick = () => swDo({ type: 'ftb' });
 // ─── Into the switcher as: the output's key on the switcher ──────────────
 // In the Video output setup (drawn here, as it needs the switcher): the key the picked output comes into (the usual
 // one: Output 1 on downstream key 1, the others on upstream keys 2 to 4, a chroma output on an upstream key) and
-// the inputs its fill and key are plugged into. switcher.js checks that key's settings in the switcher against what
+// the inputs its fill and key are plugged into. switcher.ts checks that key's settings in the switcher against what
 // the output sends; Set up this key for me changes them (only when pressed). Called when the switcher or the outputs change.
 const SW_KEYERS = [['dsk1', 'Downstream key 1'], ['dsk2', 'Downstream key 2'], ['usk1', 'Upstream key 1'], ['usk2', 'Upstream key 2'], ['usk3', 'Upstream key 3'], ['usk4', 'Upstream key 4']];
 function swOutKey() {
@@ -181,7 +181,7 @@ function swOutKey() {
   $('outSwFillLabel').textContent = chroma ? 'on' : 'fill on';
   for (const el of document.querySelectorAll('.forSwIn')) el.classList.toggle('hidden', none);
   for (const el of document.querySelectorAll('.forSwKey')) el.classList.toggle('hidden', none || chroma);
-  // The check, from switcher.js.
+  // The check, from switcher.ts.
   const c = live ? (sw.keys || []).find(k => k.output === so.id) : null;
   const box = $('outKeyCheck');
   let html;
@@ -230,7 +230,7 @@ $('outKeySetup').onclick = async () => {
 };
 
 // ─── Switcher actions on sequence steps and scenes ───────────────────────
-// A step or a scene can carry up to 8 (switcher.js cleanActions): cut or auto to an input, an input on
+// A step or a scene can carry up to 8 (switcher.ts cleanActions): cut or auto to an input, an input on
 // preview, a key on or off, fade to black, a macro, each as it starts or some seconds in. The editor offers
 // what the connected switcher has; what it hasn't is greyed with the reason, and skipped if it's saved.
 const SW_TYPES = [['cut', 'Cut to'], ['auto', 'Auto to'], ['stinger', 'Stinger to'], ['preview', 'Put on preview'], ['usk', 'Upstream key'], ['dsk', 'Downstream key'], ['ftb', 'Fade to black'], ['macro', 'Run macro']];

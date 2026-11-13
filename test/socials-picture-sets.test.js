@@ -4,7 +4,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { startStudio } = require('./support/studio');
-const { KINDS, KIND_NAMES } = require('../socials');
+const { KINDS, KIND_NAMES } = require('../out/socials');
 
 let chromium = null;
 try { ({ chromium } = require('playwright')); } catch { /* not installed */ }

@@ -1,4 +1,4 @@
-// The Blackmagic video format (outputs.js): every 1080p format the device names can be picked, even one it
+// The Blackmagic video format (outputs.ts): every 1080p format the device names can be picked, even one it
 // says it can't send (an older UltraStudio stops at 1080p30), but one it can send is the one started with.
 // Its sound goes in the SDI by default.
 const test = require('node:test');
@@ -8,7 +8,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-decklink-modes-'));
-const outputs = require('../outputs');
+const outputs = require('../out/outputs');
 outputs.init(() => {}, {});
 
 const mode = (code, name, supported, keying = supported) => ({ mode: code, name, height: 1080, interlaced: false, supported, keying });

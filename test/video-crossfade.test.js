@@ -1,4 +1,4 @@
-// A video's sound crossfading into the next step's music (sequences.js planCross): music set to "crossfade from a
+// A video's sound crossfading into the next step's music (sequences.ts planCross): music set to "crossfade from a
 // video before it" starts its fade in time before the video ends, fading in while the video's sound fades out
 // (soundOut on the source, which scene.html follows), and the music doesn't make way for that video meanwhile.
 // The video's length comes from ffmpeg: a stand-in here says every video is 12 s long.
@@ -16,7 +16,7 @@ for (const f of ['Walk out.m4a', 'Bed.mp3', 'Hype.mp4']) fs.writeFileSync(path.j
 const ffmpeg = path.join(process.env.FIRSTPASS_DATA_DIR, 'ffmpeg');
 fs.writeFileSync(ffmpeg, '#!/bin/sh\necho "  Duration: 00:00:12.00, start: 0.000000, bitrate: 100 kb/s" >&2\necho "    Stream #0:0: Video: vp9, yuv420p, 1920x1080" >&2\nexit 1\n');
 fs.chmodSync(ffmpeg, 0o755);
-const scene = require('../scene');
+const scene = require('../out/scene');
 scene.init(() => {}, { ffmpeg });
 
 const ok = a => assert.equal(scene.apply(a), null, JSON.stringify(a));

@@ -5,8 +5,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const location = require('../datalocation');
-const zip = require('../zip');
+const location = require('../out/datalocation');
+const zip = require('../out/zip');
 const { startStudio } = require('./support/studio');
 
 function folder() {

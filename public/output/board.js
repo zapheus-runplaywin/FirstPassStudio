@@ -94,7 +94,7 @@ function renderBoard() {
     game = `<span class="score" title="${boardEsc(h.game.label)}${h.game.court ? ` · ${boardEsc(h.game.court)}` : ''}"><span class="tname">${boardEsc(sc.homeName || '')}</span><span class="num">${sc.home ?? ''} – ${sc.away ?? ''}</span><span class="tname away">${boardEsc(sc.awayName || '')}</span></span>`;
   }
   // The PlayHQ line above the score: the link, the ping, the download a second over the last minute and the total
-  // since Studio went on air (/api/health playhq.net, from playhqnet.js).
+  // since Studio went on air (/api/health playhq.net, from playhqnet.ts).
   const pqLine = h ? boardPlayhq(h) : '';
   // Sequence playing, and the next one armed.
   const pl = h && h.playing;

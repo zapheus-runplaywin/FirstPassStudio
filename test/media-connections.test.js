@@ -1,4 +1,4 @@
-// Videos and sound share the browser's six connections to Studio with every page and request (scene.js sendMedia).
+// Videos and sound share the browser's six connections to Studio with every page and request (scene.ts sendMedia).
 // A file is sent in pieces, so a video waiting to play gives its connection back: several scene windows, each with a
 // few videos ready, used to hold all six, and the Output page's Next and Play waited 15 s or more behind them.
 // The browser: as in pages.test.js (Playwright's own, or STUDIO_TEST_CHROMIUM).

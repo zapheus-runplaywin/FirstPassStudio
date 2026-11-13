@@ -1,4 +1,4 @@
-// The Mac app's hardening (package.json build, build/entitlements.mac.plist, unpacked.js): the code is one
+// The Mac app's hardening (package.json build, build/entitlements.mac.plist, unpacked.ts): the code is one
 // signed archive (asar) with the fuses that stop the app being run as a plain Node, the entitlements are the
 // least it needs, and everything that must run or load from disk points at the copy unpacked beside the archive.
 const test = require('node:test');
@@ -8,7 +8,7 @@ const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
 const { build } = require('../package.json');
-const { unpacked } = require('../unpacked');
+const { unpacked } = require('../out/unpacked');
 
 // Does an asarUnpack pattern cover this file? "**" is any run of folders (or none), "*" is within one name.
 function globToRegExp(glob) {
@@ -37,7 +37,7 @@ test('the app is one asar with the files it runs from disk unpacked beside it', 
     'plugins/studio-deck/dist/com.runplaywin.firstpass-studio.streamDeckPlugin']) {
     assert.ok(covered(rel), `${rel} is run, loaded or handed to another program, so build.asarUnpack must cover it`);
   }
-  assert.equal(covered('server.js'), false, 'the code itself stays in the archive');
+  assert.equal(covered('out/server.js'), false, 'the code itself stays in the archive');
   assert.equal(covered('native/ndi/ndi.cpp'), false);
 });
 
@@ -56,7 +56,7 @@ test('the entitlements are the four the app needs, with no dyld environment vari
   assert.deepEqual(keys, ['com.apple.security.cs.allow-jit', 'com.apple.security.cs.allow-unsigned-executable-memory', 'com.apple.security.cs.disable-library-validation', 'com.apple.security.device.audio-input']);
   // macOS asks before the mics are heard, and says why with this.
   assert.match(build.mac.extendInfo.NSMicrophoneUsageDescription, /mics/);
-  assert.ok(build.files.includes('unpacked.js'));
+  assert.ok(build.files.includes('out/**/*.js')); // unpacked() among them
 });
 
 test('unpacked() turns an archive path into the copy beside it, and leaves everything else alone', () => {
@@ -66,7 +66,7 @@ test('unpacked() turns an archive path into the copy beside it, and leaves every
   assert.equal(unpacked('/x/app.asar.unpacked/y'), '/x/app.asar.unpacked/y', 'not applied twice');
   assert.equal(unpacked('C:\\Studio\\resources\\app.asar\\vendor\\ffmpeg\\ffmpeg.exe'), 'C:\\Studio\\resources\\app.asar.unpacked\\vendor\\ffmpeg\\ffmpeg.exe');
   // Everything run or loaded from disk goes through it.
-  for (const [file, name] of [['scene.js', 'BUNDLED_FFMPEG'], ['scene.js', 'STREAMDECK_PLUGIN'], ['desktop/main.js', 'STREAMDECK_PLUGIN'], ['desktop/ndi.js', 'MODULE'], ['desktop/decklink.js', 'MODULE']]) {
+  for (const [file, name] of [['scene.ts', 'BUNDLED_FFMPEG'], ['scene.ts', 'STREAMDECK_PLUGIN'], ['desktop/main.js', 'STREAMDECK_PLUGIN'], ['desktop/ndi.js', 'MODULE'], ['desktop/decklink.js', 'MODULE']]) {
     const src = fs.readFileSync(path.join(ROOT, file), 'utf8');
     const line = src.split('\n').find(l => l.startsWith(`const ${name} = `));
     assert.ok(line && /unpacked\(/.test(line), `${file}: ${name} must go through unpacked()`);

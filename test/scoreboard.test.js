@@ -1,4 +1,4 @@
-// The scoreboard (server.js): scoring by hand, the clock, quarters, the Stream Deck links, the
+// The scoreboard (server.ts): scoring by hand, the clock, quarters, the Stream Deck links, the
 // ticker speed, and keeping it all over a restart. No PlayHQ game is needed for any of it, so
 // Studio runs with an empty data folder.
 const test = require('node:test');

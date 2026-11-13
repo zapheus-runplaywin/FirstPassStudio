@@ -30,7 +30,7 @@ test('a streamed game keeps its story for Game story and Score worm, and Watch i
   const n = await studio.get(`/api/socials/night?date=${second}&with=story&game=game-d1-r2-1`);
   assert.deepEqual(n.stories, ['game-d1-r2-1']);
   assert.deepEqual(n.storiesFrom, [], 'this Mac\'s own story');
-  // The finished story is shared with the other Studio Macs (stories.js): a second Studio copies it on its first look.
+  // The finished story is shared with the other Studio Macs (stories.ts): a second Studio copies it on its first look.
   assert.deepEqual((await studio.get('/api/stories')).stories.map(x => x.gameId), ['game-d1-r2-1']);
   const court2 = await startStudio(t, { competition: 'Thunder League', world, env: { FIRSTPASS_OTHER_STUDIOS: studio.base, FIRSTPASS_STORIES_FIRST_SYNC_MS: '500' } });
   const copied = await court2.until(async () => { const x = await court2.get(`/api/socials/night?date=${second}`); return x.storiesFrom.length && x; });

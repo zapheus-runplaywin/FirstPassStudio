@@ -74,7 +74,7 @@
   .sboard .line .txt small { color: var(--fp-muted); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; }
   .sboard .line .txt small.dip { color: var(--fp-warn-ink); font-weight: 600; }
   .sboard .line.full { grid-column: 1 / -1; }
-  /* Sound out (board.js boardSound): a row for each place each output's sound goes, across both columns, under the
+  /* Sound out (board.ts boardSound): a row for each place each output's sound goes, across both columns, under the
      output's name when there's more than one: a light, the device, what it plays at, a meter for each side, the level, in columns that line up (subgrid). */
   .sboard .stile { grid-column: 1 / -1; display: grid; grid-template-columns: 10px minmax(6em, 1fr) auto minmax(60px, 0.8fr) 3.4em; column-gap: 9px; row-gap: 2px; align-content: center; padding: 6px 0; border-top: 1px solid var(--fp-line); border-bottom: 1px solid var(--fp-line); min-width: 0; }
   .sboard .stile > .lbl { grid-column: 1 / -1; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--fp-muted); }
@@ -957,7 +957,7 @@
         <span class="row"><button class="alt" id="mxCancel">Cancel</button><button id="mxSave">Save</button></span>
       </div>
     </dialog>
-    <!-- + Phone mic: the QR code that opens the Commentator page on a phone, by the secure link (securelink.js). -->
+    <!-- + Phone mic: the QR code that opens the Commentator page on a phone, by the secure link (securelink.ts). -->
     <dialog id="pmDialog" class="qr">
       <h2>A phone as a backup mic</h2>
       <p class="note">For when a commentator's headset fails. On the phone, plug in a USB-C interface or a wired headset (or pair Bluetooth headphones, which sound

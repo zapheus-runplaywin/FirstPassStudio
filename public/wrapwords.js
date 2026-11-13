@@ -1,5 +1,5 @@
 // FirstPass Studio - the words for the end of a night of streaming, from the wrap /api/upnext and /api/introoutro give
-// (server.js endOfNight): Up next's end of night card and the outro use the same ones.
+// (server.ts endOfNight): Up next's end of night card and the outro use the same ones.
 //   wrapWords(wrap) -> { title, invite, detail }
 //     title   That's the last game of the night (or of the season)
 //     invite  Join us again next week / tomorrow / on Saturday / on Saturday 7 November, Grand Final next week,

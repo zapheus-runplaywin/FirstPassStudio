@@ -1,4 +1,4 @@
-// FirstPass Studio - every graphic's own link, for the Links list on the Devices tab (devices.js draws it, with Copy
+// FirstPass Studio - every graphic's own link, for the Links list on the Devices tab (devices.ts draws it, with Copy
 // and Preview): what each one does and the options its link takes. A graphic in pages.js names its group here (group),
 // and a test checks that every graphic is here. The Output page offers the same options as fields (pageoptions.js).
 //

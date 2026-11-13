@@ -19,7 +19,7 @@ const path = require('path');
 const sceneWindow = require('./scenewindow');
 const signed = require('./signed');
 
-const MODULE = require('../unpacked').unpacked(path.join(__dirname, '..', 'native', 'ndi', 'build', 'Release', 'ndi.node'));
+const MODULE = require('../unpacked').unpacked(path.join(require('../appdir').APP_DIR, 'native', 'ndi', 'build', 'Release', 'ndi.node'));
 let addon = null;
 let loadError = '';
 try { addon = require(MODULE); } catch (err) { loadError = err.message; }

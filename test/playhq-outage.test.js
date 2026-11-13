@@ -11,7 +11,7 @@ const os = require('node:os');
 const path = require('node:path');
 const net = require('node:net');
 
-// playhq.js keeps finished games in the data folder (datadir.js reads this when it's loaded).
+// playhq.js keeps finished games in the data folder (datadir.ts reads this when it's loaded).
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-playhq-'));
 process.env.FIRSTPASS_DATA_DIR = dataDir;
 const { startPlayhq, createWorld } = require('./support/playhq');
@@ -23,7 +23,7 @@ test.beforeEach(() => { playhq.world.fail = {}; playhq.world.answers = {}; playh
 
 // A PlayHQ client for the Thunder League. cacheMs 0: every ladder is asked for again.
 function client(opts = {}) {
-  const c = require('../playhq').create({
+  const c = require('../out/playhq').create({
     log: (level, source, message) => logged.push(`${level} ${source} ${message}`),
     apiUrl: opts.apiUrl || playhq.url, cacheMs: opts.cacheMs ?? 0, linkBase: 'http://studio.test:8080',
     config: () => ({ name: 'Thunder League', competitionName: 'Thunder League' }),

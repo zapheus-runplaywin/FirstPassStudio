@@ -1,4 +1,4 @@
-// Mics plugged into the ATEM switcher (mics.js, switcher.js), against the stand-in switcher (test/support/atem.js):
+// Mics plugged into the ATEM switcher (mics.ts, switcher.ts), against the stand-in switcher (test/support/atem.js):
 // Studio lists the switcher's mic inputs (not a camera's embedded sound), takes each fader as it finds it rather than
 // moving it on connecting, moves it for the level, mutes and dips (fading in steps), follows a fader moved on the
 // switcher, moves the left or right half of a split input, and says plainly what's wrong.

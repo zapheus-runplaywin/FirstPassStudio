@@ -263,7 +263,7 @@ test('the Socials tab\'s pictures are drawn by the app and saved as PNGs at thei
   assert.equal(zipped.zip, path.join('Pictures', 'FirstPass Studio', `Thunder League ${played} Results.zip`));
   const zipFile = path.join(pictures, 'FirstPass Studio', `Thunder League ${played} Results.zip`);
   assert.equal(await studio.app.evaluate(() => globalThis.shown), zipFile, 'Finder shows the zip');
-  const list = await require('../zip').entries(zipFile);
+  const list = await require('../out/zip').entries(zipFile);
   assert.deepEqual(list.map(e => e.name), [`Thunder League ${played} Results/01 Results (square).png`]);
   // As a carousel: numbered in the order sent, in a folder of its own.
   const carousel = await studio.post('/api/socials/export', { date: played, set: 'results', carousel: true, items: [

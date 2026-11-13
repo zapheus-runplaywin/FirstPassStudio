@@ -1,4 +1,4 @@
-// The athletes page (athletes.js): the register of every athlete PlayHQ's line-ups have named, their photos (on
+// The athletes page (athletes.ts): the register of every athlete PlayHQ's line-ups have named, their photos (on
 // the team lists, positions and lower thirds), a gender set by hand for the silhouette, and games and positions
 // typed in. Against the stand-in PlayHQ, with the Thunder League's game on court 1 being scored.
 

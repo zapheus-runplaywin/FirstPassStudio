@@ -1,6 +1,6 @@
 // The one list of graphics pages (public/pages.js): every graphic in public/ is in it, every page with
 // link options (pageoptions.js) is in it, graphiclinks.js (the Devices tab's Links) describes every page in it, and the Output page
-// and examples.js read it rather than keeping lists of their own.
+// and examples.ts read it rather than keeping lists of their own.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -12,7 +12,7 @@ const PUBLIC = path.join(ROOT, 'public');
 const read = f => fs.readFileSync(path.join(PUBLIC, f), 'utf8');
 // Pages that aren't graphics: the Studio pages you work in, and the scene's own pages.
 const NOT_GRAPHICS = new Set(['output.html', 'control.html', 'remote.html', 'commentator.html', 'setup.html', 'sponsors.html', 'sponsorreport.html', 'athletes.html', 'planner.html', 'recordings.html', 'socials.html', 'social.html', 'api.html', 'devices.html', 'pair.html', 'scene.html', 'preview.html', 'pvw.html']);
-// results.html is served from fixtures.html (ALIASES in server.js).
+// results.html is served from fixtures.html (ALIASES in server.ts).
 const ALIASES = { 'results.html': 'fixtures.html' };
 const files = new Set(STUDIO_GRAPHICS.map(p => p.file));
 
@@ -53,7 +53,7 @@ test('the Devices tab\'s Links (graphiclinks.js) describe every page in the list
   for (const l of LINKS) assert.ok(ids.has(l.group), `${l.name} is in a group graphiclinks.js lists`);
 });
 
-test('the Output page and examples.js read the list instead of keeping their own', () => {
+test('the Output page and examples.ts read the list instead of keeping their own', () => {
   const output = read('output.html');
   assert.match(output, /<script src="pages\.js"><\/script>/);
   // The Output page's script lives in public/output/ (one file per section); the list is read in common.js.
@@ -61,7 +61,7 @@ test('the Output page and examples.js read the list instead of keeping their own
   assert.match(common, /const PAGES = STUDIO_GRAPHICS\.map/);
   assert.doesNotMatch(common, /\['Scoreboard', 'scoreboard\.html'\]/);
   assert.doesNotMatch(output, /\['Scoreboard', 'scoreboard\.html'\]/);
-  const examples = fs.readFileSync(path.join(ROOT, 'examples.js'), 'utf8');
-  assert.match(examples, /require\('\.\/public\/pages\.js'\)/);
+  const examples = fs.readFileSync(path.join(ROOT, 'examples.ts'), 'utf8');
+  assert.match(examples, /sharedScript<[^>]*>\('pages\.js'\)/);
   assert.doesNotMatch(examples, /'\/clash\.html', 6000/);
 });

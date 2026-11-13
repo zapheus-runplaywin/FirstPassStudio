@@ -1,5 +1,5 @@
 /**
- * End-to-end: a real Studio (server.js with an empty data folder), a fake Stream Deck app (WebSocket
+ * End-to-end: a real Studio (out/server.js, built by npm run build in the repository, with an empty data folder), a fake Stream Deck app (WebSocket
  * server) and the real plugin (src/plugin.ts via tsx, with the real @elgato/streamdeck SDK).
  * A Source key lights when its source is shown from anywhere, and a press toggles it.
  */
@@ -36,6 +36,7 @@ const RUNORDER_ACTION = "com.runplaywin.firstpass-studio.runorder";
 // Studio's stand-in ATEM switcher (CommonJS, shared with Studio's own tests).
 const { startAtem } = createRequire(import.meta.url)(path.join(REPO, "test", "support", "atem.js"));
 
+// any: each Stream Deck event has a payload of its own shape, and each test reads only what it sent.
 type Msg = { event: string; context?: string; payload?: any; _at: number }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 function frame(text: string): Buffer {
@@ -116,7 +117,7 @@ const removeDataDir = (dir: string) => fs.rmSync(dir, { recursive: true, force: 
 async function startStudio(port: number, dataDir: string): Promise<ChildProcess> {
 	// Stream Deck links need the key, so every press below also proves the plugin gets through: by its old x-studio-deck
 	// header while no plugin has paired, then signed (the pairing test at the end).
-	const child = spawn(process.execPath, [path.join(REPO, "server.js")], {
+	const child = spawn(process.execPath, [path.join(REPO, "out", "server.js")], {
 		cwd: REPO,
 		env: { ...process.env, PORT: String(port), FIRSTPASS_DATA_DIR: dataDir },
 		stdio: ["ignore", "ignore", "ignore"],

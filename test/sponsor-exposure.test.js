@@ -1,4 +1,4 @@
-// Proof of play (exposure.js): which sponsor each graphic was given, how long it was on screen in the scene,
+// Proof of play (exposure.ts): which sponsor each graphic was given, how long it was on screen in the scene,
 // on air or not, the QR time and the ad plays, added up by the report (/api/sponsors/report, sponsorreport.html).
 const test = require('node:test');
 const { mock } = require('node:test');
@@ -12,10 +12,10 @@ process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-e
 // 7 pm local on a Saturday: the night is that day's date.
 const START = new Date(2026, 9, 24, 19, 0, 0).getTime();
 mock.timers.enable({ apis: ['setTimeout', 'Date'], now: START });
-const competitions = require('../competitions');
-const sponsors = require('../sponsors');
-const scene = require('../scene');
-const exposure = require('../exposure');
+const competitions = require('../out/competitions');
+const sponsors = require('../out/sponsors');
+const scene = require('../out/scene');
+const exposure = require('../out/exposure');
 competitions.init(() => {});
 const comp = competitions.create('Thunder League');
 competitions.setActive(comp);

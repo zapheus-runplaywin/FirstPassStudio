@@ -1,4 +1,4 @@
-// Practice games (practice.js): a recorded game plays back as if it were live. PlayHQ isn't asked anything; the
+// Practice games (practice.ts): a recorded game plays back as if it were live. PlayHQ isn't asked anything; the
 // recording answers instead, with its times moved to now, so the game starts five minutes from now (or is wherever
 // it was jumped to). The scoreboard follows it like a real game, pausing stops its clock, and stopping puts the
 // scoreboard back as it was. Nothing it does is recorded as a night.
@@ -8,7 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
 const { startStudio } = require('./support/studio');
-const practice = require('../practice');
+const practice = require('../out/practice');
 const { localZone } = require('./support/playhq');
 
 // Dates and times here are read in the time zone Studio runs in for the tests.

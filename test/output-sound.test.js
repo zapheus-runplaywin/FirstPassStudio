@@ -1,4 +1,4 @@
-// Sound on every output (music.js, sequences.js, mics.js, scene.js): the music and the Mac's mics are Output 1's. Every
+// Sound on every output (music.ts, sequences.ts, mics.ts, scene.ts): the music and the Mac's mics are Output 1's. Every
 // output plays its own video sound, but a sequence's music plays, fades and stops with the sequence on Output 1
 // whatever other outputs play it, a sequence on another output alone plays without its music, and the music makes
 // way for a video only on Output 1.
@@ -14,9 +14,9 @@ const MEDIA = path.join(process.env.FIRSTPASS_DATA_DIR, 'media');
 fs.mkdirSync(MEDIA, { recursive: true });
 for (const f of ['Walk out.m4a', 'Bed.mp3', 'Ad.mp4']) fs.writeFileSync(path.join(MEDIA, f), '');
 mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
-const outputs = require('../outputs');
-const scene = require('../scene');
-const mics = require('../mics');
+const outputs = require('../out/outputs');
+const scene = require('../out/scene');
+const mics = require('../out/mics');
 outputs.init(() => {}, { removed: id => scene.dropOutput(id) });
 scene.init(() => {}, { outputs: { find: outputs.find, summary: outputs.summary } });
 outputs.apply({ add: true });

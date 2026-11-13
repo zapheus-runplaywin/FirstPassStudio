@@ -1,7 +1,7 @@
 /* FirstPass Studio - the Socials template sets: other looks for social.html's pictures. Default is social.html's own
    look; each set here is a class on <body> (t-dynamic, t-junior ...) that restyles the same picture: its ground and
    decoration (.ground and its ::before / ::after, so a polaroid's see-through window cuts through them too), the
-   panels, the title and the display face (--dfont, from public/vendor/fonts, fonts.js TEMPLATE_FONTS). Colours stay
+   panels, the title and the display face (--dfont, from public/vendor/fonts, fonts.ts TEMPLATE_FONTS). Colours stay
    the colour set's (theme.css's variables, or the set's own from socials.js): --purple ground, --purple-dark deep
    ground, --purple-deep panel, --yellow highlight, --pink accent, --text, --muted, --text-on-yellow, and --ink-dark,
    a dark ink for the pale templates. */

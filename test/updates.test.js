@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
-const { createUpdates } = require('../desktop/updates.js');
+const { createUpdates } = require('../out/desktop/updates');
 
 // Stands in for electron-updater's autoUpdater. publish() puts a version on GitHub; a check
 // finds the newest and downloads it, firing update-downloaded when finished.

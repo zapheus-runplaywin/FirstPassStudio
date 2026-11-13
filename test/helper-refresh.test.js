@@ -1,4 +1,4 @@
-// Studio reads the live score itself (server.js refreshTick): with no page asking for the
+// Studio reads the live score itself (server.ts refreshTick): with no page asking for the
 // scoreboard, the board, the goal order and the game snapshot the sequences' triggers read still
 // follow PlayHQ's live feed. Before this the reading only happened inside a page's request.
 const test = require('node:test');

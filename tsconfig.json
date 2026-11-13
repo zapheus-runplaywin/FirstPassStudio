@@ -1,0 +1,21 @@
+{
+  // The helper (server.ts and the modules beside it) and the Mac app (desktop/), compiled into out/ by
+  // npm run build. The pages in public/ and the plugins have builds of their own.
+  "compilerOptions": {
+    "target": "es2024",
+    "lib": ["es2024"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "rootDir": ".",
+    "outDir": "out",
+    "strict": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "allowJs": true,
+    "checkJs": false,
+    "sourceMap": true,
+    "skipLibCheck": true
+  },
+  "include": ["*.ts", "*.js", "desktop/*.js"]
+}

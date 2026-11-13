@@ -144,7 +144,7 @@ async function setUp(browser) {
     await studio.request('POST', `/api/sponsors/logo?id=${s.id}&which=logo&name=${encodeURIComponent(name)}.png`, png, { 'content-type': 'application/octet-stream' });
   }
 
-  // Tonight so far for the sponsor report: two and a half hours on air, as exposure.js writes it.
+  // Tonight so far for the sponsor report: two and a half hours on air, as exposure.ts writes it.
   const ids = Object.fromEntries((await studio.get('/api/sponsors')).sponsors.map(x => [x.name, x.id]));
   const lines = [];
   const end = world.now, begin = end - 150 * 60000;

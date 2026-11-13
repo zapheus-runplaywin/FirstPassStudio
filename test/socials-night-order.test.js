@@ -1,4 +1,4 @@
-// Night in numbers' goal order tiles (socials.js goalOrderNumbers): the lead changes, the most goals in a row and the
+// Night in numbers' goal order tiles (socials.ts goalOrderNumbers): the lead changes, the most goals in a row and the
 // runs of 5 goals across the night, only when Studio has every finished game's whole story, so no game is left out of
 // a night-wide number (Matt, 2026-11-05: night totals must work for every game).
 const test = require('node:test');

@@ -1,4 +1,4 @@
-// Following the night's other games in the background (board.js followGames, refreshFollowed): while the scoreboard
+// Following the night's other games in the background (board.ts followGames, refreshFollowed): while the scoreboard
 // follows court 1, Studio follows the other game being scored (court 2) from PlayHQ's live feed, so it gets a story of
 // its own, with nothing of it on air; picking it hands its goals to the scoreboard, leaving it hands them back; a
 // failing read waits longer; and the switch on Scoreboard control turns it off. Against the stand-in PlayHQ

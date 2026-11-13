@@ -695,7 +695,7 @@
     if (!o.missing.length) return 'Every game\'s whole story is here, so it also has the lead changes, the most goals in a row and the runs of 5 goals.';
     return `Lead changes, goals in a row and runs of 5 goals join it once Studio has every game's whole story: ${o.complete} of ${o.of} now (not yet: ${o.missing.join(', ')}).`;
   }
-  // Where the night's game stories came from when another Studio Mac streamed some of the games (stories.js).
+  // Where the night's game stories came from when another Studio Mac streamed some of the games (stories.ts).
   function storiesNote() {
     const from = night.storiesFrom || [];
     if (set() !== 'results' || !from.length) return null;

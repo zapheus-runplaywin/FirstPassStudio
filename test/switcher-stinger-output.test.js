@@ -1,4 +1,4 @@
-// Where the stinger plays (switcher.js stingerOutput): on the output on a downstream key, Output 1 unless another is
+// Where the stinger plays (switcher.ts stingerOutput): on the output on a downstream key, Output 1 unless another is
 // (and switched on), as only a downstream key covers the whole picture; each output keeps its own line-up (NDI reaches the switcher later
 // than HDMI), and only the stinger's own output's report times the cut. An older switcher.json's one line-up becomes
 // Output 1's.

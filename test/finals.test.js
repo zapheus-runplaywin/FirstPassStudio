@@ -1,8 +1,8 @@
-// Finals formats (finals.js): every format holds together, plays through to a champion, and
+// Finals formats (finals.ts): every format holds together, plays through to a champion, and
 // works out the games from PlayHQ's finals fixtures or winners entered on the control page.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const finals = require('../finals');
+const finals = require('../out/finals');
 
 const SEEDS = ['Blizzardz', 'Knights', 'Mavericks', "Travis' Disciples", 'Stormz', 'Titans', 'Tsunamiz', 'Semi Pro', 'Saddle Up', 'NDNC'];
 const sizedFor = f => finals.sized(f, f.all ? 8 : f.teams);

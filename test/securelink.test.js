@@ -1,4 +1,4 @@
-// The secure phone link (securelink.js, route53.js, acme.js): Studio points its own name at this Mac in Route 53, gets
+// The secure phone link (securelink.ts, route53.ts, acme.ts): Studio points its own name at this Mac in Route 53, gets
 // a certificate by the DNS check, and answers on https with it; its https pages count as Studio's own. Against a
 // stand-in Route 53 and a stand-in Let's Encrypt here, which check every signature. The certificate is signed with
 // openssl, so that part is skipped without it.
@@ -13,9 +13,9 @@ const net = require('node:net');
 const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const { startStudio } = require('./support/studio');
-const route53 = require('../route53');
-const acme = require('../acme');
-const access = require('../access');
+const route53 = require('../out/route53');
+const acme = require('../out/acme');
+const access = require('../out/access');
 
 let openssl = false;
 try { execFileSync('openssl', ['version'], { stdio: 'ignore' }); openssl = true; } catch { /* not installed */ }

@@ -44,7 +44,7 @@
   .asking h2 { margin: 0 0 6px; font-size: 18px; }
   .asking .row { display: flex; gap: 8px; margin-top: 12px; }
   .devices th { text-align: left; }
-  /* The secure phone link card (securelink.js), on this Mac only. */
+  /* The secure phone link card (securelink.ts), on this Mac only. */
   .secure { margin-top: 28px; }
   .secure .state { display: flex; align-items: baseline; gap: 8px; font-size: 15px; margin: 6px 0 12px; }
   .secure .state .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--fp-line-strong); flex: none; align-self: center; }
@@ -236,7 +236,7 @@
 
   load().catch(err => say(`Couldn't load the devices: ${err.message}`, true));
 
-  // The secure phone link card (securelink.js): on this Mac only, like the Devices list.
+  // The secure phone link card (securelink.ts): on this Mac only, like the Devices list.
   const sec = id => document.getElementById(id);
   let secure = null;
   function drawSecure(s) {
@@ -287,7 +287,7 @@
   <script src="links.js"></script>
   <script>
     // Stream Deck links: with the chosen link set's key in front on the Mac (linksets.js); elsewhere with this Mac's Stream Deck
-    // key when Studio gives it (access.js deckPress()), plain otherwise.
+    // key when Studio gives it (access.ts deckPress()), plain otherwise.
     linkSets(document.getElementById('linkSet'), base => studioLinks.setDeckBase(base)).then(onMac => {
       document.getElementById('linkSetRow').hidden = !onMac;
       if (onMac) return;

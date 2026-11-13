@@ -17,6 +17,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SD_PLUGIN = path.join(ROOT, "com.runplaywin.timed-sequence.sdPlugin");
 const ACTION = "com.runplaywin.timed-sequence.run";
 
+// any: each Stream Deck event has a payload of its own shape, and each test reads only what it sent.
 type Msg = { event: string; context?: string; payload?: any; _at: number }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 function frame(text: string): Buffer {

@@ -1,4 +1,4 @@
-// The run order (sequences.js, through scene.js): a queue per output of sequences and scenes. Next plays the
+// The run order (sequences.ts, through scene.ts): a queue per output of sequences and scenes. Next plays the
 // head; a sequence that ends plays the queue head instead of its Then, and its Then when nothing is queued;
 // game triggers move their sequence to the head; whatever is at the head leaves as it starts; saved orders.
 const test = require('node:test');
@@ -10,7 +10,7 @@ const path = require('node:path');
 
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-runorder-'));
 mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
-const scene = require('../scene');
+const scene = require('../out/scene');
 scene.init(() => {});
 
 const ok = a => assert.equal(scene.apply(a), null, JSON.stringify(a));

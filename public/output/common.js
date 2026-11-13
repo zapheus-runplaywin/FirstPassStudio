@@ -4,7 +4,7 @@
 
 const $ = id => document.getElementById(id);
 // When a Ducking card tick box (the music's or the mics') was last clicked: for a moment after, an update already on its
-// way can't untick it (music.js, mics.js).
+// way can't untick it (music.ts, mics.ts).
 let mxTicked = 0;
 // Studio's graphics, offered when adding a page. Page size is what the page is drawn at.
 // The graphics Add a page offers, from the one list in pages.js.
@@ -60,7 +60,7 @@ function outDots(outs) {
 let selected = null;
 let editOpen = false; // the selected source's settings are open under its row (the pencil)
 let base = location.origin;
-// Where Stream Deck links start: base with this Mac's key, /k/<key> (access.js deckPress()), once Studio has said it.
+// Where Stream Deck links start: base with this Mac's key, /k/<key> (access.ts deckPress()), once Studio has said it.
 let deckBase = base;
 let media = [], mediaLoaded = false;
 let adding = null;

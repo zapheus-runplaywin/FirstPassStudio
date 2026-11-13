@@ -22,9 +22,9 @@ test('every local module that Studio and the Mac app load is packed into the app
       if (next.endsWith('.js') && fs.existsSync(path.join(ROOT, next))) visit(next.split(path.sep).join('/'));
     }
   };
-  visit('server.js');
+  visit('out/server.js'); // compiled from server.ts (npm run build)
   visit(require('../package.json').main);
-  assert.ok(seen.has('sequences.js'));
+  assert.ok(seen.has('out/sequences.js'));
 });
 
 // Files the Mac app workflow builds before packing (they aren't in the repository), with the
@@ -39,6 +39,9 @@ const BUILT = {
 test('every file listed in build.files is in the repository or built by the Mac app workflow', () => {
   const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'mac-app.yml'), 'utf8');
   for (const f of files) {
+    if (f.startsWith('!')) continue; // files left out
+    // The code, compiled from TypeScript (npm run build): built by the workflow before packing.
+    if (f.startsWith('out/')) { assert.ok(workflow.includes('run: npm run build'), `build.files lists ${f}, but the Mac app workflow no longer runs npm run build`); continue; }
     if (f.endsWith('/**/*')) {
       const dir = path.join(ROOT, f.slice(0, -5));
       assert.ok(fs.statSync(dir, { throwIfNoEntry: false })?.isDirectory(), `build.files lists ${f}, but ${f.slice(0, -5)} is not a folder`);
@@ -68,7 +71,7 @@ test('the files Studio reads next to itself at run time are packed', () => {
   const builtHere = { 'whatsnew.json': '> desktop/whatsnew.json' };
   for (const name of fs.readdirSync(path.join(ROOT, 'desktop')).filter(n => n.endsWith('.js'))) {
     const src = fs.readFileSync(path.join(ROOT, 'desktop', name), 'utf8');
-    for (const [, file] of src.matchAll(/path\.join\(__dirname, '([^']+)'\)/g)) {
+    for (const [, file] of src.matchAll(/path\.join\((?:__dirname|DESKTOP_DIR|APP_DIR, 'desktop'), '([^']+)'\)/g)) {
       if (builtHere[file]) assert.ok(workflow.includes(builtHere[file]), `desktop/${name} opens desktop/${file}, but the Mac app workflow no longer makes it`);
       else assert.ok(fs.existsSync(path.join(ROOT, 'desktop', file)), `desktop/${name} opens desktop/${file}, which is missing`);
     }
@@ -76,7 +79,7 @@ test('the files Studio reads next to itself at run time are packed', () => {
 });
 
 // Each page's scripts, styles and images, so a renamed or deleted file can't leave a page broken.
-// /theme.css, /api/... and the competition's own images are made by server.js, not files.
+// /theme.css, /api/... and the competition's own images are made by server.ts, not files.
 test('every script, stylesheet and image a page links to exists', () => {
   const made = /^(\/?theme\.css$|\/api\/|\/deck\/|\/(logos|brand|photos|media|guide)\/)/;
   const missing = [];
