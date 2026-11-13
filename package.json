@@ -12,8 +12,8 @@
   ],
   "scripts": {
     "start": "npm run build && node out/server.js",
-    "test": "node --test test/*.test.js test/*.test.mts",
-    "test:ci": "node --test --test-timeout=480000 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./test/support/github-report.mts --test-reporter-destination=stdout test/*.test.js test/*.test.mts",
+    "test": "node --test test/*.test.mts",
+    "test:ci": "node --test --test-timeout=480000 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./test/support/github-report.mts --test-reporter-destination=stdout test/*.test.mts",
     "iconpack": "node plugins/characters-iconpack/build.js",
     "fonts": "node vendor/fonts/fetch.js",
     "app": "npm run build && electron .",

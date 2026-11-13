@@ -1,25 +1,29 @@
 // Operator journeys on the Output page's Switcher section, against the stand-in ATEM (test/support/atem.mts):
 // what an operator clicks on stream night, and what the switcher and the page then show. The browser: see
 // test/support/browser.mts.
+import { createRequire } from 'node:module';
 
-'use strict';
-
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { startStudio, wait } = require('./support/studio.mts');
-const { startAtem } = require('./support/atem.mts');
-const { openPage } = require('./support/browser.mts');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import type { Json } from './support/studio.mts';
+import type { StudioPage } from './support/browser.mts';
+import type { TestContext } from 'node:test';
+const require = createRequire(import.meta.url);
+const { startStudio, wait } = require('./support/studio.mts') as typeof import('./support/studio.mts');
+const { startAtem } = require('./support/atem.mts') as typeof import('./support/atem.mts');
+const { openPage } = require('./support/browser.mts') as typeof import('./support/browser.mts');
 
 // The input buttons as the page draws them: [name, 'prg' | 'pvw' | ''].
-const tally = page => page.$$eval('#swInputs button', bs => bs.map(b => [b.textContent, b.className]));
+const tally = (page: StudioPage) => page.$$eval('#swInputs button', (bs: Json) => bs.map((b: Json) => [b.textContent, b.className]));
 // Waits until the page's input buttons show this program and preview input (by name).
-const shows = (page, program, preview) => page.waitForFunction(([p, v]) => {
+const shows = (page: StudioPage, program: Json, preview: Json) => page.waitForFunction(([p, v]) => {
   const b = [...document.querySelectorAll('#swInputs button')];
   return b.some(x => x.textContent === p && x.className === 'prg') && b.some(x => x.textContent === v && x.className === 'pvw');
 }, [program, preview]);
-const text = (page, sel) => page.textContent(sel);
+const text = (page: StudioPage, sel: string) => page.textContent(sel);
 
-async function setUp(t, opts = {}) {
+async function setUp(t: TestContext, opts = {}) {
   const atem = await startAtem({ model: 'MiniExtreme', names: ['Court', 'Bench', 'Wide', 'Crowd'], ...opts });
   t.after(() => atem.close());
   const studio = await startStudio(t);
@@ -28,11 +32,11 @@ async function setUp(t, opts = {}) {
 }
 
 // Set up on the Output page by its address, as the first time at a venue.
-async function useAddress(page, atem) {
+async function useAddress(page: StudioPage, atem: Json) {
   await page.click('#swSetup');
   await page.fill('#swAddress', `127.0.0.1:${atem.port}`);
   await page.click('#swUseAddress');
-  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent));
+  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText')!.textContent));
 }
 
 test('setting up the switcher by its address: its model, inputs by name, and program and preview in tally colours', async t => {
@@ -95,11 +99,11 @@ test('keys and fade to black from the page: each button lights while its key is 
   assert.deepEqual(atem.state.dsk, [true, true]);
   // Fade to black and back.
   await page.click('#swFtb');
-  await page.waitForFunction(() => document.querySelector('#swFtb').textContent === 'Faded to black');
+  await page.waitForFunction(() => document.querySelector('#swFtb')!.textContent === 'Faded to black');
   assert.equal(atem.state.ftb, true);
-  assert.match(await text(page, '#swHas'), /faded to black/);
+  assert.match((await text(page, '#swHas'))!, /faded to black/);
   await page.click('#swFtb');
-  await page.waitForFunction(() => document.querySelector('#swFtb').textContent === 'Fade to black');
+  await page.waitForFunction(() => document.querySelector('#swFtb')!.textContent === 'Fade to black');
   assert.equal(atem.state.ftb, false);
   assert.deepEqual(page.errors, []);
 });
@@ -108,18 +112,18 @@ test('Music under the stinger, beside the Stinger button, is the stinger source\
   const { atem, studio, page } = await setUp(t);
   if (!page) return;
   await useAddress(page, atem);
-  await page.waitForFunction(() => document.querySelector('#swStingerMusic').disabled);
+  await page.waitForFunction(() => document.querySelector<HTMLInputElement>('#swStingerMusic')!.disabled);
   await studio.post('/api/scene', { type: 'add', sources: [{ type: 'browser', name: 'Stinger', url: 'stinger.html?hold=0' }] });
-  await page.waitForFunction(() => !document.querySelector('#swStingerMusic').disabled);
+  await page.waitForFunction(() => !document.querySelector<HTMLInputElement>('#swStingerMusic')!.disabled);
   assert.equal(await page.inputValue('#swStingerMusic'), '');
   await page.selectOption('#swStingerMusic', 'quiet');
-  const url = () => studio.get('/api/scene').then(s => s.sources.find(x => x.name === 'Stinger').url);
+  const url = () => studio.get('/api/scene').then(s => s.sources.find((x: Json) => x.name === 'Stinger').url);
   await studio.until(async () => /music=quiet/.test(await url()), 5000, 50);
   assert.equal(await url(), 'stinger.html?hold=0&music=quiet');
   // Set in the source's options instead, the card follows.
-  const id = (await studio.get('/api/scene')).sources.find(x => x.name === 'Stinger').id;
+  const id = (await studio.get('/api/scene')).sources.find((x: Json) => x.name === 'Stinger').id;
   await studio.post('/api/scene', { type: 'update', id, changes: { url: 'stinger.html?hold=0&music=duck' } });
-  await page.waitForFunction(() => document.querySelector('#swStingerMusic').value === 'duck');
+  await page.waitForFunction(() => document.querySelector<HTMLInputElement>('#swStingerMusic')!.value === 'duck');
   await page.selectOption('#swStingerMusic', '');
   await studio.until(async () => (await url()) === 'stinger.html?hold=0', 5000, 50);
   assert.deepEqual(page.errors, []);
@@ -130,8 +134,8 @@ test('the switcher\'s cable pulled mid-stream: the page says so within seconds, 
   if (!page) return;
   await useAddress(page, atem);
   atem.drop();
-  await page.waitForFunction(() => /not answering since .+, trying again/.test(document.querySelector('#swText').textContent), null, { timeout: 10000 });
-  assert.match(await text(page, '#swText'), /^127\.0\.0\.1 not answering since/);
+  await page.waitForFunction(() => /not answering since .+, trying again/.test(document.querySelector('#swText')!.textContent), null, { timeout: 10000 });
+  assert.match((await text(page, '#swText'))!, /^127\.0\.0\.1 not answering since/);
   assert.equal(await page.getAttribute('#swDot', 'class'), 'hdot bad');
   assert.equal(await page.isVisible('#swLive'), false, 'no input buttons to press that would do nothing');
   assert.equal(await page.isVisible('#swRetry'), true);
@@ -139,7 +143,7 @@ test('the switcher\'s cable pulled mid-stream: the page says so within seconds, 
   // Back on the network: connected again without a click, showing the switcher as it is now.
   atem.state.program = 2; atem.state.preview = 3;
   atem.resume();
-  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent));
+  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText')!.textContent));
   await shows(page, 'Bench', 'Wide');
   assert.equal(await page.isVisible('#swRetry'), false);
   await wait(300);
@@ -159,13 +163,13 @@ test('Try again while the switcher is still gone keeps saying it isn\'t answerin
   await page.waitForSelector('#swRetry:not(.hidden)', { timeout: 10000 });
   await page.click('#swRetry');
   // Connecting… for a few seconds, then not answering again (not Connecting… for ever).
-  await page.waitForFunction(() => /^Connecting to/.test(document.querySelector('#swText').textContent), null, { timeout: 5000 });
-  await page.waitForFunction(() => /not answering/.test(document.querySelector('#swText').textContent), null, { timeout: 10000 });
+  await page.waitForFunction(() => /^Connecting to/.test(document.querySelector('#swText')!.textContent), null, { timeout: 5000 });
+  await page.waitForFunction(() => /not answering/.test(document.querySelector('#swText')!.textContent), null, { timeout: 10000 });
   assert.equal(await text(page, '#swErr'), '');
   assert.equal(await page.isVisible('#swRetry'), true, 'Try again is there to press again');
   // Back: connected without another press.
   atem.resume();
-  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent));
+  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText')!.textContent));
 });
 
 test('an answer that arrives after the switcher has connected doesn\'t put the page back to Connecting', async t => {
@@ -182,10 +186,10 @@ test('an answer that arrives after the switcher has connected doesn\'t put the p
   await page.click('#swSetup');
   await page.fill('#swAddress', `127.0.0.1:${atem.port}`);
   await page.click('#swUseAddress');
-  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent));
+  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText')!.textContent));
   await page.waitForResponse('**/api/switcher');
   await wait(300);
-  assert.match(await text(page, '#swText'), /ATEM Mini Extreme connected/);
+  assert.match((await text(page, '#swText'))!, /ATEM Mini Extreme connected/);
   await shows(page, 'Court', 'Bench');
   assert.deepEqual(page.errors, []);
 });
@@ -196,27 +200,27 @@ test('a mistyped address is refused with what to type, and Forget lets the switc
   await page.click('#swSetup');
   await page.fill('#swAddress', 'court atem please');
   await page.press('#swAddress', 'Enter');
-  await page.waitForFunction(() => document.querySelector('#swErr').textContent !== '');
-  assert.match(await text(page, '#swErr'), /Type the switcher's IP address, such as 192\.168\.10\.240/);
+  await page.waitForFunction(() => document.querySelector('#swErr')!.textContent !== '');
+  assert.match((await text(page, '#swErr'))!, /Type the switcher's IP address, such as 192\.168\.10\.240/);
   assert.equal(await text(page, '#swText'), 'Not set up');
   await page.fill('#swAddress', `127.0.0.1:${atem.port}`);
   await page.click('#swUseAddress');
-  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent));
+  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText')!.textContent));
   assert.equal(await text(page, '#swErr'), '', 'the old error goes once it works');
   // Forget asks first, in Studio's own dialog; Cancel keeps it.
   await page.click('#swForget');
   await page.waitForSelector('dialog.fp-ask[open]');
   await page.click('dialog.fp-ask button.alt');
   await page.waitForSelector('dialog.fp-ask', { state: 'detached' });
-  assert.match(await text(page, '#swText'), /connected/);
+  assert.match((await text(page, '#swText'))!, /connected/);
   await page.click('#swForget');
   await page.waitForSelector('dialog.fp-ask[open]');
   await page.click('dialog.fp-ask button.danger');
-  await page.waitForFunction(() => document.querySelector('#swText').textContent === 'Not set up');
+  await page.waitForFunction(() => document.querySelector('#swText')!.textContent === 'Not set up');
   assert.equal(await page.isVisible('#swLive'), false);
   // Forgotten for good: it's still not set up after the page is opened again.
   await page.reload({ waitUntil: 'load' });
-  await page.waitForFunction(() => document.querySelector('#swText').textContent === 'Not set up');
+  await page.waitForFunction(() => document.querySelector('#swText')!.textContent === 'Not set up');
   assert.equal(await text(page, '#swSetup'), 'Set up');
 });
 
@@ -229,9 +233,9 @@ test('the switcher set up last time is connected again when Studio starts, and t
   await first.stop();
   // Next stream night: the same data folder.
   const studio = await startStudio(t, { dataDir: first.dataDir });
-  t.after(() => require('node:fs').rmSync(first.dataDir, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(first.dataDir, { recursive: true, force: true }));
   const page = await openPage(t, studio, '/output.html');
   if (!page) return;
-  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText').textContent));
+  await page.waitForFunction(() => /connected/.test(document.querySelector('#swText')!.textContent));
   await shows(page, 'Court', 'Bench');
 });

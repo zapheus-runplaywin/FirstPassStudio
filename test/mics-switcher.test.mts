@@ -2,20 +2,21 @@
 // Studio lists the switcher's mic inputs (not a camera's embedded sound), takes each fader as it finds it rather than
 // moving it on connecting, moves it for the level, mutes and dips (fading in steps), follows a fader moved on the
 // switcher, moves the left or right half of a split input, and says plainly what's wrong.
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { startStudio, wait } = require('./support/studio.mts');
-const { startAtem } = require('./support/atem.mts');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { startStudio, wait, type Json } from './support/studio.mts';
+import { startAtem } from './support/atem.mts';
+import type { TestContext } from 'node:test';
 
 const MIC1 = '1301:-65280';
 
-async function setUp(t, opts = {}) {
+async function setUp(t: TestContext, opts = {}) {
   const atem = await startAtem(opts);
   t.after(() => atem.close());
   const studio = await startStudio(t);
   await studio.post('/api/switcher', { type: 'use', address: `127.0.0.1:${atem.port}` });
   await studio.until(async () => (await studio.get('/api/switcher')).state === 'connected', 8000, 100);
-  const act = async a => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); return r.json; };
+  const act = async (a: Json) => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); return r.json; };
   const mics = async () => (await studio.get('/api/scene')).mics;
   const live = () => studio.get('/api/scene/mics/live');
   return { atem, studio, act, mics, live };
@@ -25,7 +26,7 @@ test('the switcher\'s mic inputs are listed, and a mic on one is taken as its fa
   const { atem, studio, act, mics, live } = await setUp(t);
   atem.setFader(MIC1, -600); // someone left Mic 1 at -6 dB
   const l = await studio.until(async () => { const x = await live(); return x.switcher.inputs.length && x; });
-  assert.deepEqual(l.switcher.inputs.map(i => [i.id, i.name, i.split]), [[1301, 'Mic 1', false], [1302, 'Mic 2', false]], 'the mic jacks, not camera 1\'s sound');
+  assert.deepEqual(l.switcher.inputs.map((i: Json) => [i.id, i.name, i.split]), [[1301, 'Mic 1', false], [1302, 'Mic 2', false]], 'the mic jacks, not camera 1\'s sound');
 
   const before = atem.received.filter(r => r.name === 'CFSP').length;
   await act({ type: 'micAdd', changes: { name: 'Court mic', on: 'atem', input: 1301 } });
@@ -80,7 +81,7 @@ test('a split input: the left and right mics move their own halves; trouble is s
   assert.equal(atem.state.faders['1302:-255'], -600);
 
   const l = await live();
-  assert.equal(l.switcher.inputs.find(i => i.id === 1302).split, true);
+  assert.equal(l.switcher.inputs.find((i: Json) => i.id === 1302).split, true);
   const [, , bench, nowhere] = (await mics()).mics;
   assert.match(l.problems[bench.id], /Mic 1 isn't split into two mono channels/);
   assert.match(l.problems[nowhere.id], /no audio input 1309/);

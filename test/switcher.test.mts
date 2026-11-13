@@ -1,17 +1,23 @@
 // The ATEM switcher (switcher.ts), against a stand-in that speaks the switcher's own protocol
 // (test/support/atem.mts): finding it on the network, connecting, the Output page's and Stream Deck's
 // cuts, previews and keys, what a smaller switcher doesn't have, and losing it mid-night.
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { startStudio, wait } = require('./support/studio.mts');
-const { startAtem } = require('./support/atem.mts');
-const { parseBrowse, parseLookup, parseAddress } = require('../out/switcher');
+import { createRequire } from 'node:module';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { startStudio, wait } from './support/studio.mts';
+import { startAtem } from './support/atem.mts';
+import { parseBrowse, parseLookup, parseAddress } from '../out/switcher.js';
+import dgram from 'node:dgram';
+import type { Json } from './support/studio.mts';
+import type { Studio } from './support/studio.mts';
 
-const connected = (studio, ms = 8000) => studio.until(async () => { const s = await studio.get('/api/switcher'); return s.state === 'connected' && s; }, ms, 100);
-const link = async (studio, p) => studio.request('GET', `/deck/switcher/${p}`);
+const require = createRequire(import.meta.url);
+
+const connected = (studio: Studio, ms = 8000) => studio.until(async () => { const s = await studio.get('/api/switcher'); return s.state === 'connected' && s; }, ms, 100);
+const link = async (studio: Studio, p: Json) => studio.request('GET', `/deck/switcher/${p}`);
 
 test('dns-sd output is read for ATEM switchers only, and typed addresses take an optional port', () => {
   const browse = [
@@ -29,11 +35,11 @@ test('dns-sd output is read for ATEM switchers only, and typed addresses take an
     ' 8:20:02.001  ATEM\\032Mini\\032Extreme._blackmagic._tcp.local. can be reached at ATEM-Mini-Extreme-7c2e.local.:9910 (interface 12)',
     ' txtvers=1 name=ATEM\\ Mini\\ Extreme class=AtemSwitcher protocol\\ version=0.0 unique\\ id=7c2e0dabc123',
   ].join('\n'));
-  assert.equal(atem.host, 'ATEM-Mini-Extreme-7c2e.local');
-  assert.equal(atem.port, 9910);
-  assert.equal(atem.txt.class, 'AtemSwitcher');
-  assert.equal(atem.txt.name, 'ATEM Mini Extreme');
-  assert.equal(atem.txt['unique id'], '7c2e0dabc123');
+  assert.equal(atem!.host, 'ATEM-Mini-Extreme-7c2e.local');
+  assert.equal(atem!.port, 9910);
+  assert.equal(atem!.txt.class, 'AtemSwitcher');
+  assert.equal(atem!.txt.name, 'ATEM Mini Extreme');
+  assert.equal(atem!.txt['unique id'], '7c2e0dabc123');
   assert.deepEqual(parseAddress('192.168.10.240'), { address: '192.168.10.240', port: 9910 });
   assert.deepEqual(parseAddress(' 10.0.0.5:9911 '), { address: '10.0.0.5', port: 9911 });
   assert.equal(parseAddress('http://nope'), null);
@@ -57,7 +63,7 @@ test('a refused request from the Output page answers why, with the switcher as i
     [{ type: 'cut' }, 409, /No switcher is set up/],
     [{ type: 'use', address: 'court atem please' }, 400, /Type the switcher's IP address/],
     [{ type: 'use', name: 'Court ATEM' }, 404, /wasn't found on the network/],
-  ]) {
+  ] as [Json, number, RegExp][]) {
     const r = await studio.request('POST', '/api/switcher', body);
     assert.equal(r.status, status, body.type);
     assert.match(r.json.error, why, 'the reason, not the connection\'s (empty) error');
@@ -72,7 +78,7 @@ test('an ATEM Mini Extreme by its address: inputs, keys, cuts and previews from 
   await studio.post('/api/switcher', { type: 'use', address: `127.0.0.1:${atem.port}` });
   const s = await connected(studio);
   assert.equal(s.model, 'ATEM Mini Extreme');
-  assert.deepEqual(s.inputs.map(i => i.name), ['Wide', 'Court', 'Bench', 'Camera 4', 'Camera 5', 'Camera 6', 'Camera 7', 'Camera 8']);
+  assert.deepEqual(s.inputs.map((i: Json) => i.name), ['Wide', 'Court', 'Bench', 'Camera 4', 'Camera 5', 'Camera 6', 'Camera 7', 'Camera 8']);
   assert.equal(s.usk.length, 4);
   assert.equal(s.dsk.length, 2);
   assert.equal(s.program, 1);
@@ -102,7 +108,7 @@ test('an ATEM Mini Extreme by its address: inputs, keys, cuts and previews from 
   assert.equal(atem.state.ftb, true);
   assert.equal((await link(studio, 'macro/2')).status, 200);
   const macro = atem.received.find(c => c.name === 'MAct');
-  assert.equal(macro.data.readUInt16BE(0), 1, 'macro 2 is the switcher\'s second macro (index 1)');
+  assert.equal(macro!.data.readUInt16BE(0), 1, 'macro 2 is the switcher\'s second macro (index 1)');
   assert.deepEqual(atem.received.map(c => c.name), ['CPvI', 'DCut', 'CPvI', 'DAut', 'CPgI', 'CKOn', 'CDsL', 'DDsA', 'FtbA', 'MAct']);
 
   // Someone presses a button on the switcher itself: Studio follows it.
@@ -159,7 +165,7 @@ test('a switcher that stops answering: shown within seconds, links refused, noth
 
 test('a switcher that is off when Studio connects: not answering within seconds, then connected once it is on', async t => {
   // A UDP port nothing answers on, where the switcher will be once it's turned on.
-  const port = await new Promise(r => { const s = require('node:dgram').createSocket('udp4'); s.bind(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => r(p)); }); });
+  const port = await new Promise<number>(r => { const s = dgram.createSocket('udp4'); s.bind(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => r(p)); }); });
   const studio = await startStudio(t);
   await studio.post('/api/switcher', { type: 'use', address: `127.0.0.1:${port}` });
   assert.equal((await studio.get('/api/switcher')).state, 'connecting');
@@ -201,7 +207,7 @@ sleep 5
   const studio = await startStudio(t, { env: { FIRSTPASS_DNS_SD: fake } });
 
   const ws = new WebSocket(`ws://127.0.0.1:${studio.port}/api/scene/socket`);
-  const pushed = [];
+  const pushed: Json[] = [];
   ws.addEventListener('message', e => { const m = JSON.parse(e.data); if (m.type === 'switcher') pushed.push(m.switcher); });
   await new Promise(r => ws.addEventListener('open', r));
   ws.send(JSON.stringify({ subscribe: 'switcher' }));
@@ -209,7 +215,7 @@ sleep 5
 
   const s = await studio.post('/api/switcher/find');
   assert.equal(s.canFind, true);
-  assert.deepEqual(s.found.map(f => [f.name, f.model, f.port]), [['Court ATEM', 'ATEM Mini Extreme', atem.port]]);
+  assert.deepEqual(s.found.map((f: Json) => [f.name, f.model, f.port]), [['Court ATEM', 'ATEM Mini Extreme', atem.port]]);
   await studio.post('/api/switcher', { type: 'use', name: 'Court ATEM' });
   const c = await connected(studio);
   assert.equal(c.pick.kind, 'found');
@@ -232,12 +238,12 @@ test('the switcher over server-sent events, for the Stream Deck plugin: now, the
   const ctl = new AbortController();
   t.after(() => ctl.abort());
   const res = await fetch(`${studio.base}/api/switcher/events`, { signal: ctl.signal });
-  assert.match(res.headers.get('content-type'), /text\/event-stream/);
-  const events = [];
+  assert.match(res.headers.get('content-type')!, /text\/event-stream/);
+  const events: Json[] = [];
   (async () => {
     let buf = '';
     try {
-      for await (const chunk of res.body) {
+      for await (const chunk of res.body!) {
         buf += Buffer.from(chunk).toString();
         let at;
         while ((at = buf.indexOf('\n\n')) >= 0) {
@@ -281,7 +287,7 @@ test('a sequence and a scene drive the switcher: in order, on time, and what a M
   assert.deepEqual(atem.received.map(c => c.name), ['CPvI', 'DCut'], 'the preview, then the cut; the key it hasn\'t got isn\'t sent');
   assert.equal(atem.state.dsk[0], false, 'the key waits its half second');
   await studio.until(() => atem.state.dsk[0] === true, 3000, 20);
-  assert.equal(atem.received.at(-1).name, 'DDsA');
+  assert.equal(atem.received.at(-1)!.name, 'DDsA');
   assert.match(studio.log(), /Sequence "Walk out" step 1: skipped upstream key 2 on: The ATEM Mini Pro has one upstream key/);
   // The log line is written just after the command goes out, so on a fast machine it can lag the key.
   await studio.until(() => /Sequence "Walk out" step 1: downstream key 1 on \(auto\)/.test(studio.log()), 3000, 20);
@@ -353,7 +359,7 @@ test('a stinger cut: the stinger plays on Output 1 and the cut lands in the midd
   await studio.post('/api/switcher', { type: 'use', address: `127.0.0.1:${atem.port}` });
   await connected(studio);
   // With no stinger in the scene, a stinger is an auto.
-  let r = await link(studio, 'stinger/2');
+  let r: Json = await link(studio, 'stinger/2');
   assert.equal(r.status, 200);
   assert.match(r.json.done, /auto to Court \(no stinger in the scene\)/);
   assert.match(studio.log(), /there's no stinger in the scene/);
@@ -361,25 +367,25 @@ test('a stinger cut: the stinger plays on Output 1 and the cut lands in the midd
   await studio.post('/api/scene', { type: 'add', sources: [{ type: 'browser', name: 'Stinger', url: 'stinger.html?hold=0.5' }] });
   assert.equal((await studio.get('/api/switcher')).stinger, 'Stinger');
   assert.equal((await studio.get('/api/switcher')).fps, 50);
-  const stinger = async () => (await studio.get('/api/scene')).sources.find(s => s.name === 'Stinger');
+  const stinger = async () => (await studio.get('/api/scene')).sources.find((s: Json) => s.name === 'Stinger');
   // What the stinger page says through Output 1's scene window as it starts (once it's on, or played again from
   // the top): covered 0.22 to 1.22 s. Studio times the cut from when it got the report, somewhere between sending
   // it and its answer (a slow runner can take a while to answer).
-  const stingerStarts = async was => {
+  const stingerStarts = async (was: Json) => {
     await studio.until(async () => { const s = await stinger(); return s.visible && (!was.visible || s.loadSeq !== was.loadSeq); }, 3000, 10);
     const at = Date.now();
     await studio.post('/api/switcher', { type: 'stingerStarted', cover: [0.22, 1.22] });
     return [at, Date.now()];
   };
   // ms: from sending the report to the cut; after: from its answer.
-  const cutAfter = async press => {
+  const cutAfter = async (press: () => Promise<Json>) => {
     const was = await stinger();
     const [res, [at, answered]] = await Promise.all([press(), stingerStarts(was)]);
-    const cut = atem.received.filter(c => c.name === 'DCut').at(-1);
+    const cut = atem.received.filter(c => c.name === 'DCut').at(-1)!;
     return { res, ms: cut.at - at, after: cut.at - answered };
   };
   // On time: more than target - 70 ms after sending the report and under target + 130 ms after its answer.
-  const onTime = (r, target, what) => assert.ok(r.ms > target - 70 && r.after < target + 130, `${what}: cut ${r.ms} ms after sending the report and ${r.after} ms after its answer, wanted ${target}`);
+  const onTime = (r: Json, target: Json, what: string) => assert.ok(r.ms > target - 70 && r.after < target + 130, `${what}: cut ${r.ms} ms after sending the report and ${r.after} ms after its answer, wanted ${target}`);
   r = await cutAfter(() => link(studio, 'stinger/Bench'));
   const res = r.res;
   assert.equal(res.status, 200);
@@ -407,8 +413,8 @@ test('a stinger cut: the stinger plays on Output 1 and the cut lands in the midd
     second = await link(studio, 'stinger/Wide');
     return one;
   });
-  assert.equal(second.status, 409);
-  assert.match(second.json.error, /already playing/);
+  assert.equal(second!.status, 409);
+  assert.match(second!.json.error, /already playing/);
   assert.equal(atem.received.filter(c => c.name === 'DCut').length, cuts + 1, 'one cut');
   onTime(r, 820, 'the one cut lands in the cover');
   assert.equal(atem.state.program, 1);

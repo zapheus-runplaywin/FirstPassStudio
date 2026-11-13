@@ -2,19 +2,19 @@
 // output the stinger plays on (switcher.ts stingerOutput), so it ducks the music on a night Output 1 is off and the stinger
 // plays on another output's downstream key; the stinger shown by hand on an output it doesn't play on leaves the music
 // alone. The Switcher card reads the choice from /api/switcher (stingerId, stingerMusic) and sets it on the source.
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { startStudio } = require('./support/studio.mts');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { startStudio, type Json } from './support/studio.mts';
 
 test('the stinger\'s Music under it goes by the output the stinger plays on, and the Switcher card reads and sets it', async t => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-stinger-music-'));
   fs.mkdirSync(path.join(dataDir, 'media'), { recursive: true });
   fs.writeFileSync(path.join(dataDir, 'media', 'Break.mp3'), '');
   const studio = await startStudio(t, { dataDir, removeDataDir: true });
-  const act = async a => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); return r.json; };
+  const act = async (a: Json) => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); return r.json; };
   const music = async () => (await studio.get('/api/scene')).music;
 
   await act({ type: 'add', sources: [{ type: 'browser', name: 'Stinger', url: 'stinger.html?length=1' }] });
@@ -33,7 +33,7 @@ test('the stinger\'s Music under it goes by the output the stinger plays on, and
   // Output 1 off on an upstream key, a second output on the downstream key and on: the stinger plays there.
   await studio.post('/api/outputs', { mode: 'chroma', keyer: 'usk1', on: false });
   const added = await studio.post('/api/outputs', { add: true, name: 'Over all' });
-  const two = added.outputs.find(o => o.slot === 2).id;
+  const two = added.outputs.find((o: Json) => o.slot === 2).id;
   await studio.post('/api/outputs', { output: two, mode: 'ndi', ndiSignal: 'fillkey', keyer: 'dsk1' });
   await studio.post('/api/outputs', { output: two, on: true });
   sw = await studio.get('/api/switcher');

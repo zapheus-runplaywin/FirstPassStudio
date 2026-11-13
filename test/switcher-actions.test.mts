@@ -1,7 +1,7 @@
 // Switcher actions on sequence steps and scenes (switcher.ts run, fired from sequences.ts and scene.ts):
 // what's saved, and that they fire only for what plays on the primary output, with a step's actions still
 // to come called off as the sequence moves on. The switcher itself is stood in for by a recorder here;
-// test/switcher.test.js has them reaching the stand-in ATEM.
+// test/switcher.test.mts has them reaching the stand-in ATEM.
 import test from 'node:test';
 import { mock } from 'node:test';
 import assert from 'node:assert/strict';

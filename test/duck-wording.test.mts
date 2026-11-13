@@ -1,16 +1,16 @@
 // One word for getting the music out of the way: Duck. The scene's and the sequence's tick says Ducks the music (its
 // settings key stays quiet), a mic that a mixer fades says Never ducks, the stinger's choices both duck, and the
 // status board says why the music is ducked in the same words. Nothing says "quiet the music" any more.
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio.mts');
-const { openPage } = require('./support/browser.mts');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { startStudio } from './support/studio.mts';
+import { openPage } from './support/browser.mts';
 
 test('the Output page says Duck for every way the music gets out of the way', async t => {
   const studio = await startStudio(t);
   const page = await openPage(t, studio, '/output.html');
   if (!page) return;
-  const label = id => page.$eval(`#${id}`, el => el.closest('label').textContent.replace(/\s+/g, ' ').trim());
+  const label = (id: string) => page.$eval(`#${id}`, el => el.closest('label')!.textContent.replace(/\s+/g, ' ').trim());
   assert.match(await label('sdQuiet'), /^Ducks the music/);
   assert.match(await label('sqQuiet'), /^Ducks the music when this starts/);
   assert.equal(await page.$eval('label[for="sqQuiet"]', el => el.textContent), 'Duck');

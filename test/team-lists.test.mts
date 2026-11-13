@@ -3,8 +3,6 @@
 // under the other team (told apart by the players' goals against the live feed's team totals). Against the
 // stand-in PlayHQ; the team list graphic is checked in a browser too (see test/support/browser.mts).
 
-'use strict';
-
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startStudio, type Studio, type Json } from './support/studio.mts';

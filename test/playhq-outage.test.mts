@@ -10,13 +10,16 @@ import os from 'node:os';
 import path from 'node:path';
 import net, { type AddressInfo } from 'node:net';
 import http from 'node:http';
-import { startPlayhq, createWorld, type StandIn } from './support/playhq.mts';
+import { startPlayhq, createWorld, localZone, type StandIn } from './support/playhq.mts';
 
 const require = createRequire(import.meta.url);
 
 // playhq.js keeps finished games in the data folder (datadir.ts reads this when it's loaded).
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-playhq-'));
 process.env.FIRSTPASS_DATA_DIR = dataDir;
+// The stand-in's game times are wall-clock times where it's about midday, so the client reads them there: otherwise
+// late in the UTC day today's games look hours away, no game is on, and a read is kept 5 minutes (playhq.ts dataAge).
+process.env.TZ = localZone().tz;
 
 let playhq: StandIn, logged: string[] = [];
 test.before(async () => { playhq = await startPlayhq(createWorld()); process.env.PLAYHQ_SPECTATOR_URL = playhq.spectatorUrl; });
