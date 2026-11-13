@@ -7,7 +7,7 @@ export type Log = (level: LogLevel, source: string, message: string, extra?: unk
 // A JSON value: what a saved file, a request's body or PlayHQ's answer holds before it is checked.
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
-// The Mac app's end of the message port, when the helper runs in Electron's utility process (desktop/main.js
+// The Mac app's end of the message port, when the helper runs in Electron's utility process (desktop/main.ts
 // starts it; Electron's types declare process.parentPort). Not there when the helper runs on its own with node.
 export interface ParentPort {
   on(event: 'message', listener: (e: { data: unknown }) => void): void;

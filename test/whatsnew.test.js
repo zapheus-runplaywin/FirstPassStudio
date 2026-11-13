@@ -1,4 +1,4 @@
-// The Mac app's What's new window (desktop/whatsnew.js): once, the first time the app opens after
+// The Mac app's What's new window (desktop/whatsnew.ts): once, the first time the app opens after
 // an update, listing the changes from the release notes bundled at build time.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -83,11 +83,11 @@ test('the workflow command writes whatsnew.json from the releases and this build
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whatsnew-'));
   fs.writeFileSync(path.join(dir, 'releases.ndjson'), [release('0.4.10', ['Ten']), release('0.4.9', ['Nine'])].map(r => JSON.stringify(r)).join('\n') + '\n');
   fs.writeFileSync(path.join(dir, 'notes.md'), notes('0.4.11', ['Eleven']));
-  const out = JSON.parse(execFileSync(process.execPath, [path.join(__dirname, '..', 'desktop', 'whatsnew.js'), path.join(dir, 'releases.ndjson'), path.join(dir, 'notes.md'), '0.4.11'], { encoding: 'utf8' }));
+  const out = JSON.parse(execFileSync(process.execPath, [path.join(__dirname, '..', 'out', 'desktop', 'whatsnew.js'), path.join(dir, 'releases.ndjson'), path.join(dir, 'notes.md'), '0.4.11'], { encoding: 'utf8' }));
   assert.deepEqual(out.releases.map(r => [r.version, r.changes]), [['0.4.11', ['Eleven']], ['0.4.10', ['Ten']], ['0.4.9', ['Nine']]]);
   // Releases that can't be read (an empty file): only this build.
   fs.writeFileSync(path.join(dir, 'releases.ndjson'), '');
-  const alone = JSON.parse(execFileSync(process.execPath, [path.join(__dirname, '..', 'desktop', 'whatsnew.js'), path.join(dir, 'releases.ndjson'), path.join(dir, 'notes.md'), '0.4.11'], { encoding: 'utf8' }));
+  const alone = JSON.parse(execFileSync(process.execPath, [path.join(__dirname, '..', 'out', 'desktop', 'whatsnew.js'), path.join(dir, 'releases.ndjson'), path.join(dir, 'notes.md'), '0.4.11'], { encoding: 'utf8' }));
   assert.deepEqual(alone.releases.map(r => r.version), ['0.4.11']);
   fs.rmSync(dir, { recursive: true, force: true });
 });

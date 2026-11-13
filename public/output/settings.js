@@ -497,7 +497,7 @@ $('outDlKeying').onchange = () => setOut({ decklinkKeying: $('outDlKeying').valu
 // Where the output's sound plays (outputs.js sound): a list of destinations. The first is where the output itself
 // carries it (the SDI of a Blackmagic output, else the Mac's sound output) and on Output 1 takes every Mac mic; a
 // Blackmagic output can add the Mac's sound output too; and any of the Mac's sound outputs by name is a hidden window
-// of its own (desktop/soundcopy.js) with the Mac mics ticked for it. The Mac's sound outputs are listed here in the
+// of its own (desktop/soundcopy.ts) with the Mac mics ticked for it. The Mac's sound outputs are listed here in the
 // Mac app, by the names macOS gives them. No sound (an empty list) is picked in the first destination's list: the output
 // plays no sound anywhere, for a screen with no speakers.
 let soundDevices = [];

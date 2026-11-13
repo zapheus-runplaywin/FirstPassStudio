@@ -241,7 +241,7 @@ app again while it is running opens Studio.
 
 ### The app window
 
-Studio's pages open in the app's own window (`desktop/windows.js`), not the browser: no address bar, tabs or
+Studio's pages open in the app's own window (`desktop/windows.ts`), not the browser: no address bar, tabs or
 bookmarks, the Studio header is the title bar (the window buttons sit in it, and dragging it moves the window), and
 the app shows in the Dock and ⌘Tab while a window is open, then goes back to just the menu bar icon. A link that opens
 a new tab on Studio opens another app window (overlays on a dark background, since they are see-through); links to
@@ -256,7 +256,7 @@ interrupt a stream; once one has downloaded, **Restart to update** in the menu i
 newest version downloaded: a newer one that comes out after the first has downloaded replaces it in the background (the
 menu then names it). **Restart to update** checks once more first, and if a newer version is out than the one the menu
 named it asks: **Get 0.3.12** (the menu shows "Downloading 0.3.12…", then Studio restarts on it) or **Install 0.3.11 now**.
-macOS's updater only takes one update per restart, so `desktop/updates.js` hands it the update only when it's installed.
+macOS's updater only takes one update per restart, so `desktop/updates.ts` hands it the update only when it's installed.
 macOS's updater closes every window before the app hears it's quitting, so **Restart to update** first does what Quit
 does (stops the helper and the outputs, and tells the windows not to ask), keeps the outputs on for the new version, and
 closes any window still open after 5 seconds, unless a page with unsaved changes asked and you chose Stay. Each step is
@@ -329,7 +329,7 @@ three entitlements it needs (`build/entitlements.mac.plist`). ffmpeg, the native
 unpacked beside the archive (`asarUnpack`) and the code reaches them through `unpacked.ts`. A new file the app runs,
 loads as a native module or hands to another program goes in `asarUnpack` too (`test/app-hardening.test.js` checks).
 The fuses leave `file://` as a browser has it, which can't read inside the archive, so the app's own pages (the splash,
-What's new, Back up settings, off air) are served as `studio://app/desktop/...` by `desktop/windows.js`, from `desktop/`
+What's new, Back up settings, off air) are served as `studio://app/desktop/...` by `desktop/windows.ts`, from `desktop/`
 and `public/` only.
 
 To build on your own Mac instead: `npm install` (which also builds FirstPass's shared packages in `packages/`, such as `@firstpass/playhq`), then `npm run dist` (signs with the Developer ID certificate in your
@@ -337,7 +337,7 @@ keychain; set `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` to n
 `npm run app` runs it from the repository without building (needs Node.js, the LTS version, from https://nodejs.org).
 `npm start` runs Studio on its own, without the app, for working on the pages; it uses the same data folder and port,
 so don't run it while the app is on air.
-The helper (`server.ts` and the modules beside it) is TypeScript: `npm run build` compiles it and the Mac app into `out/`, which
+The helper (`server.ts` and the modules beside it) and the Mac app (`desktop/`) are TypeScript: `npm run build` compiles them into `out/`, which
 is what runs (`npm start`, `npm run app` and `npm test` build first; `npm run watch` keeps compiling as you edit). It's strict,
 outside data comes in as `unknown` and is checked, and an `any` needs a comment starting `any:` saying why (a test checks).
 `npm test` runs the tests (they also run on every pull request, as the Tests check). The ones that need PlayHQ run
@@ -480,16 +480,16 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   For the cleanest key, turn the switcher's **Pre Multiplied Key** on (clip and gain aren't used then); with it off, clip and gain cut into soft edges
   and the edges go dark. The log says the size of the pictures going out (`sending 1920 x 1080 pictures`). It needs Blackmagic Desktop Video installed, not the SDK,
   and the device free (quit any other app using it, such as Media Express, first). The scene renders off screen at the format's frame
-  rate (`desktop/decklink.js`) and `native/decklink`, a small Node-API module built against the DeckLink SDK headers in
+  rate (`desktop/decklink.ts`) and `native/decklink`, a small Node-API module built against the DeckLink SDK headers in
   `native/decklink/sdk` (Blackmagic's permissive licence), plays the latest picture out; when nothing changes the device repeats it. **Sound**
   goes in the SDI as 48 kHz stereo (with fill and key, on the fill), so turn on the sound of the switcher input the fill comes into (On, or AFV);
   an SDI to HDMI converter passes it on. **Sound goes to** (every output's settings; `outputs.ts` `sound`) lists where the output's sound plays: the first destination is where
   the output itself carries it (the SDI of a Blackmagic output, else the Mac's sound output; on Output 1 every Mac mic goes with it), a Blackmagic output can add the Mac's
-  sound output too, and any of the Mac's sound outputs by name (the commentators' mixer) is a hidden `scene.html?copy=1` window of its own (`desktop/soundcopy.js`, `?mics=`
+  sound output too, and any of the Mac's sound outputs by name (the commentators' mixer) is a hidden `scene.html?copy=1` window of its own (`desktop/soundcopy.ts`, `?mics=`
   the mics ticked for it, none to start) that plays only once it has found the device; with no destination of its own the output's window is muted (`?mute=1`). **No sound**, last in
   the first destination's list, saves an empty list: the output plays no sound anywhere (a screen with no speakers, such as a billboard over NDI), and the board's Sound out
   says **No Audio** for it. An older
-  outputs.json's Sound and Also send the sound to become the list. `desktop/soundtap.js` hears the output's
+  outputs.json's Sound and Also send the sound to become the list. `desktop/soundtap.ts` hears the output's
   scene window (a hidden page captures its sound the way Chromium captures a tab's) and the module schedules each 20 ms piece on the device's
   clock, as far ahead as the pictures queued, so they go out together; the log says if the sound runs dry or gets ahead. Output on/off and `/deck/output/on|off|toggle` work the same, and late or dropped frames are logged
   in the app log.
@@ -498,10 +498,10 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   **chroma** makes one, *Source name Chroma*, over the chroma colour; **with transparency** makes one, *Source name*, carrying alpha for
   receivers that key on NDI's transparency. They appear as "MAC NAME (Source name …)"; the source name is the output's name (and follows it when the output is renamed) unless *Use my own name* is ticked and another typed.
   The runtime comes from `/usr/local/lib` (NDI's installer) or from inside an NDI Tools app; a copy inside an app is loaded only when its
-  code signature is Vizrt's or NewTek's (`desktop/signed.js`), since a library runs inside Studio. The app log names any copy left alone.
+  code signature is Vizrt's or NewTek's (`desktop/signed.ts`), since a library runs inside Studio. The app log names any copy left alone.
   It needs NDI's runtime for Mac (free, the libNDI installer from ndi.link/NDIRedistV6Apple), which puts `libndi.dylib` in `/usr/local/lib`;
-  failing that, Studio uses the copy inside an NDI Tools app if it finds one (`desktop/ndi.js` looks in /Applications). Studio doesn't ship the runtime.
-  The scene renders off screen as for Blackmagic (`desktop/scenewindow.js`, `desktop/ndi.js`) and `native/ndi`, a Node-API module built
+  failing that, Studio uses the copy inside an NDI Tools app if it finds one (`desktop/ndi.ts` looks in /Applications). Studio doesn't ship the runtime.
+  The scene renders off screen as for Blackmagic (`desktop/scenewindow.ts`, `desktop/ndi.ts`) and `native/ndi`, a Node-API module built
   against the NDI SDK's header files in `native/ndi/sdk` (MIT licence), loads the runtime and sends each source at the frame rate, repeating
   the latest picture, only while something is receiving it. Frames are handed to NDI without waiting (NDI compresses the fill and key
   on its own threads, at the same time), and once a minute the app log gives the frames a second sent and the new pictures a second the
@@ -513,7 +513,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
 - **Picture, HD or 4K (Mac app):** the HD and 4K buttons at the top of Video output set the picture for every output. In 4K each
   NDI and Blackmagic output sends the 2160p version of the format picked for it, at the same rate (2160p50 for 1080p50), with
   everything else unchanged (scenes, sources, NDI names, links, the switcher key); HD is exactly as before. The graphics keep their
-  1920 x 1080 layout and are drawn at twice the density (`desktop/scenewindow.js`), and the canvases are sized for it (`public/zoom.js`).
+  1920 x 1080 layout and are drawn at twice the density (`desktop/scenewindow.ts`), and the canvases are sized for it (`public/zoom.js`).
   A Blackmagic device without that 2160p format, or a 720p NDI format, stays as it is and says so; displays are left alone.
   In 4K a Blackmagic output can also have one of the device's own 2160p formats picked; HD hides them and sends the 1080p one at its rate.
   Any graphic's link opened at 3840 x 2160 draws itself at twice the size too (`public/zoom.js`), with nothing added to the link.
@@ -1036,7 +1036,7 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   `Results/`), with *As a zip* also as `<competition> <date> Upcoming.zip` beside it (Share then sends the zip), and
   opens the folder; *As a carousel* saves them in the order shown above Save (dragged, or ‹ ›) as one Instagram post, one size and
   up to 20, each with `&page=N/M` (the 2/6 mark and swipe arrow), in `<competition> <date> Upcoming carousel/`; *Share…* saves them and opens the Mac's Share menu (AirDrop, Messages, Mail). The Mac app draws each
-  picture off screen at full size (`desktop/socials.js`), so saving needs the app; the previews work anywhere.
+  picture off screen at full size (`desktop/socials.ts`), so saving needs the app; the previews work anywhere.
 
 Each picture is a page of its own, `social.html?kind=fixtures|matchup|onstream|commentators|polaroid|results|fulltime|ladder|topshooters|tournament&size=square|portrait|story`
 (`&date=`, `&game=`, `&division=`, `&sponsor=0|1`, `&mark=0|1`, `&pivt=0|1`, `&colours=`, `&title=`; the polaroid's `&photo=`, `&px=`,
@@ -1079,7 +1079,7 @@ moves the offset.
 
 **Following the SDI input** (`sditimecode.ts`, `{ follow: { kind: 'sdi' } }`): the Mac app reads the RP188 timecode coming into
 the first Blackmagic device with an input (`native/decklink` `inputStart`/`inputStatus`/`inputStop`, format detection on, the
-pictures not looked at; `desktop/decklink.js` `readInput`, asked by the helper's `readTimecode` message) and sends it to the
+pictures not looked at; `desktop/decklink.ts` `readInput`, asked by the helper's `readTimecode` message) and sends it to the
 helper (`sdiTimecode`) each time it changes and every half second. A timecode moving on by about a frame is playing, the same one
 is stopped, a jump is scrubbing; between changes it runs on. The helper asks again every 3 s while nothing comes.
 

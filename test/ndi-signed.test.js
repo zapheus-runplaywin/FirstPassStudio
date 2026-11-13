@@ -1,4 +1,4 @@
-// Only a signed NDI runtime is loaded (desktop/signed.js): codesign's details are read, and a copy is trusted
+// Only a signed NDI runtime is loaded (desktop/signed.ts): codesign's details are read, and a copy is trusted
 // only when its signature verifies and its Developer ID is Vizrt's or NewTek's.
 const test = require('node:test');
 const assert = require('node:assert/strict');

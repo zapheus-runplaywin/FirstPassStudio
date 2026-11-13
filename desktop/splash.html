@@ -31,7 +31,7 @@
 <div id="pivt">PIVT</div>
 <div id="version"></div>
 <script>
-  // Shown while the app starts Studio (desktop/main.js). The app fills in the version and
+  // Shown while the app starts Studio (desktop/main.ts). The app fills in the version and
   // changes the line under the logo as Studio comes on air.
   const q = new URLSearchParams(location.search);
   if (q.get('version')) document.getElementById('version').textContent = `Version ${q.get('version')}`;

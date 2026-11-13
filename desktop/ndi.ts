@@ -2,30 +2,43 @@
 // Output page sets it up).
 //
 // Each output set to NDI gets its own sender: its own sources (named after the output's source name),
-// format and off-screen scene window. The scene renders off screen (desktop/scenewindow.js) at the chosen format's size and frame rate, and
+// format and off-screen scene window. The scene renders off screen (desktop/scenewindow.ts) at the chosen format's size and frame rate, and
 // native/ndi sends it as fill and key (two sources), chroma (over a colour) or one source with
 // transparency, repeating the latest picture between changes. It loads the NDI runtime that NDI's
 // runtime installer puts in /usr/local/lib, or the copy inside one of NDI Tools' apps, and only a
-// copy whose code signature is Vizrt's or NewTek's (desktop/signed.js): loading a library runs its
+// copy whose code signature is Vizrt's or NewTek's (desktop/signed.ts): loading a library runs its
 // code inside Studio, and any app could carry a file called libndi.dylib. Without a runtime, or
 // without the built module, available() says why. Sound plays through the Mac's audio output, as it
 // does for the other outputs.
 // NDI® is a registered trademark of Vizrt NDI AB.
 
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import * as sceneWindow from './scenewindow';
+import * as signed from './signed';
+import { unpacked } from '../unpacked';
+import { APP_DIR } from '../appdir';
+import { errorMessage } from '../errors';
 
-const fs = require('fs');
-const path = require('path');
-const sceneWindow = require('./scenewindow');
-const signed = require('./signed');
+// What native/ndi gives (native/ndi/src).
+interface Source { kind: string, name: string }
+type Available = { ok: true, path: string, version: string } | { ok: false, error: string };
+interface AddonStatus { running?: boolean, sources?: string[], late?: number, sent?: number, pictures?: number }
+interface Addon {
+  available(copies: string[]): Available,
+  start(o: { sources: Source[], color?: string, width: number, height: number, rateN: number, rateD: number }): { ok: true, id: number } | { ok: false, error: string },
+  status(id: number): AddonStatus,
+  stop(id: number): void,
+  frame(id: number, bitmap: Buffer, width: number, height: number): boolean,
+}
 
-const MODULE = require('../unpacked').unpacked(path.join(require('../appdir').APP_DIR, 'native', 'ndi', 'build', 'Release', 'ndi.node'));
-let addon = null;
+const MODULE = unpacked(path.join(APP_DIR, 'native', 'ndi', 'build', 'Release', 'ndi.node'));
+let addon: Addon | null = null;
 let loadError = '';
-try { addon = require(MODULE); } catch (err) { loadError = err.message; }
+try { addon = require(MODULE) as Addon; } catch (err) { loadError = errorMessage(err); }
 
 // The sources each signal makes, named after the name on the Output page.
-const SOURCES = {
+const SOURCES: Record<string, (name: string) => Source[]> = {
   fillkey: name => [{ kind: 'fill', name: `${name} Fill` }, { kind: 'key', name: `${name} Key` }],
   chroma: name => [{ kind: 'chroma', name: `${name} Chroma` }],
   alpha: name => [{ kind: 'alpha', name }],
@@ -34,23 +47,24 @@ const SOURCES = {
 // NDI Tools' apps on the Mac carry their own copy of the NDI library rather than installing it in
 // /usr/local/lib (only NDI's runtime installer does that), so look inside them too. Only copies
 // signed by NDI's makers are offered (signed.trusted); the rest are logged once and left alone.
-const checked = new Map(); // path -> { ok, why }
-function bundledCopies(log = () => {}) {
-  const out = [];
+const checked = new Map<string, { ok: boolean, why: string }>(); // path -> { ok, why }
+function bundledCopies(log: (message: string) => void = () => {}): string[] {
+  const out: string[] = [];
   for (const file of foundCopies()) {
-    if (!checked.has(file)) {
-      const r = signed.trusted(file);
+    let r = checked.get(file);
+    if (!r) {
+      r = signed.trusted(file);
       checked.set(file, r);
       if (!r.ok) log(`NDI: not loading ${file}: ${r.why}`);
     }
-    if (checked.get(file).ok) out.push(file);
+    if (r.ok) out.push(file);
   }
   return out;
 }
-function foundCopies() {
-  const found = [];
-  const look = (dir, depth) => {
-    let names = [];
+function foundCopies(): string[] {
+  const found: string[] = [];
+  const look = (dir: string, depth: number) => {
+    let names: string[] = [];
     try { names = fs.readdirSync(dir); } catch { return; }
     for (const name of names) {
       const full = path.join(dir, name);
@@ -62,15 +76,24 @@ function foundCopies() {
   return found;
 }
 
-module.exports = function ndi({ port, log, onStatus }) {
-  // One sender for each output that sends NDI, by output id: { win, running: { key, id, sources, format }, error, watch, late }.
-  const senders = new Map();
+// What the Output page set for one output sent as NDI (outputs.ts).
+interface Format { id: string, width: number, height: number, rateN: number, rateD: number }
+interface Wanted { signal: string, name: string, format: Format, color?: string, safe?: boolean, sound?: string, density?: number, output?: string }
+interface Status { running: boolean, format: string, sources: string[], late: number, error: string }
+interface Sender {
+  key: string, win: sceneWindow.SceneWindow | null, error: string, watch: NodeJS.Timeout | null, late: number,
+  running: { id: number, sources: Source[], format: string, frameRate: number } | null,
+}
+
+function create({ port, log, onStatus }: { port: number, log: (message: string) => void, onStatus: (status: Status, output: string) => void }) {
+  // One sender for each output that sends NDI, by output id.
+  const senders = new Map<string, Sender>();
   let loadedFrom = '';
   let lastWhy = '';
 
   if (!addon) log(`NDI output unavailable: ${loadError}`);
 
-  function available() {
+  function available(): Available {
     if (!addon) return { ok: false, error: 'This copy of Studio was built without NDI output (cd native/ndi && npm install && npm run build).' };
     try {
       const copies = loadedFrom ? [] : bundledCopies(log);
@@ -80,18 +103,18 @@ module.exports = function ndi({ port, log, onStatus }) {
       if (why && why !== lastWhy) log(`NDI output unavailable: ${why}`);
       lastWhy = why;
       return r;
-    } catch (err) { return { ok: false, error: err.message }; }
+    } catch (err) { return { ok: false, error: errorMessage(err) }; }
   }
 
-  function status(output) {
+  function status(output: string): Status {
     const x = senders.get(output);
-    const s = addon && x?.running ? addon.status(x.running.id) : { running: false };
+    const s: AddonStatus = addon && x?.running ? addon.status(x.running.id) : { running: false };
     return { running: !!s.running, format: x?.running?.format || '', sources: s.sources || [], late: s.late || 0, error: x?.error || '' };
   }
 
-  const report = output => onStatus(status(output), output);
+  const report = (output: string) => onStatus(status(output), output);
 
-  function stop(output) {
+  function stop(output?: string) {
     if (output === undefined) { for (const o of [...senders.keys()]) stop(o); return; }
     const x = senders.get(output);
     if (!x) return;
@@ -104,23 +127,24 @@ module.exports = function ndi({ port, log, onStatus }) {
   // list: [{ signal, name, format: { id, width, height, rateN, rateD }, color, safe, sound, density, output }] from outputs.js,
   // one for each output sending NDI (an empty list stops them all). NDI carries no sound: the window plays it on the
   // Mac's sound output (sound 'mac'), or is muted ('none': it goes only to the output's sound copies).
-  function show(list) {
-    const wanted = new Map(list.map(w => [w.output || 'main', w]));
+  function show(list: Wanted[]) {
+    const wanted = new Map(list.map((w): [string, Wanted] => [w.output || 'main', w]));
     for (const output of [...senders.keys()]) if (!wanted.has(output)) { stop(output); report(output); }
     for (const [output, w] of wanted) start(output, w);
   }
 
-  function start(output, w) {
+  function start(output: string, w: Wanted) {
     const key = JSON.stringify([w.signal, w.name, w.format, w.signal === 'chroma' ? w.color : '', !!w.safe, w.density || 1, w.sound || 'mac']);
     if (senders.get(output)?.key === key) return;
     stop(output);
-    const x = { key, win: null, running: null, error: '', watch: null, late: 0 };
+    const x: Sender = { key, win: null, running: null, error: '', watch: null, late: 0 };
     senders.set(output, x);
     if (!addon) { x.error = 'NDI output isn\'t in this copy of Studio.'; return report(output); }
+    const ndiAddon = addon;
 
     const sources = (SOURCES[w.signal] || SOURCES.fillkey)(w.name);
     const { width, height, rateN, rateD } = w.format;
-    const r = addon.start({ sources, color: w.color, width, height, rateN, rateD });
+    const r = ndiAddon.start({ sources, color: w.color, width, height, rateN, rateD });
     if (!r.ok) {
       // Kept for the Output page, but not as running: the next change tries again (a runtime that wasn't
       // ready, a name another app had for a moment) rather than leaving the output dead until it's turned off and on.
@@ -132,9 +156,9 @@ module.exports = function ndi({ port, log, onStatus }) {
     x.running = { id: r.id, sources, format: w.format.id, frameRate: rateN / rateD };
     log(`NDI output on: ${sources.map(s => s.name).join(', ')} (${w.format.id}, ${width} x ${height})`);
 
-    x.win = sceneWindow({
+    x.win = sceneWindow.create({
       port, width, height, frameRate: rateN / rateD, log, label: `NDI output ${w.name}`, chromaKey: !!w.safe, output, density: w.density || 1, mute: w.sound === 'none',
-      onFrame: (bitmap, bw, bh) => addon.frame(r.id, bitmap, bw, bh),
+      onFrame: (bitmap, bw, bh) => ndiAddon.frame(r.id, bitmap, bw, bh),
     });
 
     // Who's watching (receivers come and go), for the Output page; and once a minute while someone is,
@@ -147,10 +171,10 @@ module.exports = function ndi({ port, log, onStatus }) {
       if (++ticks % 30 === 0) {
         if (s.late > x.late) log(`NDI output ${w.name} fell behind ${s.late - x.late} times in the last minute`);
         x.late = s.late;
-        const raw = addon.status(r.id);
+        const raw = ndiAddon.status(r.id);
         const now = { at: Date.now(), sent: raw.sent || 0, pictures: raw.pictures || 0 };
         const secs = (now.at - counted.at) / 1000;
-        const rate = n => Math.round(n / secs);
+        const rate = (n: number) => Math.round(n / secs);
         if (now.sent > counted.sent) {
           log(`NDI output ${w.name}: ${rate(now.sent - counted.sent)} frames a second sent of ${Math.round(rateN / rateD)}, the scene drew ${rate(now.pictures - counted.pictures)} new pictures a second (fewer is normal while nothing moves)`);
         }
@@ -161,9 +185,11 @@ module.exports = function ndi({ port, log, onStatus }) {
     report(output);
   }
 
-  // The scene windows sending now, for desktop/perf.js.
-  const windows = () => [...senders].filter(([, x]) => x.win && x.running)
-    .map(([output, x]) => ({ output, contents: x.win.contents(), target: x.running.frameRate }));
+  // The scene windows sending now, for desktop/perf.ts.
+  const windows = () => [...senders].flatMap(([output, x]) => x.win && x.running ? [{ output, contents: x.win.contents(), target: x.running.frameRate }] : []);
 
   return { available, show, stop: () => stop(), status, windows };
-};
+}
+
+export type { Wanted };
+export { create };

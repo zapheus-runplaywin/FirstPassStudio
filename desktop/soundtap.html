@@ -7,7 +7,7 @@
 </head>
 <body>
 <script>
-  // Hidden page (desktop/soundtap.js): hears one output window's sound and hands it to the app as 48 kHz
+  // Hidden page (desktop/soundtap.ts): hears one output window's sound and hands it to the app as 48 kHz
   // stereo, 16-bit interleaved, in 20 ms pieces. The app answers the capture with that window's sound
   // (no picture is kept), and starts it with studioTapStart(). It says 'started: <what the capture is>' to the log,
   // and every half second the loudest moment of each side since the last time (0 to 1), for the board's meters.

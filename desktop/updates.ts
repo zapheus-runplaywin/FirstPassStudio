@@ -9,16 +9,29 @@
 // it's installed: "Restart to update" checks once more for anything newer first (and asks before
 // getting it instead of the version the menu named), and quitting installs the newest one downloaded.
 
-'use strict';
-
 // How long handing the update to Squirrel (it unzips it and checks its signature) may take.
 const INSTALL_TIMEOUT = 90 * 1000;
 
+// What this needs of electron-updater's autoUpdater (the tests pass a stand-in).
+interface Updater {
+  autoDownload: boolean, autoInstallOnAppQuit: boolean, autoRunAppAfterInstall: boolean,
+  checkForUpdates(): Promise<{ isUpdateAvailable: boolean, updateInfo: { version: string } } | null>,
+  downloadUpdate(): Promise<unknown>,
+  quitAndInstall(): void,
+  on(event: 'update-downloaded', listener: (info: { version: string }) => void): unknown,
+  once(event: 'error', listener: (err: Error) => void): unknown,
+  removeListener(event: 'error', listener: (err: Error) => void): unknown,
+}
+interface Options {
+  updater: Updater, log?: (message: string) => void, onChange?: () => void, onInstall?: () => void, installTimeout?: number,
+}
+type AskNewer = (ready: string | null, newer: string) => Promise<boolean>;
+
 // onInstall runs just before the update is handed over (the app quits soon after).
-function createUpdates({ updater, log = () => {}, onChange = () => {}, onInstall = () => {}, installTimeout = INSTALL_TIMEOUT }) {
+function createUpdates({ updater, log = () => {}, onChange = () => {}, onInstall = () => {}, installTimeout = INSTALL_TIMEOUT }: Options) {
   updater.autoDownload = true;
   updater.autoInstallOnAppQuit = false; // hand() gives it to Squirrel instead, see above
-  let ready = null, fetching = null, installing = false;
+  let ready: string | null = null, fetching: string | null = null, installing = false;
 
   updater.on('update-downloaded', info => { ready = info.version; onChange(); });
 
@@ -33,7 +46,7 @@ function createUpdates({ updater, log = () => {}, onChange = () => {}, onInstall
   // says whether to get it first (it downloads, then installs) or install the one downloaded. The
   // check itself downloads nothing, so the downloaded version stays there to install. A check that
   // fails (offline, GitHub busy) installs what's already downloaded.
-  async function fetchNewest(askNewer) {
+  async function fetchNewest(askNewer: AskNewer) {
     const auto = updater.autoDownload;
     try {
       updater.autoDownload = false;
@@ -47,7 +60,7 @@ function createUpdates({ updater, log = () => {}, onChange = () => {}, onInstall
       log(`[update] ${newer} came out since ${ready} downloaded: downloading it first, as chosen`);
       await updater.downloadUpdate();
     } catch (err) {
-      log(`[update] Couldn't check for a newer version, installing ${ready}: ${String(err && err.message).split('\n')[0]}`);
+      log(`[update] Couldn't check for a newer version, installing ${ready}: ${String((err as Error | null)?.message).split('\n')[0]}`);
     } finally {
       updater.autoDownload = auto;
       fetching = null;
@@ -57,11 +70,11 @@ function createUpdates({ updater, log = () => {}, onChange = () => {}, onInstall
   // Hands the downloaded update to Squirrel, which quits the app and installs it (and opens it
   // again when relaunch is true). Resolves false if that fails or takes too long; on success the
   // app quits.
-  function hand(relaunch) {
+  function hand(relaunch: boolean): Promise<boolean> {
     installing = true;
     onChange();
     return new Promise(resolve => {
-      const failed = err => {
+      const failed = (err: Error) => {
         clearTimeout(timer);
         updater.removeListener('error', failed);
         log(`[update] Couldn't install ${ready}: ${String(err && err.message).split('\n')[0]}`);
@@ -80,7 +93,7 @@ function createUpdates({ updater, log = () => {}, onChange = () => {}, onInstall
   }
 
   // "Restart to update": the version downloaded, or a newer one if askNewer says so, then restart.
-  async function restartToUpdate({ askNewer = async () => false } = {}) {
+  async function restartToUpdate({ askNewer = async () => false }: { askNewer?: AskNewer } = {}) {
     if (!pending()) return false;
     await fetchNewest(askNewer);
     if (!ready || installing) return false;
@@ -88,7 +101,7 @@ function createUpdates({ updater, log = () => {}, onChange = () => {}, onInstall
   }
 
   // Quitting: the newest version downloaded, without a check that could hold the quit up.
-  function installOnQuit() {
+  function installOnQuit(): Promise<boolean> {
     if (!pending()) return Promise.resolve(false);
     return hand(false);
   }
@@ -96,4 +109,5 @@ function createUpdates({ updater, log = () => {}, onChange = () => {}, onInstall
   return { check, state, pending, restartToUpdate, installOnQuit };
 }
 
-module.exports = { createUpdates, INSTALL_TIMEOUT };
+export type { Updater };
+export { createUpdates, INSTALL_TIMEOUT };

@@ -69,11 +69,15 @@ test('the files Studio reads next to itself at run time are packed', () => {
   // Any other file the desktop code opens from its own folder, or that the Mac app workflow makes there.
   const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'mac-app.yml'), 'utf8');
   const builtHere = { 'whatsnew.json': '> desktop/whatsnew.json' };
-  for (const name of fs.readdirSync(path.join(ROOT, 'desktop')).filter(n => n.endsWith('.js'))) {
+  for (const name of fs.readdirSync(path.join(ROOT, 'desktop')).filter(n => n.endsWith('.ts'))) {
     const src = fs.readFileSync(path.join(ROOT, 'desktop', name), 'utf8');
-    for (const [, file] of src.matchAll(/path\.join\((?:__dirname|DESKTOP_DIR|APP_DIR, 'desktop'), '([^']+)'\)/g)) {
+    for (const [, file] of src.matchAll(/path\.join\(APP_DIR, 'desktop', '([^']+)'\)/g)) {
       if (builtHere[file]) assert.ok(workflow.includes(builtHere[file]), `desktop/${name} opens desktop/${file}, but the Mac app workflow no longer makes it`);
       else assert.ok(fs.existsSync(path.join(ROOT, 'desktop', file)), `desktop/${name} opens desktop/${file}, which is missing`);
+    }
+    // Beside itself (__dirname, out/desktop/ once compiled) there is only the rest of the compiled desktop code.
+    for (const [, file] of src.matchAll(/path\.join\(__dirname, '([^']+)'\)/g)) {
+      assert.ok(/\.js$/.test(file) && fs.existsSync(path.join(ROOT, 'desktop', file.replace(/\.js$/, '.ts'))), `desktop/${name} opens ${file} beside its compiled self, which isn't compiled from desktop/`);
     }
   }
 });

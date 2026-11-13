@@ -75,10 +75,10 @@ test('every graphics page loads chroma.js, and the scene filters its frame rathe
 });
 
 test('the Mac app opens the chroma outputs chroma key safe', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'desktop', 'outputs.js'), 'utf8');
+  const src = fs.readFileSync(path.join(ROOT, 'desktop', 'outputs.ts'), 'utf8');
   assert.match(src, /if \(w\.safe\) q\.set\('chromaKey', 'true'\)/);
-  assert.match(fs.readFileSync(path.join(ROOT, 'desktop', 'ndi.js'), 'utf8'), /chromaKey: !!w\.safe/);
-  assert.match(fs.readFileSync(path.join(ROOT, 'desktop', 'scenewindow.js'), 'utf8'), /chromaKey \? '&chromaKey=true' : ''/);
+  assert.match(fs.readFileSync(path.join(ROOT, 'desktop', 'ndi.ts'), 'utf8'), /chromaKey: !!w\.safe/);
+  assert.match(fs.readFileSync(path.join(ROOT, 'desktop', 'scenewindow.ts'), 'utf8'), /chromaKey \? '&chromaKey=true' : ''/);
 });
 
 async function launch() {

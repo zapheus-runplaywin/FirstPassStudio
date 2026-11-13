@@ -1,5 +1,5 @@
 // FirstPass Studio Mac app - one output window's sound, for an output that carries it itself (the Blackmagic
-// output's SDI, desktop/decklink.js).
+// output's SDI, desktop/decklink.ts).
 //
 // A hidden page (soundtap.html) captures the window's sound, as Chromium captures a tab's, and hands it over
 // as 48 kHz stereo, 16-bit interleaved, in 20 ms pieces: onSound(buffer). echo: the window still plays it on the
@@ -10,19 +10,18 @@
 // Every half second onLevel([left, right]) gives the loudest moment of each side since the last (0 to 1), for the
 // status board's Sound out meters.
 
-'use strict';
-
-const path = require('path');
-const { BrowserWindow, session } = require('electron');
-const { loadPage } = require('./windows');
+import path from 'node:path';
+import { BrowserWindow, session, type WebContents, type WebFrameMain } from 'electron';
+import { loadPage } from './windows';
 
 const RETRY_MS = 5000;
 // Which window each tap page captures: [{ win (the tap page's), contents (the window it hears), echo }].
-const taps = new Set();
+interface Tap { win: BrowserWindow, contents: WebContents, echo: boolean }
+const taps = new Set<Tap>();
 let handling = false;
 // A capture asked for by a tap page gets its window's sound (and picture, which the page stops at once);
 // anything else asking to capture the screen gets nothing.
-const sameFrame = (a, b) => !!(a && b) && a.processId === b.processId && a.routingId === b.routingId;
+const sameFrame = (a: WebFrameMain | null | undefined, b: WebFrameMain | null | undefined) => !!(a && b) && a.processId === b.processId && a.routingId === b.routingId;
 function handle() {
   if (handling) return;
   handling = true;
@@ -34,24 +33,32 @@ function handle() {
   });
 }
 
-module.exports = function soundTap({ contents, echo = false, log, label, onSound, onLevel = () => {} }) {
+interface Options {
+  contents: WebContents, echo?: boolean, log: (message: string) => void, label: string,
+  onSound: (pcm: Buffer) => void, onLevel?: (peak: [number, number]) => void,
+}
+
+function create({ contents, echo = false, log, label, onSound, onLevel = () => {} }: Options) {
   handle();
-  let win = null, tap = null, retry = null, stopped = false;
+  let win: BrowserWindow | null = null, tap: Tap | null = null, retry: NodeJS.Timeout | null = null, stopped = false;
 
   function start() {
     retry = null;
     if (stopped || contents.isDestroyed()) return;
-    win = new BrowserWindow({
+    const w = win = new BrowserWindow({
       show: false, width: 100, height: 100,
       webPreferences: { preload: path.join(__dirname, 'soundtap-preload.js'), backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required' },
     });
-    tap = { win, contents, echo };
+    tap = { win: w, contents, echo };
     taps.add(tap);
-    win.webContents.ipc.on('soundtap:sound', (e, data) => {
-      if (data && data.byteLength) onSound(Buffer.from(data.buffer || data, data.byteOffset || 0, data.byteLength));
+    // The page's sound, as a typed array or a plain ArrayBuffer (structured clone keeps either).
+    w.webContents.ipc.on('soundtap:sound', (e, data: unknown) => {
+      if (ArrayBuffer.isView(data) && data.byteLength) onSound(Buffer.from(data.buffer, data.byteOffset, data.byteLength));
+      else if (data instanceof ArrayBuffer && data.byteLength) onSound(Buffer.from(data));
     });
-    win.webContents.ipc.on('soundtap:level', (e, l, r) => onLevel([Number(l) || 0, Number(r) || 0]));
-    win.webContents.ipc.on('soundtap:said', (e, text) => {
+    w.webContents.ipc.on('soundtap:level', (e, l: unknown, r: unknown) => onLevel([Number(l) || 0, Number(r) || 0]));
+    w.webContents.ipc.on('soundtap:said', (e, said: unknown) => {
+      const text = String(said);
       if (text.startsWith('started')) {
         const how = text.slice('started'.length).replace(/^:\s*/, '');
         return log(`${label}: sound captured${how ? ` (${how})` : ''}${echo ? ', and still played on the Mac' : ''}`);
@@ -59,16 +66,16 @@ module.exports = function soundTap({ contents, echo = false, log, label, onSound
       log(`${label}: sound ${text === 'ended' ? 'capture stopped' : `capture ${text}`}; trying again`);
       again();
     });
-    win.webContents.on('render-process-gone', () => again());
-    win.webContents.once('did-finish-load', () => {
-      win?.webContents.executeJavaScript('studioTapStart()', true).catch(err => { log(`${label}: sound capture didn't start (${err.message})`); again(); });
+    w.webContents.on('render-process-gone', () => again());
+    w.webContents.once('did-finish-load', () => {
+      win?.webContents.executeJavaScript('studioTapStart()', true).catch((err: Error) => { log(`${label}: sound capture didn't start (${err.message})`); again(); });
     });
-    loadPage(win, 'soundtap.html');
+    loadPage(w, 'soundtap.html');
   }
 
   function close() {
     if (!win) return;
-    taps.delete(tap);
+    if (tap) taps.delete(tap);
     if (!win.isDestroyed()) win.destroy();
     win = null;
   }
@@ -80,6 +87,8 @@ module.exports = function soundTap({ contents, echo = false, log, label, onSound
 
   start();
   return {
-    stop() { stopped = true; clearTimeout(retry); retry = null; close(); },
+    stop() { stopped = true; if (retry) clearTimeout(retry); retry = null; close(); },
   };
-};
+}
+
+export { create };

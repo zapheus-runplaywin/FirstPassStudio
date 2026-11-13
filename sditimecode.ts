@@ -3,7 +3,7 @@
 //
 // SDI carries timecode (RP188) with every frame, so any player sending SDI into the UltraStudio gives a running
 // timecode: a HyperDeck's monitor or SDI output, a deck, a switcher's output. The Mac app reads it (native/decklink,
-// desktop/decklink.js readInput) while a replay follows it and sends it here each time it changes, and every half
+// desktop/decklink.ts readInput) while a replay follows it and sends it here each time it changes, and every half
 // second besides. A timecode moving on a frame at a time is playing; one that stays the same is stopped, and one
 // jumping is scrubbing. Between changes it runs on by the time passed. HDMI carries no timecode, so the HDMI input
 // can't be used for this. Only in the Mac app: the helper on its own has no Blackmagic device to read.

@@ -1,4 +1,4 @@
-// The Blackmagic output's sound in the SDI (desktop/soundtap.js, soundtap.html): the output window's sound is captured
+// The Blackmagic output's sound in the SDI (desktop/soundtap.ts, soundtap.html): the output window's sound is captured
 // with none of the browser's call processing. Automatic level, noise suppression and echo cancelling are made for
 // voices; on music they pump the level and dull the sound (Matt heard it on the SDI, 2026-11-03). The page says what
 // the capture is when it starts, and the app logs it.
@@ -9,7 +9,7 @@ const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
 const page = fs.readFileSync(path.join(ROOT, 'desktop/soundtap.html'), 'utf8');
-const tap = fs.readFileSync(path.join(ROOT, 'desktop/soundtap.js'), 'utf8');
+const tap = fs.readFileSync(path.join(ROOT, 'desktop/soundtap.ts'), 'utf8');
 
 test('the SDI sound is captured with the browser processing off, on the ask and on the track', () => {
   const plain = page.match(/const plain = \{([^}]*)\}/);

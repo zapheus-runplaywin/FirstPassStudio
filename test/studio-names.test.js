@@ -18,9 +18,9 @@ test('each tab\'s label is its page\'s title and heading', () => {
 });
 
 test('the Go menu and the menu bar icon use the tabs\' own names', () => {
-  const windows = fs.readFileSync(path.join(__dirname, '..', 'desktop', 'windows.js'), 'utf8');
+  const windows = fs.readFileSync(path.join(__dirname, '..', 'desktop', 'windows.ts'), 'utf8');
   assert.match(windows, /submenu: TABS\.map\(\(p, i\) => \(\{ label: p\.label,/, 'the Go menu takes the label as it is');
-  const main = fs.readFileSync(path.join(__dirname, '..', 'desktop', 'main.js'), 'utf8');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'desktop', 'main.ts'), 'utf8');
   for (const m of main.matchAll(/label: '([^']+)', click: \(\) => openPage\('(\/[a-z]+\.html)'\)/g)) {
     const tab = STUDIO_PAGES.find(p => p.href === m[2] || (p.also || []).includes(m[2]));
     if (tab && tab.href === m[2]) assert.equal(m[1], tab.label, `menu bar item for ${m[2]}`);

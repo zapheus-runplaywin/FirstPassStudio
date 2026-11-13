@@ -4,7 +4,7 @@
 // access.deckPress()). More named link sets ("Office Stream Deck") can be made on the Mac (addLinks()), each with its
 // own key, so the Website keys on one Stream Deck can be given a new key, or removed, without touching the others.
 // A program on another device (a script, curl, the Stream Deck plugin, a phone or another computer's browser)
-// asks to be added (ask()): the Mac shows a dialog naming it and its address (desktop/main.js), or the Devices page
+// asks to be added (ask()): the Mac shows a dialog naming it and its address (desktop/main.ts), or the Devices page
 // shows the request, and nothing is added until someone there presses Allow. One request at a time, for five minutes.
 // An allowed program collects its own key once (collect()) and uses it like This Mac's key, in /k/<key>/deck/ links;
 // it can be taken away alone. One unused for 90 days drops off the list and has to ask again (link sets never do:
@@ -67,7 +67,7 @@ const SEEN_EVERY = 60 * 1000;
 const ASK_MS = 5 * 60 * 1000;
 const DENIED_MS = 60 * 1000;
 const UNUSED_MS = 90 * 24 * 3600 * 1000;
-// The Mac app, when Studio runs inside it: it shows the Allow dialog (desktop/main.js).
+// The Mac app, when Studio runs inside it: it shows the Allow dialog (desktop/main.ts).
 const app = process.parentPort || null;
 
 let log: Log = () => {};

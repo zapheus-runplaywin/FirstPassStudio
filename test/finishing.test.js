@@ -11,7 +11,7 @@ const { openPage } = require('./support/browser');
 const read = f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 
 test('the View menu zooms in steps with Actual Size on ⌘⌥0, and the off air page carries the mark', () => {
-  const w = read('desktop/windows.js');
+  const w = read('desktop/windows.ts');
   assert.match(w, /accelerator: 'CmdOrCtrl\+Alt\+0'/, 'Actual Size is ⌘⌥0 (⌘0 is the Docs tab)');
   assert.doesNotMatch(w, /role: '(resetZoom|zoomIn|zoomOut)'/, 'the roles would bind ⌘0 and show no level');
   assert.match(w, /label: `Zoom: \$\{zoomPct\}%`/);

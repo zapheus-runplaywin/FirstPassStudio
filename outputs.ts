@@ -13,7 +13,7 @@
 //              keyer) or fill only;
 //   ndi      - as NDI® sources on the network: fill and key (two sources), chroma, or one source with
 //              transparency. Needs NDI's runtime on the Mac.
-// The Mac app does the sending (desktop/outputs.js, desktop/decklink.js, desktop/ndi.js): it tells the
+// The Mac app does the sending (desktop/outputs.ts, desktop/decklink.ts, desktop/ndi.ts): it tells the
 // helper which displays and Blackmagic devices it has and whether NDI is there, and the helper tells it
 // what to show, over the utility process's message port. Run without the app (npm start) there are none, and the Output page says so.
 //
@@ -56,7 +56,7 @@ function isOneOf<T extends string>(list: readonly T[], v: unknown): v is T { ret
 // Sound goes to: where an output's sound plays (sound, a list of destinations). device is 'own' (where the output
 // itself carries its sound: the SDI, on the fill, of a Blackmagic output; the Mac's sound output for the rest), 'mac'
 // (the Mac's sound output as well, on a Blackmagic output), or one of the Mac's sound outputs by the name macOS gives
-// it, played by a hidden window of its own while the output is on (desktop/soundcopy.js). The first destination is the
+// it, played by a hidden window of its own while the output is on (desktop/soundcopy.ts). The first destination is the
 // main one and on Output 1 carries every Mac mic; each later one takes the Mac mics ticked for it (mics, mic ids), so
 // the commentators' mixer can have the crowd mic and leave out their own (Studio's half of a mix-minus). An empty
 // list is No sound: the output plays no sound anywhere (a screen with no speakers, such as a billboard over NDI), its
@@ -86,7 +86,7 @@ function soundFromOld(s: Body) {
   return out;
 }
 const hasSound = (o: Output, device: string) => o.sound.some(d => d.device === device);
-// Where a Blackmagic output's own window's sound goes (desktop/decklink.js): the SDI, the Mac, both, or none (muted:
+// Where a Blackmagic output's own window's sound goes (desktop/decklink.ts): the SDI, the Mac, both, or none (muted:
 // No sound, or only to the Mac's other sound outputs).
 const decklinkSoundOf = (o: Output) => hasSound(o, 'own') ? (hasSound(o, 'mac') ? 'both' : 'sdi') : hasSound(o, 'mac') ? 'mac' : 'none';
 // Whether any other output's own window plays its sound (to the Mac's sound output) or is muted.
@@ -126,7 +126,7 @@ interface Output {
   keyer: typeof KEYERS[number]; swFill: number; swKey: number; swCameras: number[]; sound: Dest[];
 }
 type Settings = Omit<Output, 'id' | 'slot' | 'name'> & Partial<Pick<Output, 'id' | 'slot' | 'name'>>;
-// The Mac app's displays, Blackmagic devices (desktop/decklink.js) and their video formats.
+// The Mac app's displays, Blackmagic devices (desktop/decklink.ts) and their video formats.
 interface Display { id: string; label: string; width: number; height: number; scale: number; primary: boolean }
 interface DeckMode { mode: number; name: string; height: number; interlaced: boolean; supported?: boolean; keying?: boolean }
 interface DeckDevice { id: string; name: string; modes: DeckMode[]; [key: string]: unknown }
@@ -175,7 +175,7 @@ let decklinkOutput = ''; // the output whose picture the Blackmagic device is se
 // { running, format, sources: [{ kind, name, connections }], late, error }.
 let ndi: Ndi | null = null;
 const ndiStatus = new Map<string, Status>(); // output id -> its NDI sources' status
-// How hard each output is working, from the app (desktop/perf.js) every few seconds while one is showing:
+// How hard each output is working, from the app (desktop/perf.ts) every few seconds while one is showing:
 // { at, outputs: { id: { cpu, memMB, fps, target } }, total: { cpu, memMB, gpu } }; and the samples
 // since the last minute's log line.
 let perf: Perf | null = null;
@@ -672,7 +672,7 @@ function deck(parts: string[]) {
   return { status: 200, body: { ok: true, on: now.on, mode: now.mode, output: now.name } };
 }
 
-// A Blackmagic device as the Mac app describes it (desktop/decklink.js), its formats checked.
+// A Blackmagic device as the Mac app describes it (desktop/decklink.ts), its formats checked.
 function deviceOf(v: unknown): DeckDevice {
   const d = obj(v);
   const modes = arr(d.modes).map(m => { const x = obj(m); return { ...x, mode: Number(x.mode) || 0, name: str(x.name), height: Number(x.height) || 0, interlaced: !!x.interlaced,
