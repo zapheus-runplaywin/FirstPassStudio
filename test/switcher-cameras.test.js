@@ -1,11 +1,11 @@
 // Cameras per output (switcher.ts): an output on an upstream key names the cameras its graphics go with. Studio's own
 // cuts, autos and program presses take its key on with them and off with any other camera, in the same transition
 // (the switcher's next transition selection, put back afterwards); with Keys follow the camera on, a cut made on the
-// switcher itself brings the keys straight after. Against the stand-in switcher (test/support/atem.js).
+// switcher itself brings the keys straight after. Against the stand-in switcher (test/support/atem.mts).
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio, wait } = require('./support/studio');
-const { startAtem } = require('./support/atem');
+const { startStudio, wait } = require('./support/studio.mts');
+const { startAtem } = require('./support/atem.mts');
 
 const NAMES = ['Wide', 'Court', 'Bench', 'Crowd', 'GFX Fill', 'GFX Key', 'GFX2 Fill', 'GFX2 Key'];
 const sent = (atem, name, from = 0) => atem.received.slice(from).filter(r => r.name === name);

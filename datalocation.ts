@@ -44,7 +44,7 @@ const LOCATION_FILE = 'data-location.json';
 const COMPUTER_FILE = 'studio-computer.json';
 // The settings that move: only these. The Mac app's folder also holds Electron's own files
 // (caches, cookies, SingletonLock...), which must never move. A new file saved with
-// datadir.file() must be added here (test/datalocation.test.js checks).
+// datadir.file() must be added here (test/datalocation.test.mts checks).
 const SETTINGS = new Set([
   'competitions', 'config.json', 'control.json', 'round-choice.json', 'data-version.json',
   'scene.json', 'media', 'outputs.json', 'music.json', 'mics.json', 'sequences.json', 'sequence-settings.json', 'sponsors', 'switcher.json',

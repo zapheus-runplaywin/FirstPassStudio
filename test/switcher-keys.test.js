@@ -1,11 +1,11 @@
 // Each output's key on the ATEM switcher (Into the switcher as on the Output page): Studio reads how that key is set
 // up and says what doesn't suit the output (switcher.ts keyChecks), sends nothing to the switcher until Set up this
 // key for me is pressed, and then changes only the key's inputs, type and Pre Multiplied Key. Against the stand-in
-// switcher (test/support/atem.js), which keeps each key's settings as ATEM Software Control would.
+// switcher (test/support/atem.mts), which keeps each key's settings as ATEM Software Control would.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { startAtem } = require('./support/atem');
+const { startStudio } = require('./support/studio.mts');
+const { startAtem } = require('./support/atem.mts');
 
 const SETUP = ['CDsF', 'CDsC', 'CDsG', 'CKTp', 'CKeF', 'CKeC', 'CKLm'];
 const keyFor = async (studio, output, ok = c => c) => studio.until(async () => {

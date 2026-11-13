@@ -50,7 +50,7 @@ import type { Act, Body, Log, Query } from './types';
 
 type Channel = 'both' | 'left' | 'right';
 type Route = 'mac' | 'atem' | 'phone';
-interface Mic { id: string; name: string; on: Route; device: string; input: number; phone: string; channel: Channel; level: number; muted: boolean; lowCut: boolean; follow: boolean }
+export interface Mic { id: string; name: string; on: Route; device: string; input: number; phone: string; channel: Channel; level: number; muted: boolean; lowCut: boolean; follow: boolean }
 interface Settings {
   v: number; level: number; muted: boolean; dipTo: number; dipMusic: boolean; dipVideo: boolean; dipQuiet: boolean; dipDownSec: number; dipUpSec: number; mics: Mic[];
 }

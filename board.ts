@@ -118,6 +118,11 @@ interface Deps {
   warmTeamLists(why: string): unknown; record?: { action(a: Action): void };
 }
 
+// A quarter's score in a game's stats (getStats), and a goal on its worm (getWorm): game time t (a period is 1) and
+// the margin after it.
+export interface Quarter { n: number; label: string; played: boolean; home: number | null; away: number | null; sure: boolean }
+export interface Point { t: number; home: number; away: number; margin: number; side?: Side; points?: number }
+
 function create({ log, datadir, savefile, stories = { keep() {}, read: () => null }, machine, config, competitions, scene, playhq, control: controlFile, logoFor, colourFor, rules, competitionName, warmTeamLists, record = { action() {} } }: Deps) {
   const { getRoundGames, liveScore, scoringNotYet } = playhq;
   const PERIOD_NUMBER: Record<string, number | undefined> = playhq.PERIOD_NUMBER;
@@ -901,7 +906,6 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
         current = Math.min(current, r.periods + 1); // the last quarter counts as finished
       }
     }
-    interface Quarter { n: number; label: string; played: boolean; home: number | null; away: number | null; sure: boolean }
     const periods: Quarter[] = [];
     for (let n = 1; n <= last; n++) {
       const p = tracked[n];
@@ -981,7 +985,6 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
       }
     }
     const score = { home: 0, away: 0 };
-    interface Point { t: number; home: number; away: number; margin: number; side?: Side; points?: number }
     type Segment = Point[] & { fromGap?: boolean };
     const segments: Segment[] = [], gaps: { from: number; to: number }[] = [];
     let seg: Segment = [], lastT = 0;

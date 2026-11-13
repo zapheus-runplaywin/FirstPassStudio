@@ -1,13 +1,13 @@
 // A phone as a backup commentator headset (phonemic.ts, commentator.html, scene.html): the phone's first offer adds a
 // mic for it, Output 1's window answers and mixes what it sends and sends Output 1's sound back (without the phone's
 // own voice), and a dropped connection says so on its card and the board. Chromium's stand-in microphone plays a beep; the "phone" here is this Mac (localhost is a secure page too).
-// The browser: as in pages.test.js (Playwright's own, or STUDIO_TEST_CHROMIUM).
+// The browser: as in pages.test.mts (Playwright's own, or STUDIO_TEST_CHROMIUM).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 const access = require('../out/access');
 
 let chromium = null;

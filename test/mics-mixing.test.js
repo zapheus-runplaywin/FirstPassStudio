@@ -1,10 +1,10 @@
 // The mics in the browser (scene.html, the Output page): only the own window of an output a mic goes to opens it (never a
 // Scene View or the key output), it mixes them at their levels and mutes, says what it hears, and says plainly when a
 // device isn't plugged in. Chromium's stand-in microphone plays a beep.
-// The browser: as in pages.test.js (Playwright's own, or STUDIO_TEST_CHROMIUM).
+// The browser: as in pages.test.mts (Playwright's own, or STUDIO_TEST_CHROMIUM).
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 
 let chromium = null;
 try { ({ chromium } = require('playwright')); } catch { /* not installed */ }

@@ -6,8 +6,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
-const { startStudio } = require('./support/studio');
-const { localZone } = require('./support/playhq');
+const { startStudio } = require('./support/studio.mts');
+const { localZone } = require('./support/playhq.mts');
 
 // Studio runs in the stand-in PlayHQ's time zone: the test reads timecode as a time of day in the same one.
 process.env.TZ = localZone().tz;

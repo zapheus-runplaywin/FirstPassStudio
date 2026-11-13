@@ -15,7 +15,8 @@ const INSTALL_TIMEOUT = 90 * 1000;
 // What this needs of electron-updater's autoUpdater (the tests pass a stand-in).
 interface Updater {
   autoDownload: boolean, autoInstallOnAppQuit: boolean, autoRunAppAfterInstall: boolean,
-  checkForUpdates(): Promise<{ isUpdateAvailable: boolean, updateInfo: { version: string } } | null>,
+  // downloadPromise: the download a check started (autoDownload), finished when the update is downloaded.
+  checkForUpdates(): Promise<{ isUpdateAvailable: boolean, updateInfo: { version: string }, downloadPromise?: Promise<unknown> | null } | null>,
   downloadUpdate(): Promise<unknown>,
   quitAndInstall(): void,
   on(event: 'update-downloaded', listener: (info: { version: string }) => void): unknown,

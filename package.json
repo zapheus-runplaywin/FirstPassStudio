@@ -12,8 +12,8 @@
   ],
   "scripts": {
     "start": "npm run build && node out/server.js",
-    "test": "node --test test/*.test.js",
-    "test:ci": "node --test --test-timeout=480000 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./test/support/github-report.mjs --test-reporter-destination=stdout test/*.test.js",
+    "test": "node --test test/*.test.js test/*.test.mts",
+    "test:ci": "node --test --test-timeout=480000 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./test/support/github-report.mts --test-reporter-destination=stdout test/*.test.js test/*.test.mts",
     "iconpack": "node plugins/characters-iconpack/build.js",
     "fonts": "node vendor/fonts/fetch.js",
     "app": "npm run build && electron .",
@@ -22,8 +22,8 @@
     "build": "npm run build --workspaces && tsc -p . && tsc -p public && tsc -p public/output",
     "watch": "tsc -p . --watch & tsc -p public --watch & tsc -p public/output --watch",
     "examples": "npm run build && node out/examples.js",
-    "pretest": "npm run build",
-    "pretest:ci": "npm run build"
+    "pretest": "npm run build && tsc -p test",
+    "pretest:ci": "npm run build && tsc -p test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.8.0",

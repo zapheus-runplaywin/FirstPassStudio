@@ -2,10 +2,10 @@
 // Bring it back here puts the Scene View back on the Output page, Pop out opens the window again,
 // and a window that goes without saying so (the Mac app's windows can) doesn't leave the Output
 // page stuck on "The Scene View is in its own window".
-// The browser: as in pages.test.js (Playwright's own, or STUDIO_TEST_CHROMIUM).
+// The browser: as in pages.test.mts (Playwright's own, or STUDIO_TEST_CHROMIUM).
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 
 let chromium = null;
 try { ({ chromium } = require('playwright')); } catch { /* not installed */ }

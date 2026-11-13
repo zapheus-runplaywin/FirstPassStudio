@@ -1,0 +1,106 @@
+// The Socials tab's per game stats pictures: Game stats and Shooting duel (a finished game's line ups, with its story
+// when Studio streamed it), Moments of the game (every moment the scoreboard saw, kept in the story), Head to head (the
+// teams' meetings this season) and Team sheet (both squads with games played). The browser: Playwright's own, or
+// STUDIO_TEST_CHROMIUM; skipped without one (except in the Tests check).
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { startStudio, type Json } from './support/studio.mts';
+import { createWorld } from './support/playhq.mts';
+import type { BrowserType } from 'playwright';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
+let chromium: BrowserType | null = null;
+try { ({ chromium } = require('playwright') as typeof import('playwright')); } catch { /* not installed */ }
+
+test('game stats, shooting duel, moments of the game, head to head and team sheet', async t => {
+  const world = createWorld();
+  const studio = await startStudio(t, { competition: 'Thunder League', world });
+  const nights = (await studio.get('/api/socials')).nights.map((n: Json) => n.date);
+  const [, second, , fourth] = nights;
+
+  // Blizzardz v Mavericks scored by hand on the scoreboard (Blizzardz 3 in a row, then Mavericks 5 in a row to lead),
+  // then the next game picked, so the story is kept.
+  const act = (b: Json) => studio.post('/api/scoreboard', b);
+  await act({ type: 'selectGame', game: { id: 'game-d1-r2-1', division: 'Division 1', date: second, time: '11:06', home: { name: 'Blizzardz', score: 0 }, away: { name: 'Mavericks', score: 0 } } });
+  await act({ type: 'source', value: 'manual' });
+  await act({ type: 'resetScores' });
+  await act({ type: 'period', value: 1 });
+  for (const c of 'hhhaaaaa') await act({ type: 'score', side: c === 'h' ? 'home' : 'away', delta: 1 });
+  await act({ type: 'selectGame', game: { id: 'game-d1-r2-2', division: 'Division 1', date: second, time: '12:06', home: { name: 'Knights', score: 0 }, away: { name: "Travis' Disciples", score: 0 } } });
+
+  const n = await studio.get(`/api/socials/night?date=${second}&with=gamestats&game=game-d1-r2-1`);
+  const gs = n.gameStats;
+  assert.equal(gs.read, true);
+  for (const k of ['home', 'away']) {
+    const side = gs.game[k];
+    const sum = (f: Json) => side.shooters.reduce((x: Json, p: Json) => x + p[f], 0);
+    assert.equal(side.goals, sum('goals'));
+    assert.equal(side.shots, sum('shots'));
+    assert.equal(side.misses, undefined, 'no misses: having the most isn\'t a win');
+    assert.deepEqual(side.shooters.map((p: Json) => p.points), [...side.shooters.map((p: Json) => p.points)].sort((a, b) => b - a), 'most points first');
+  }
+  assert.equal(gs.superShots, true, 'Thunder League plays super shots');
+  assert.deepEqual([gs.story.longestRun.home, gs.story.longestRun.away], [3, 5]);
+  assert.deepEqual([gs.story.runs3.home, gs.story.runs3.away, gs.story.runs5.home, gs.story.runs5.away], [1, 1, 0, 1], 'a run of 5 is a 3 goal run too');
+  assert.equal(gs.story.leadChanges, undefined);
+  assert.equal((await studio.get(`/api/socials/night?date=${second}&with=gamestats&game=game-d2-r2-1`)).gameStats.story, null, 'not streamed');
+  assert.match((await studio.get(`/api/socials/night?date=${nights[2]}&with=gamestats&game=game-d1-r3-1`)).gameStats.error, /No result/);
+
+  const story = (await studio.get(`/api/socials/night?date=${second}&with=story&game=game-d1-r2-1`)).story;
+  assert.deepEqual(story.moments.map((m: Json) => [m.kind, m.side]).slice(0, 2), [['heating', 'home'], ['heating', 'away']]);
+  assert.ok(story.moments.some((m: Json) => m.kind === 'fire' || (m.also || []).some((a: Json) => a.kind === 'fire')), 'five in a row');
+
+  // Round 4 is each team's second meeting with a round 1 opponent.
+  const met = (await studio.get(`/api/socials/night?date=${fourth}`)).met;
+  assert.ok(met.every((x: Json) => x.n === 1));
+  assert.ok((await studio.get(`/api/socials/night?date=${second}`)).met.every((x: Json) => x.n === 0));
+
+  const sheet = (await studio.get(`/api/socials/night?date=${nights[2]}&with=teamsheet&game=game-d1-r3-1`)).teamSheet.game;
+  assert.ok(sheet.home.players.length && sheet.away.players.length);
+  assert.equal(sheet.home.players[0].position, 'GS', 'GS first');
+  assert.ok(sheet.home.players.every((p: Json) => p.games === 2), 'two games each before round 3');
+
+  let browser = null;
+  try { browser = chromium && await chromium.launch({ executablePath: process.env.STUDIO_TEST_CHROMIUM || undefined }); } catch { browser = null; }
+  if (!browser) {
+    if (process.env.STUDIO_TEST_REQUIRE_BROWSER) assert.fail('no browser to test the game stats pictures in');
+    t.skip('no browser to draw the pictures in; run npx playwright install chromium');
+    return;
+  }
+  t.after(() => browser.close());
+  const page = await browser.newPage({ viewport: { width: 1080, height: 1080 } });
+  await page.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '' }));
+  const draw = async (kind: string, date: Json, more: Json) => {
+    await page.goto(`${studio.base}/social.html?kind=${kind}&date=${date}${more}`);
+    await page.waitForFunction(() => window.socialReady !== undefined);
+    return page.evaluate(() => window.socialReady);
+  };
+  const texts = (sel: string) => page.$$eval(sel, els => els.map(e => e.textContent));
+  assert.equal(await draw('gamestats', second, '&game=game-d1-r2-1'), true);
+  assert.deepEqual(await texts('.bound--cmp .game__team'), ['Super shots', 'Goals', 'Attempts', 'Accuracy', 'Quarters won', 'Longest run', '3 goal runs', '5 goal runs', 'Biggest lead']);
+  assert.equal(await page.$$eval('.bound--line', els => els.length), 0, 'no lead changes line');
+  // The team ahead on a row is lit up, a drawn row stays plain: 3 goal runs 1 all, 5 goal runs to the Mavericks.
+  const lit = (label: string) => page.$$eval('.bound--cmp', (rows, l) => {
+    const r = rows.find(x => x.querySelector('.game__team')!.textContent === l);
+    return [...r!.children].filter(c => c.classList.contains('stat')).map(c => c.classList.contains('main'));
+  }, label);
+  assert.deepEqual(await lit('3 goal runs'), [false, false]);
+  assert.deepEqual(await lit('5 goal runs'), [false, true]);
+  // The division, round and date under the title are never covered by the rows, at every size.
+  for (const size of ['square', 'portrait', 'story']) {
+    assert.equal(await draw('gamestats', second, `&game=game-d1-r2-1&size=${size}`), true);
+    const [when, fit] = await page.evaluate(() => ['when', 'fit'].map(id => document.getElementById(id)!.getBoundingClientRect()));
+    assert.ok(fit.top >= when.bottom, `${size}: the rows start below the title's lines`);
+  }
+  assert.equal(await draw('shooting', second, '&game=game-d1-r2-1'), true);
+  assert.equal((await texts('.group__name')).length, 2);
+  assert.equal(await draw('moments', second, '&game=game-d1-r2-1'), true);
+  assert.equal((await texts('.bound--moment')).length, story.moments.length);
+  assert.equal(await draw('h2h', fourth, '&game=game-d1-r4-1'), true);
+  assert.equal((await texts('.card__lines .result')).length, 1);
+  assert.match(String(await draw('h2h', second, '&game=game-d1-r2-1')), /haven't met yet/);
+  assert.equal(await draw('teamsheet', nights[2], '&game=game-d1-r3-1'), true);
+  assert.equal((await texts('.bound--sheet')).length, sheet.home.players.length + sheet.away.players.length);
+});
