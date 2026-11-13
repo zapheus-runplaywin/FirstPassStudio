@@ -26,9 +26,12 @@
     "pretest:ci": "npm run build"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.8.0",
     "@firstpass/playhq": "0.2.0",
+    "@google/genai": "3.3.0",
     "atem-connection": "3.10.3",
     "electron-updater": "6.8.11",
+    "openai": "7.56.0",
     "qrcode-generator": "2.0.4",
     "yaml": "2.9.1"
   },
@@ -42,7 +45,7 @@
   "build": {
     "appId": "com.runplaywin.firstpassstudio",
     "productName": "FirstPass Studio",
-    "copyright": "\u00a9 PIVT",
+    "copyright": "© PIVT",
     "asar": true,
     "asarUnpack": [
       "vendor/ffmpeg/**",
@@ -69,6 +72,7 @@
       "out/**/*.js",
       "!out/**/*.map",
       "config.json",
+      "captionprices.json",
       "public/**/*",
       "!public/**/*.ts",
       "!public/**/tsconfig.json",

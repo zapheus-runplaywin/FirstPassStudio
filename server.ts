@@ -47,6 +47,7 @@ import { create as createBoard } from './board';
 import { create as createGames } from './games';
 import { create as createPlanner } from './planner';
 import { create as createSocials } from './socials';
+import { create as createCaptions } from './captions';
 import { create as createTeams } from './teams';
 import { create as createAthletes } from './athletes';
 import { create as createLowerThird } from './lowerthird';
@@ -301,6 +302,13 @@ const socials = createSocials({
   hasFinals: division => !!finalsFor(division), finalsOf: division => getFinals({ division }),
   // The competition's colours, for the colour sets.
   theme: () => ({ colours: CONFIG.colours, panelOpacity: CONFIG.panelOpacity }),
+});
+// AI captions for the Socials pictures (captions.ts): written from the same facts as the picture, by the provider and
+// with the key picked on the Captions card, on this Mac only.
+const captions = createCaptions({
+  log, night: q => socials.night(q),
+  kindOf: kind => socials.KIND_NAMES.find(k => k.kind === kind) || null,
+  hashtags: () => socials.settings().hashtags,
 });
 
 // Studio reads the live score itself, every second through the cache (so PlayHQ is asked once
@@ -1078,6 +1086,8 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     // A saved plan can change tonight's court, so automatic game selection looks again straight away.
     if (url.pathname.startsWith('/api/planner') && await planner.route(req, res, url, { send, readBody, readRaw, changed: () => autoPick() })) return;
     if (stories.route(req, res, url, { send })) return;
+    if ((url.pathname === '/api/captions' || url.pathname.startsWith('/api/captions/') || url.pathname === '/api/socials/caption')
+      && await captions.route(req, res, url, { send, readBody })) return;
     if (url.pathname.startsWith('/api/socials') || url.pathname.startsWith('/socials/')) {
       if (await socials.route(req, res, url, { send, readBody, readRaw, port: PORT })) return;
     }

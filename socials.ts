@@ -11,10 +11,11 @@
 //
 // Saved per competition in competitions/<id>/socials.json: { mark, pivt, sponsor: { <kind>: true|false }, colours,
 // colourSets: [{ id, name, ground, highlight, accent }], template, favourites: [<template id>], favouritesOnly, movers,
-// pictureSets: [{ id, name, kinds: [<kind>] }], pictureSet: <set id or '' for all> }: the
+// pictureSets: [{ id, name, kinds: [<kind>] }], pictureSet: <set id or '' for all>, hashtags }: the
 // FirstPass Studio mark and the PIVT logo in the corners, which graphics carry the sponsor strip, the colour set in use
 // and the ones made by hand, the template set, and the template sets starred (and whether the tab lists only those),
-// and the picture sets (which kinds of picture the tab shows, picked on its Show row), kept week to week. Photos dropped on a polaroid stay
+// and the picture sets (which kinds of picture the tab shows, picked on its Show row), and the hashtags and @handles
+// on the end of every AI caption (captions.ts), kept week to week. Photos dropped on a polaroid stay
 // on this Mac only (socials-photos/ in the local folder, never in a backup or iCloud); the oldest go after PHOTOS_KEPT.
 //
 // Routes (server.ts hands every /api/socials and /socials/ request here):
@@ -125,7 +126,7 @@ interface PictureSet { id: string; name: string; kinds: string[] }
 // socials.json, as read (settings).
 interface Settings {
   mark: boolean; pivt: boolean; sponsor: Record<string, boolean>; colours: string; colourSets: ColourSet[]; template: string;
-  favourites: string[]; favouritesOnly: boolean; movers: boolean; pictureSets: PictureSet[]; pictureSet: string;
+  favourites: string[]; favouritesOnly: boolean; movers: boolean; pictureSets: PictureSet[]; pictureSet: string; hashtags: string;
 }
 // The competition, as the pictures name it (server.ts about).
 interface About { competition: string; venue: string; logo: string | null; runningShooters: string; finalsWinners: string }
@@ -206,6 +207,7 @@ const MAX_PICTURE_SETS = 12;
 const SHOOTERS_SHOWN = 6;
 const TOURNAMENT_SHOWN = 8; // the tournament top shooters, a division's best so far
 const MAX_OWN_SETS = 12;
+const MAX_HASHTAGS = 300;
 // The template sets: the look of every picture (public/social-templates.css, a class t-<id> on social.html's body),
 // each with its display face (fonts.ts TEMPLATE_FONTS) and, for the ones that keep their own ground whatever the
 // colours, which FirstPass Studio mark goes on it: light (the dark-ink one, on a pale ground) or white.
@@ -276,8 +278,10 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     const pictureSets = pictureSetsOf(d.pictureSets);
     const pictureSet = str(d.pictureSet);
     return { mark: d.mark !== false, pivt: d.pivt !== false, sponsor, colours, colourSets, template, favourites: favouritesOf(d.favourites), favouritesOnly: d.favouritesOnly === true,
-      movers: d.movers !== false, pictureSets, pictureSet: pictureSets.some(x => x.id === pictureSet) ? pictureSet : '' };
+      movers: d.movers !== false, pictureSets, pictureSet: pictureSets.some(x => x.id === pictureSet) ? pictureSet : '', hashtags: hashtagsOf(d.hashtags) };
   }
+  // The hashtags and @handles put on the end of every AI caption (captions.ts), as typed: one line, at most MAX_HASHTAGS characters.
+  const hashtagsOf = (v: unknown) => str(v).replace(/\s+/g, ' ').trim().slice(0, MAX_HASHTAGS);
   // Starred template sets, in the list's order; a retired one counts as the set it is now drawn as.
   const favouritesOf = (list: unknown) => TEMPLATES.map(t => t.id).filter(id => arr(list).some(x => templateOf(x)?.id === id));
   // The picture sets made on the tab, each { id: pset-N, name, kinds: [<kind>] } with the kinds in KIND_NAMES' order; a
@@ -320,6 +324,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     }
     if (typeof body.favouritesOnly === 'boolean') now.favouritesOnly = body.favouritesOnly;
     if (typeof body.movers === 'boolean') now.movers = body.movers;
+    if (typeof body.hashtags === 'string') now.hashtags = hashtagsOf(body.hashtags);
     if (Array.isArray(body.pictureSets)) {
       if (body.pictureSets.length > MAX_PICTURE_SETS) throw new Error(`Keep it to ${MAX_PICTURE_SETS} picture sets.`);
       const sets = body.pictureSets.map(obj);
