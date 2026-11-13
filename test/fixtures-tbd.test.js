@@ -3,8 +3,8 @@
 // format (time and court TBC, undecided teams as "Winner ..."), and "teams to be decided" otherwise.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { createWorld } = require('./support/playhq');
+const { startStudio } = require('./support/studio.mts');
+const { createWorld } = require('./support/playhq.mts');
 
 let studio;
 test.before(async () => {

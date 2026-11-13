@@ -4,8 +4,8 @@
 // the Tests check).
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { createWorld } = require('./support/playhq');
+const { startStudio } = require('./support/studio.mts');
+const { createWorld } = require('./support/playhq.mts');
 
 let chromium = null;
 try { ({ chromium } = require('playwright')); } catch { /* not installed */ }

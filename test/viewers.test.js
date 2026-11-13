@@ -136,7 +136,7 @@ test('the viewers graphic shows the total over the minimum, hides under it, and 
     return;
   }
   t.after(() => browser.close());
-  const { startStudio } = require('./support/studio');
+  const { startStudio } = require('./support/studio.mts');
   const studio = await startStudio(t, { competition: 'Thunder League', env: { FIRSTPASS_YOUTUBE_API: process.env.FIRSTPASS_YOUTUBE_API, FIRSTPASS_FACEBOOK_API: process.env.FIRSTPASS_FACEBOOK_API } });
   const id = (await studio.get('/api/sponsors')).competition.id;
   const setup = await studio.get(`/api/setup/${id}`);

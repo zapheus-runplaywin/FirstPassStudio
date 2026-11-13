@@ -3,7 +3,7 @@
 // streamed game's story lost its "every goal seen").
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio, wait } = require('./support/studio');
+const { startStudio, wait } = require('./support/studio.mts');
 
 test('a PlayHQ reading that lands after switching to Manual leaves the hand score alone', async t => {
   const studio = await startStudio(t, { competition: 'Thunder League' });

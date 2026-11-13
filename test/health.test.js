@@ -2,7 +2,7 @@
 // how long since PlayHQ answered, and the state of the clock and the video output.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 
 let studio;
 test.before(async () => {

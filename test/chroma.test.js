@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { startStudio, ROOT } = require('./support/studio');
+const { startStudio, ROOT } = require('./support/studio.mts');
 
 let chromium = null;
 try { ({ chromium } = require('playwright')); } catch { /* not installed */ }

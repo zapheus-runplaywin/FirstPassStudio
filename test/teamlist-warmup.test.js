@@ -7,7 +7,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { runServer } = require('./support/studio');
+const { runServer } = require('./support/studio.mts');
 
 const POSITIONS = ['GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'];
 const players = prefix => POSITIONS.map((pos, i) => ({

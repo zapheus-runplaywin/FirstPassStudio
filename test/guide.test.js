@@ -5,8 +5,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { startStudio, ROOT } = require('./support/studio');
-const { openPage } = require('./support/browser');
+const { startStudio, ROOT } = require('./support/studio.mts');
+const { openPage } = require('./support/browser.mts');
 
 const GUIDE = path.join(ROOT, 'docs', 'user-guide');
 const files = require('../package.json').build.files;

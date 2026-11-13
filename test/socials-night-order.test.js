@@ -5,7 +5,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 
 test('Night in numbers adds lead changes, goals in a row and runs of 5 only once every game has a whole story', async t => {
   const studio = await startStudio(t, { competition: 'Thunder League' });

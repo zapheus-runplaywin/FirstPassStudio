@@ -5,8 +5,8 @@
 // outputs as the app would report them, and the levels are posted as the windows would.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { openBrowser } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { openBrowser } = require('./support/browser.mts');
 
 test('the levels the windows report are read back while fresh, and only for outputs that exist', async t => {
   const studio = await startStudio(t);

@@ -2,8 +2,8 @@
 // clicks a source just to read its name. Only cut names get one, and a source's shows its name without the type tag.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { openPage } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { openPage } = require('./support/browser.mts');
 
 test('a cut source name shows in full on hover; a name that fits gets no tooltip', async t => {
   const studio = await startStudio(t, { competition: 'Thunder League' });

@@ -1,0 +1,46 @@
+// One name for each Studio page ("Game Day" with a capital D is a Socials template, and stays): the tab bar's label (studiobar.js), the page's <title> and its h1 agree, and the Mac
+// app's Go menu uses the tab's label as it is (no title-casing). Review finding 6 (30 Oct 2026).
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
+// studiobar.ts is a page script (globals in the browser) that hands Node its list of tabs.
+interface StudioTab { href: string; label: string; also?: string[] }
+const { STUDIO_PAGES } = require('../out/public/studiobar.js') as { STUDIO_PAGES: StudioTab[] };
+
+test('each tab\'s label is its page\'s title and heading', () => {
+  // The Docs tab is the user guide, which keeps its own title.
+  const guide = fs.readFileSync(path.join(import.meta.dirname, '..', 'docs', 'user-guide', 'index.html'), 'utf8');
+  assert.match(guide, /<title>FirstPass Studio User Guide<\/title>/);
+  for (const p of STUDIO_PAGES.filter(t => t.href !== '/guide/')) {
+    const html = fs.readFileSync(path.join(import.meta.dirname, '..', 'public', p.href.slice(1)), 'utf8');
+    assert.equal((html.match(/<title>([^<·]+?)\s*·\s*FirstPass Studio<\/title>/) || [])[1], p.label, `${p.href} title`);
+    assert.equal((html.match(/<h1[^>]*>([^<]+)<\/h1>/) || [])[1], p.label, `${p.href} h1`);
+  }
+});
+
+test('the Go menu and the menu bar icon use the tabs\' own names', () => {
+  const windows = fs.readFileSync(path.join(import.meta.dirname, '..', 'desktop', 'windows.ts'), 'utf8');
+  assert.match(windows, /submenu: TABS\.map\(\(p, i\) => \(\{ label: p\.label,/, 'the Go menu takes the label as it is');
+  const main = fs.readFileSync(path.join(import.meta.dirname, '..', 'desktop', 'main.ts'), 'utf8');
+  for (const m of main.matchAll(/label: '([^']+)', click: \(\) => openPage\('(\/[a-z]+\.html)'\)/g)) {
+    const tab = STUDIO_PAGES.find(p => p.href === m[2] || (p.also || []).includes(m[2]));
+    if (tab && tab.href === m[2]) assert.equal(m[1], tab.label, `menu bar item for ${m[2]}`);
+  }
+});
+
+test('Studio\'s pages say "Scoreboard control" and "game night", not "the control page" or "game day"', () => {
+  for (const f of ['output.html', 'planner.html', 'control.html', 'recordings.html', 'socials.html', 'setup.html', 'sponsors.html', 'athletes.html', 'api.html', 'devices.html']) {
+    // The page and its own script (public/<page>.ts, or the Output page's parts in public/output/).
+    const pub = path.join(import.meta.dirname, '..', 'public'), name = f.replace(/\.html$/, '');
+    const scripts = name === 'output' ? fs.readdirSync(path.join(pub, 'output')).filter(x => x.endsWith('.ts')).map(x => `output/${x}`)
+      : fs.existsSync(path.join(pub, `${name}.ts`)) ? [`${name}.ts`] : [];
+    const html = [f, ...scripts].map(x => fs.readFileSync(path.join(pub, x), 'utf8')).join('\n').replace(/<!--[\s\S]*?-->/g, '').replace(/^\s*\/\/.*$/gm, '');
+    assert.doesNotMatch(html, /control page/i, `${f} says "control page"`);
+    assert.doesNotMatch(html, /[Gg]ame day/, `${f} says "game day"`);
+  }
+});

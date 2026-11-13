@@ -5,8 +5,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { startStudio } = require('./support/studio');
-const { openPage } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { openPage } = require('./support/browser.mts');
 
 const read = f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 

@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { runServer } = require('./support/studio');
+const { runServer } = require('./support/studio.mts');
 
 async function start(t) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-test-'));
@@ -74,7 +74,7 @@ test('a score typed in mid quarter makes that quarter unsure', async t => {
 });
 
 test('following PlayHQ, a goal in the same reading as the next quarter starting stays in the last quarter', async t => {
-  const { startStudio } = require('./support/studio');
+  const { startStudio } = require('./support/studio.mts');
   const studio = await startStudio(t, { competition: 'Thunder League' });
   const game = studio.world.gameNow(0);
   const live = studio.world.live[game.id];

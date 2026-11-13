@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const access = require('../out/access');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 
 test('changes: anything but GET and HEAD, and the Stream Deck links', () => {
   assert.equal(access.changes('GET', '/api/scoreboard'), false);

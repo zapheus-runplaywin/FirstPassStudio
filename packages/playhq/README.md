@@ -91,4 +91,4 @@ npm run test:dist --workspace @firstpass/playhq   # loads dist/ with plain requi
 ```
 
 PlayHQ can't be reached from CI, so the tests run against `test/world.ts`, ported from Studio's
-stand-in PlayHQ (`test/support/playhq.js`).
+stand-in PlayHQ (`test/support/playhq.mts`).

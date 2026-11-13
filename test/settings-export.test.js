@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const location = require('../out/datalocation');
 const zip = require('../out/zip');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 
 function folder() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-export-'));

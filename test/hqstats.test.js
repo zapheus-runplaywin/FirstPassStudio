@@ -9,7 +9,7 @@ const os = require('node:os');
 const path = require('node:path');
 const hqstats = require('../out/hqstats');
 const firstpass = require('../out/firstpass');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 
 const GAME = '0b6c8f8e-3f7a-4d1e-9a51-2a7c1d9e4b10';
 const OTHER = '7d2e1c44-90ab-4cde-8f01-23456789abcd';

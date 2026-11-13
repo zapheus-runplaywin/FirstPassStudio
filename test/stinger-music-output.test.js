@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 
 test('the stinger\'s Music under it goes by the output the stinger plays on, and the Switcher card reads and sets it', async t => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-stinger-music-'));

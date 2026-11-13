@@ -5,8 +5,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { startStudio, ROOT } = require('./support/studio');
-const { createWorld } = require('./support/playhq');
+const { startStudio, ROOT } = require('./support/studio.mts');
+const { createWorld } = require('./support/playhq.mts');
 const stats = require('../out/socialstats');
 
 let chromium = null;

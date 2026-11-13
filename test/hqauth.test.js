@@ -15,8 +15,8 @@ const keychain = require('../out/keychain');
 const firstpass = require('../out/firstpass');
 const access = require('../out/access');
 const location = require('../out/datalocation');
-const { startStudio } = require('./support/studio');
-const { openPage } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { openPage } = require('./support/browser.mts');
 
 const GAME = '0b6c8f8e-3f7a-4d1e-9a51-2a7c1d9e4b10';
 const until = async (fn, ms = 3000) => { const end = Date.now() + ms; while (Date.now() < end) { if (fn()) return true; await new Promise(r => setTimeout(r, 20)); } return fn(); };

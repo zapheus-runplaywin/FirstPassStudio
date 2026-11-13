@@ -3,8 +3,8 @@
 // as it changes between Start and Stop, and Change game… opening the Game section at the bottom, which folds.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { openPage } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { openPage } = require('./support/browser.mts');
 
 test('the game bar, the tabs and the Game section', async t => {
   const studio = await startStudio(t, { competition: 'Thunder League' });

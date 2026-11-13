@@ -3,8 +3,8 @@
 // scoreboard is on something else, and the Commentators graphic reading who is on the mic.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { createWorld } = require('./support/playhq');
+const { startStudio } = require('./support/studio.mts');
+const { createWorld } = require('./support/playhq.mts');
 
 let studio;
 test.before(async () => {

@@ -1,6 +1,7 @@
 {
   // The helper (server.ts and the modules beside it) and the Mac app (desktop/), compiled into out/ by
-  // npm run build. The pages in public/ and the plugins have builds of their own.
+  // npm run build, with each module's types beside it (out/*.d.ts) for the tests. The pages in public/ and the
+  // plugins have builds of their own.
   "compilerOptions": {
     "target": "es2024",
     "lib": ["es2024"],
@@ -15,6 +16,7 @@
     "allowJs": true,
     "checkJs": false,
     "sourceMap": true,
+    "declaration": true,
     "skipLibCheck": true
   },
   "include": ["*.ts", "*.js", "desktop/*.ts"]

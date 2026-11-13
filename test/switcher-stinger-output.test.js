@@ -7,8 +7,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { startStudio, wait } = require('./support/studio');
-const { startAtem } = require('./support/atem');
+const { startStudio, wait } = require('./support/studio.mts');
+const { startAtem } = require('./support/atem.mts');
 
 test('the stinger plays on the output on a downstream key, with that output\'s line-up, and only its report times the cut', async t => {
   const atem = await startAtem({ model: 'MiniExtreme', names: ['Wide', 'Court', 'Bench'] });

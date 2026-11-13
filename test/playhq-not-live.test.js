@@ -10,7 +10,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 
 test('the live feed not scoring a game PlayHQ says is under way turns the PlayHQ chip purple, and it clears when scoring comes back', async t => {
   const studio = await startStudio(t, { competition: 'Thunder League' });

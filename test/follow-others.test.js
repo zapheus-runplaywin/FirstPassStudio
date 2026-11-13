@@ -2,12 +2,12 @@
 // follows court 1, Studio follows the other game being scored (court 2) from PlayHQ's live feed, so it gets a story of
 // its own, with nothing of it on air; picking it hands its goals to the scoreboard, leaving it hands them back; a
 // failing read waits longer; and the switch on Scoreboard control turns it off. Against the stand-in PlayHQ
-// (test/support/playhq.js), where both division 1 games started 30 minutes ago.
+// (test/support/playhq.mts), where both division 1 games started 30 minutes ago.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 
 let studio, main, other, live;
 test.before(async () => {

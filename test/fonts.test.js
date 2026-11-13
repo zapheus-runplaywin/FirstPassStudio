@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const fonts = require('../out/fonts');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 
 const file = (id, name) => fs.readFileSync(path.join(fonts.VENDOR, id, name));
 const near = (a, b, within, what) => assert.ok(Math.abs(a - b) <= within, `${what}: ${a} is not ${b} (±${within})`);

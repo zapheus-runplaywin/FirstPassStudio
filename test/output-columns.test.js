@@ -4,8 +4,8 @@
 // (15" 1512, 13" 1440), and on a narrow window.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { openPage } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { openPage } = require('./support/browser.mts');
 
 const NARROW = ['scenesSection', 'musicSection', 'duckSection'];
 const WIDE = ['seqSection', 'micsSection', 'swSection', 'mediaSection'];

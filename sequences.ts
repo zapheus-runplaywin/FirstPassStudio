@@ -63,14 +63,14 @@ import type { SwitcherAction } from './switcher';
 
 // ─── What a sequence is (clean() makes each from what's saved or sent) ────
 type Length = { type: 'time'; sec: number } | { type: 'done' | 'next' | 'game' | 'now'; sec?: undefined };
-interface SourcesStep { id: string; kind?: undefined; sources: string[]; length: Length; switcher?: SwitcherAction[] }
-interface SceneStep { id: string; kind: 'scene'; scene: string; sources: string[]; length: Length; switcher?: SwitcherAction[] }
-interface SequenceStep { id: string; kind: 'sequence'; sequence: string; sources?: undefined }
-interface AdsStep { id: string; kind: 'ads'; count: number; house: boolean; sources?: undefined }
+export interface SourcesStep { id: string; kind?: undefined; sources: string[]; length: Length; switcher?: SwitcherAction[] }
+export interface SceneStep { id: string; kind: 'scene'; scene: string; sources: string[]; length: Length; switcher?: SwitcherAction[] }
+export interface SequenceStep { id: string; kind: 'sequence'; sequence: string; sources?: undefined }
+export interface AdsStep { id: string; kind: 'ads'; count: number; house: boolean; sources?: undefined }
 type Step = SourcesStep | SceneStep | SequenceStep | AdsStep;
 type Start = { type: 'hand' } | { type: 'before'; min: number } | { type: 'fulltime'; afterSec: number } | { type: 'break'; breaks: string[]; afterSec: number };
 type Then = { type: 'scene'; scene: string } | { type: 'sequence'; sequence: string } | { type: 'off' | 'leave' };
-interface Music { playlist?: string; track?: string; startStep: number; startAtSec: number; fadeInSec: number; underVideo?: true }
+export interface Music { playlist?: string; track?: string; startStep: number; startAtSec: number; fadeInSec: number; underVideo?: true }
 type MusicEnd = { type: 'fade' | 'crossfade'; sec: number } | { type: 'cut' | 'continue'; sec?: undefined };
 type Until = { moment: 'before'; min: number } | { moment: 'resume'; min?: undefined };
 interface Sequence {
@@ -1439,7 +1439,7 @@ function state() {
   // The primary's at the top (playing, pending), as before there could be more than one output; the
   // others' by output id (playingOut, pendingOut), only while there's something to say.
   // stoppedOn: the sequence that last ended on each output (played out or cut short), until it plays again.
-  const playingOut: Record<string, unknown> = {}, pendingOut: Record<string, unknown> = {}, stoppedOn: Record<string, string> = {};
+  const playingOut: Record<string, NonNullable<ReturnType<typeof playingHere>>> = {}, pendingOut: Record<string, NonNullable<ReturnType<typeof pendingHere>>> = {}, stoppedOn: Record<string, string> = {};
   each(() => {
     if (cut && (!run || run.id !== cut)) stoppedOn[here] = cut;
     if (here === PRIMARY) return;

@@ -4,8 +4,8 @@
 // tests do too.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { openPage } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { openPage } = require('./support/browser.mts');
 
 test('Output page: the status board draws, set-up waits behind Settings and the pencil, and the add buttons stay in reach', async t => {
   const studio = await startStudio(t, { competition: 'Thunder League' });

@@ -1,9 +1,9 @@
 // The helper's API (server.ts) for every graphic, run against the stand-in PlayHQ
-// (test/support/playhq.js) with the Thunder League template imported: a season of two
+// (test/support/playhq.mts) with the Thunder League template imported: a season of two
 // divisions, two rounds played, one being played today and one next week.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 
 let studio;
 test.before(async () => {

@@ -6,8 +6,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { startStudio } = require('./support/studio');
-const { openBrowser } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { openBrowser } = require('./support/browser.mts');
 
 const ROOT = path.join(__dirname, '..');
 const APP_PAGES = ['api', 'athletes', 'control', 'devices', 'output', 'pair', 'planner', 'preview', 'pvw', 'recordings', 'remote', 'commentator', 'setup', 'social', 'socials', 'sponsorreport', 'sponsors'];

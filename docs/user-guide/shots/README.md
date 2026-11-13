@@ -5,7 +5,7 @@ the made-up **Elite Netball League**, so they can be taken again whenever Studio
 
 - `league.js` is the league: eight clubs (Panthers, Falcons, Stingrays, Wolves, Rhinos, Cobras, Grizzlies, Hawks) in
   Premier, Men's and Under 21 divisions at the Metro Arena, a season for the tests' stand-in PlayHQ
-  (`test/support/playhq.js`) with Round 9 tonight and Panthers v Falcons in the third quarter, and the competition's
+  (`test/support/playhq.mts`) with Round 9 tonight and Panthers v Falcons in the third quarter, and the competition's
   template with its colours and logos.
 - `assets/` holds the team logos, the competition logo and the sponsors' logos (SVGs, drawn to PNGs as the run starts).
 - `run.js` starts Studio and the stand-in PlayHQ on this computer, in a data folder of their own, and sets the night up

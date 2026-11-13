@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
-const { startStudio, ROOT } = require('./support/studio');
+const { startStudio, ROOT } = require('./support/studio.mts');
 const access = require('../out/access');
 const datalocation = require('../out/datalocation');
 

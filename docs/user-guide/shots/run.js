@@ -15,7 +15,7 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const { execFileSync } = require('node:child_process');
 const { chromium } = require('playwright');
-const { startStudio, wait } = require('../../../test/support/studio');
+const { startStudio, wait } = require('../../../test/support/studio.mts');
 const league = require('./league');
 const { SHOTS } = require('./shots');
 

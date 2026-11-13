@@ -1,14 +1,14 @@
-// Operator journeys on the Output page's Switcher section, against the stand-in ATEM (test/support/atem.js):
+// Operator journeys on the Output page's Switcher section, against the stand-in ATEM (test/support/atem.mts):
 // what an operator clicks on stream night, and what the switcher and the page then show. The browser: see
-// test/support/browser.js.
+// test/support/browser.mts.
 
 'use strict';
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio, wait } = require('./support/studio');
-const { startAtem } = require('./support/atem');
-const { openPage } = require('./support/browser');
+const { startStudio, wait } = require('./support/studio.mts');
+const { startAtem } = require('./support/atem.mts');
+const { openPage } = require('./support/browser.mts');
 
 // The input buttons as the page draws them: [name, 'prg' | 'pvw' | ''].
 const tally = page => page.$$eval('#swInputs button', bs => bs.map(b => [b.textContent, b.className]));

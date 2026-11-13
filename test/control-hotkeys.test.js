@@ -3,8 +3,8 @@
 // nothing, and Space on a focused button presses that button instead of the clock.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { openPage } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { openPage } = require('./support/browser.mts');
 
 test('hotkeys on Scoreboard control ignore modifiers, fields and focused buttons', async t => {
   const studio = await startStudio(t);

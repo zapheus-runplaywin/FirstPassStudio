@@ -1,4 +1,4 @@
-// A stand-in for PlayHQ for these tests, ported from Studio's test/support/playhq.js: the answers
+// A stand-in for PlayHQ for these tests, ported from Studio's test/support/playhq.mts: the answers
 // api.playhq.com and spectator.playhq.com give for a small Thunder League season, served through a
 // fake fetch so every failure can be set up exactly. PlayHQ can't be reached from CI, and real games
 // move on, so the season is made up around a fixed time:

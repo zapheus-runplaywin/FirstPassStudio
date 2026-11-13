@@ -9,7 +9,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { startStudio, wait } = require('./support/studio');
+const { startStudio, wait } = require('./support/studio.mts');
 
 const version = async studio => (await studio.get('/api/version')).version;
 

@@ -6,7 +6,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { runServer } = require('./support/studio');
+const { runServer } = require('./support/studio.mts');
 
 const GAME = 'game-1';
 const state = { status: 'UPCOMING', scoring: false, lineups: false };

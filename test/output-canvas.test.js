@@ -4,7 +4,7 @@
 // The browser: as in pages.test.js (Playwright's own, or STUDIO_TEST_CHROMIUM).
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 
 let chromium = null;
 try { ({ chromium } = require('playwright')); } catch { /* not installed */ }
@@ -68,7 +68,7 @@ test('an output\'s canvas follows that output, is silent unless asked, never ope
 });
 
 test('the Devices tab\'s Links gives the output canvas one link per output', async t => {
-  const { openPage } = require('./support/browser');
+  const { openPage } = require('./support/browser.mts');
   const studio = await startStudio(t);
   const added = await studio.request('POST', '/api/outputs', { add: true });
   assert.equal(added.status, 200, JSON.stringify(added.json));

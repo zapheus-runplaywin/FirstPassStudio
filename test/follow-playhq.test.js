@@ -1,10 +1,10 @@
 // Following PlayHQ (server.ts): Studio starts with today's game on its court, the score and the
 // scorer's clock and quarter follow PlayHQ's live feed, a press by hand takes over, and PlayHQ
 // isn't asked about a game before its electronic scoring starts. Against the stand-in PlayHQ
-// (test/support/playhq.js), whose world.live is the scorer's tablet.
+// (test/support/playhq.mts), whose world.live is the scorer's tablet.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio, wait } = require('./support/studio');
+const { startStudio, wait } = require('./support/studio.mts');
 
 let studio, live, game;
 test.before(async () => {

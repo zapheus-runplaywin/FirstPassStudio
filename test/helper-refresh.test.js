@@ -3,7 +3,7 @@
 // follow PlayHQ's live feed. Before this the reading only happened inside a page's request.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio, wait } = require('./support/studio');
+const { startStudio, wait } = require('./support/studio.mts');
 
 let studio, live, game;
 test.before(async () => {

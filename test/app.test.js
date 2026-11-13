@@ -14,8 +14,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const net = require('node:net');
-const { ROOT, wait } = require('./support/studio');
-const { createWorld, startPlayhq, localZone } = require('./support/playhq');
+const { ROOT, wait } = require('./support/studio.mts');
+const { createWorld, startPlayhq, localZone } = require('./support/playhq.mts');
 
 let electron = null, executablePath = null, why = '';
 try {

@@ -3,8 +3,8 @@
 // (Matt, 2026-11-04). The full card takes the same positions. In a real browser; skipped without one.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { openBrowser } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { openBrowser } = require('./support/browser.mts');
 
 test('mini countdown: the title banner\'s size, in each of the nine spots', async t => {
   const browser = await openBrowser(t);

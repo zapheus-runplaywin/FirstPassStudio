@@ -8,8 +8,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { STUDIO_PAGES, GROUPS, PHONE_PAGES } = require('../out/public/studiobar.js');
-const { startStudio } = require('./support/studio');
-const { openPage, openBrowser } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { openPage, openBrowser } = require('./support/browser.mts');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
 

@@ -3,8 +3,8 @@
 // bar's Run order chip say what Play next plays and what follows, and Saved… keeps tonight's order under a name.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio, wait } = require('./support/studio');
-const { openPage } = require('./support/browser');
+const { startStudio, wait } = require('./support/studio.mts');
+const { openPage } = require('./support/browser.mts');
 
 const order = page => page.$$eval('#roList li', lis => lis.map(li => `${li.querySelector('b').textContent}${li.classList.contains('head') ? ' *' : ''}`));
 async function orderIs(page, want, timeout = 5000) {

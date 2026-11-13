@@ -7,8 +7,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const YAML = require('yaml');
-const { startStudio, ROOT } = require('./support/studio');
-const { openPage } = require('./support/browser');
+const { startStudio, ROOT } = require('./support/studio.mts');
+const { openPage } = require('./support/browser.mts');
 
 const doc = YAML.parse(fs.readFileSync(path.join(ROOT, 'public', 'openapi.yaml'), 'utf8'));
 const ops = Object.entries(doc.paths).flatMap(([p, item]) => Object.entries(item).map(([method, op]) => ({ path: p, method, op })));

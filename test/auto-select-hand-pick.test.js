@@ -3,8 +3,8 @@
 // on under the story test, and the test's goals went to the wrong game.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio, wait } = require('./support/studio');
-const { createWorld } = require('./support/playhq');
+const { startStudio, wait } = require('./support/studio.mts');
+const { createWorld } = require('./support/playhq.mts');
 
 test('a game picked by hand before the first automatic run stays picked by hand', async t => {
   const world = createWorld();
