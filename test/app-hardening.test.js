@@ -103,3 +103,30 @@ test("the app's own pages come from the archive by studio://, not file://", () =
   assert.doesNotMatch(src, /whenReady\(\)\.then\(\(\) => protocol\.handle/);
   assert.match(src, /const loadPage = [^\n]*serve\(\)/);
 });
+
+// Security review re-check (13 November 2026, docs/security-review-2026-10-24.html): every launch starts with
+// "Only this Mac can change things" ticked, so the private reads (access.ts PRIVATE) answer only this Mac until it is
+// unticked by hand. The app starts off air, so the helper (which reads config.json as it starts) always sees it.
+test('every launch ticks "Only this Mac can change things" again', () => {
+  const main = fs.readFileSync(path.join(ROOT, 'desktop', 'main.ts'), 'utf8');
+  const start = main.slice(main.indexOf('async function start()'));
+  assert.ok(start.length < main.length, 'desktop/main.ts has start()');
+  const lock = start.search(/if \(machineConfig\(\)\.remoteChanges !== false\) setMachineConfig\('remoteChanges', false\)/);
+  assert.ok(lock > 0, 'start() sets remoteChanges to false');
+  assert.doesNotMatch(start.slice(0, lock), /startHelper/, 'nothing starts the helper before the lock is set');
+});
+
+// S5: every Action a workflow runs is pinned to a full commit, so a moved tag can't change what CI runs with its
+// tokens. Local actions (./) are part of the repository already.
+test('every GitHub Action is pinned to a full commit', () => {
+  const dir = path.join(ROOT, '.github', 'workflows');
+  const workflows = fs.readdirSync(dir).filter(f => /\.ya?ml$/.test(f));
+  assert.ok(workflows.length > 0);
+  for (const f of workflows) {
+    const yml = fs.readFileSync(path.join(dir, f), 'utf8');
+    for (const [, ref] of yml.matchAll(/^\s*(?:-\s*)?uses:\s*["']?([^\s"'#]+)/gm)) {
+      if (ref.startsWith('./')) continue;
+      assert.match(ref, /@[0-9a-f]{40}$/, `${f}: ${ref} must be pinned to a commit (and say its version in a comment)`);
+    }
+  }
+});
