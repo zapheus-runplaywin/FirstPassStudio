@@ -1,5 +1,6 @@
 // FirstPass Studio - what the Studio pages read from Studio: the scene (/api/scene and the scene socket, scene.ts
-// state() with sequences.ts, music.ts and mics.ts state() in it) and the outputs (/api/outputs, outputs.ts state()).
+// state() with sequences.ts, music.ts and mics.ts state() in it), the outputs (/api/outputs, outputs.ts state()), and
+// the answers more than one page reads (the board's game and team sheets, a Socials night).
 // Only the parts the pages use. Studio's own answers, so typed as they are rather than checked. Types only: it
 // declares nothing a page can call, so both public/tsconfig.json and public/output/tsconfig.json read it.
 
@@ -9,6 +10,10 @@ interface Source {
   id: string; type: SourceType; name: string; visible: boolean; fadeMs: number; x: number; y: number; scale: number;
   out?: Record<string, true>; url?: string; width: number; height: number; reloadOnShow?: boolean;
   file?: string; loop?: boolean; restartOnShow?: boolean; hideWhenDone?: boolean; sound?: boolean; volume?: number;
+  // Each showing (scene.ts): loadSeq goes up on Restart, showSeq each time it comes on (outSeq on another output);
+  // playAt, when a video started on each output; soundOut, its sound fading out under the next music on an output.
+  loadSeq?: number; showSeq?: number; outSeq?: Record<string, number>; playAt?: Record<string, number>;
+  soundOut?: Record<string, { at: number; ms: number; showSeq: number }>;
 }
 // A switcher action on a scene or a step (switcher.ts SwitcherAction).
 interface SwAction { type: string; input?: number; name?: string; key?: number; on?: string; mix?: boolean; macro?: number; atSec: number }
@@ -44,10 +49,12 @@ interface GameInfo { label: string; startAt: number | null; breaks: Record<strin
 
 // The music player (music.ts state()).
 interface Ease { from: number; to: number; at: number; ms: number }
+// The song fading out under new music (a crossfade).
+interface MusicTail { track: string; pos: { sec: number; at: number }; gain: Ease; playId: number; volume: number }
 interface MusicState {
   track: string | null; queue: string[]; index: number; playlist: string | null; loop: boolean; status: 'stopped' | 'playing' | 'paused';
   after: string | null; pos: { sec: number; at: number }; gain: Ease; playId: number; muted: boolean; ducked: boolean; duckedBy: string | null;
-  duck: Ease; video: string | null; owner: string | null; tail: unknown; volume: number; duckTo: number; length: number | null;
+  duck: Ease; video: string | null; owner: string | null; tail: MusicTail | null; volume: number; duckTo: number; length: number | null;
 }
 interface Playlist { id: string; name: string; tracks: string[]; shuffle: boolean; loop: boolean }
 interface MusicSettings {
@@ -182,4 +189,56 @@ interface ScoreboardView {
   rules?: LogoRules & { superShots?: boolean; periodType?: string; periods?: number; [more: string]: unknown };
   superShot?: { n: number; side: 'home' | 'away'; at: number; how?: string }; serverNow?: number; source?: string;
   clock?: { running: boolean; lengthSec: number }; clockElapsedMs?: number;
+}
+
+// ─── Socials (socials.ts) ────────────────────────────────────────────
+// What /api/socials/night answers every time (night()), read by the Socials tab and by social.html; social.html
+// types the parts &with= asks for. A side of a game and a game as the pictures draw them (socials.ts Brief).
+interface SocialTeam { name: string; logo: string | null; score: number | null; colour?: string | null }
+interface SocialGame {
+  id: string; date: string; time: string; court: string; venue: string; division: string; round: string; home: SocialTeam; away: SocialTeam;
+  finished: boolean; winner: 'home' | 'away' | 'draw' | null; final?: string;
+}
+// The night's streamed court from the Production Planner (planner.ts onStream): each game called and who calls it.
+interface SocialPerson { name: string; guest: boolean; headshot: string | null }
+interface StreamSlot { id: string; time: string; division: string; home: { name: string; logo: string | null }; away: { name: string; logo: string | null }; people: SocialPerson[] }
+// A colour set and a picture set (socials.ts ColourSet, PictureSet), and the tab's settings (socials.json).
+interface ColourSet { id: string; name: string; ground: string; highlight: string; accent: string; contrast?: number; own?: boolean }
+interface PictureSet { id?: string; name: string; kinds: string[] }
+interface SocialsSettings {
+  mark: boolean; pivt: boolean; sponsor: Record<string, boolean>; colours: string; colourSets: ColourSet[]; template: string;
+  favourites: string[]; favouritesOnly: boolean; movers: boolean; pictureSets: (PictureSet & { id: string })[]; pictureSet: string;
+}
+// A kept story's worm (board.ts getWorm): the margin over game time in segments, and each team's biggest lead.
+interface SocialWorm {
+  segments?: { t: number; margin: number }[][]; periods?: number; end?: number; regularPeriods?: number; periodLabel?: string;
+  biggestLead?: { home?: { margin: number } | null; away?: { margin: number } | null }; leadChanges?: number;
+}
+type HomeAway<T> = { home: T; away: T };
+// Of the night, from the stories of the games Studio streamed or followed (socials.ts ofTheNight).
+interface OfTheNight {
+  runs: { game: SocialGame; longest: { side: 'home' | 'away'; n: number }; runs3: HomeAway<number>; runs5: HomeAway<number>; complete: boolean }[];
+  supers: { game: SocialGame; points: HomeAway<number>; byPeriod: ({ n: number } & HomeAway<number>)[]; periodLabel: string }[];
+  comeback: { game: SocialGame; side: 'home' | 'away'; down: number; worm: SocialWorm; complete: boolean } | null;
+}
+// A finished game's line ups (games.ts readLineups), for the hand picks.
+interface SocialLineup {
+  id: string; division: string; read: boolean;
+  home: { name: string; players: { name: string; position?: string }[] }; away: { name: string; players: { name: string; position?: string }[] };
+}
+interface SocialsNight {
+  error?: string; date: string; today: boolean; competition: string; competitionLogo: string | null; running: string; winners: string; venue: string;
+  games: SocialGame[]; stream: { court: string; slots: StreamSlot[] } | null; sponsors: { name: string; logo: string | null }[];
+  settings: SocialsSettings; look: { vars?: Record<string, string>; light?: boolean;
+    template?: { id: string; font?: string; fontCss?: string; script?: string; scriptCss?: string; mark?: string } };
+  picked: { home?: { name: string; photo: string }; away?: { name: string; photo: string }; athlete?: { name: string; photo: string } };
+  finals: { division: string; finalsNight: boolean; lastRound: boolean; left: number; champion?: string }[];
+  byes: { division: string; teams: { name: string; logo: string | null }[] }[];
+  countdown: { rounds?: number; grandFinal?: number } | null; raceOn: { division: string; left: number }[]; firstNights: string[];
+  met: { id: string; n: number }[]; clubs: { club: string; games: string[] }[];
+  streaks: { team: string; division: string; logo: string | null; unbeaten: boolean; won: number; played: number; run: number }[];
+  lastNights: string[]; superShotDivisions: string[]; goalOrder: { complete: number; of: number; missing: string[] };
+  nextNight: string | null; stories: string[]; storiesFrom: { studio: string; via: string; games: number }[]; ofNight: OfTheNight;
+  watchLinks: { name: string; link: string }[];
+  lineups?: SocialLineup[]; sponsorList?: { id: string; name: string; tier: string }[];
 }

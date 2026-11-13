@@ -86,7 +86,7 @@ test('the Commentator page sends the phone\'s mic to Output 1, which mixes it; a
   const id = (await studio.get('/api/scene')).mics.mics[0].id; // the phone's
   const heard = await studio.until(async () => { const l = await studio.get('/api/scene/mics/live'); return l.levels[id] > -60 && l; }, 15000);
   assert.equal(heard.problems[id], undefined);
-  assert.equal(await output.evaluate(m => micChains.has(m), id), true);
+  assert.equal(await output.evaluate(m => sceneSound().micChains.has(m), id), true);
 
   // Muted on the Mac: the phone says so.
   await studio.post('/api/scene', { type: 'micMute', mic: id, value: 'on' });
@@ -103,7 +103,7 @@ test('the Commentator page sends the phone\'s mic to Output 1, which mixes it; a
   assert.deepEqual(await phone.evaluate(() => { const a = document.querySelector('audio'); return a && [!!a.srcObject, a.muted, a.paused]; }), [true, false, false]);
   assert.match(await phone.textContent('#hearPct'), /volume buttons/);
   // It asks for Studio's sound as music (stereo, full bandwidth, 128 kb/s, nothing dropped in the quiet), not as a call.
-  const opus = (await output.evaluate(() => [...phones.values()][0].pc.remoteDescription.sdp)).match(/a=fmtp:\d+ ([^\r\n]*useinbandfec=1[^\r\n]*)/)[1].split(';');
+  const opus = (await output.evaluate(() => [...sceneSound().phones.values()][0].pc.remoteDescription.sdp)).match(/a=fmtp:\d+ ([^\r\n]*useinbandfec=1[^\r\n]*)/)[1].split(';');
   for (const want of ['stereo=1', 'maxaveragebitrate=128000', 'maxplaybackrate=48000', 'usedtx=0']) assert.ok(opus.includes(want), `${want} in ${opus.join(';')}`);
   // The music comes back, and goes on coming back as a playlist moves to its next song (on 9 Nov the next song went
   // missing on the phone, and played twice on the Mac's speakers).

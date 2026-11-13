@@ -51,16 +51,16 @@ test('an output\'s canvas follows that output, is silent unless asked, never ope
   assert.deepEqual(box, [3840, 2160]);
   const inner = one.frames().find(f => f.url().includes('testpattern.html'));
   assert.deepEqual(await inner.evaluate(() => [devicePixelRatio, innerWidth, innerHeight]), [2, 1920, 1080], 'the page keeps its 1920 x 1080 layout, drawn at 2x');
-  assert.equal(await one.evaluate('silent'), true, 'silent by default');
-  assert.equal(await one.evaluate('micsHere'), false, 'never opens the Mac\'s mics');
+  assert.equal(await one.evaluate('sceneSound().silent'), true, 'silent by default');
+  assert.equal(await one.evaluate('sceneSound().micsHere'), false, 'never opens the Mac\'s mics');
 
   // ?sound=1 plays the output's sound; ?output= follows that output's own sources.
   const loud = await context.newPage();
   await loud.goto(`${studio.base}/scene.html?canvas=1&sound=1&output=${two}`, { waitUntil: 'load' });
   await loud.waitForFunction(() => document.querySelectorAll('.layer.on').length === 1, null, { timeout: 15000 });
   assert.deepEqual(await shown(loud), ['Ladder']);
-  assert.equal(await loud.evaluate('silent'), false);
-  assert.equal(await loud.evaluate('micsHere'), false);
+  assert.equal(await loud.evaluate('sceneSound().silent'), false);
+  assert.equal(await loud.evaluate('sceneSound().micsHere'), false);
 
   // It follows the scene live, like the preview.
   await act({ type: 'hide', name: 'Pattern' });
