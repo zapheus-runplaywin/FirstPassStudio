@@ -56,8 +56,8 @@ test('the Devices tab\'s Links (graphiclinks.js) describe every page in the list
 test('the Output page and examples.ts read the list instead of keeping their own', () => {
   const output = read('output.html');
   assert.match(output, /<script src="pages\.js"><\/script>/);
-  // The Output page's script lives in public/output/ (one file per section); the list is read in common.js.
-  const common = read('output/common.js');
+  // The Output page's script lives in public/output/ (one file per section); the list is read in common.ts.
+  const common = read('output/common.ts');
   assert.match(common, /const PAGES = STUDIO_GRAPHICS\.map/);
   assert.doesNotMatch(common, /\['Scoreboard', 'scoreboard\.html'\]/);
   assert.doesNotMatch(output, /\['Scoreboard', 'scoreboard\.html'\]/);

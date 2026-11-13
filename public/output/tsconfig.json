@@ -1,0 +1,12 @@
+{
+  // The Output page's script, split by section into public/output/*.ts and loaded in order by output.html. The parts
+  // share one scope (plain scripts), so they're their own project: what one part declares at the top the later ones
+  // use, and none of it is in reach of the other pages. The shared page scripts (public/*.ts) are included for their
+  // types; they compile to the same files as public/tsconfig.json makes.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "outDir": "../../out/public"
+  },
+  "include": ["*.ts", "../*.ts"]
+}

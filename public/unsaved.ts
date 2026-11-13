@@ -26,7 +26,7 @@
 interface UnsavedGuard { what(): string, changed(): boolean, save(): Promise<unknown> | unknown, discard(): void, settle?: () => Promise<boolean | string> }
 // unsavedDialog(dlg, { what, snapshot, save }) and unsavedPage({ what, changed, save, discard }): see above.
 var unsavedDialog: (dlg: HTMLDialogElement, o: { what: string | (() => string), snapshot: () => unknown, save: () => Promise<unknown> | unknown }) => UnsavedGuard & { opened(): void };
-var unsavedPage: (o: { what: string | (() => string), changed: () => boolean, save: () => Promise<unknown> | unknown, discard: () => void }) => UnsavedGuard;
+var unsavedPage: (o: { what: string | (() => string), changed: () => boolean, save: () => Promise<unknown> | unknown, discard: () => void }) => UnsavedGuard & { settle(): Promise<boolean | string> };
 // The Mac app's menu asks a page with changes before it loads another (desktop/windows.ts leaving).
 var studioBeforeLeave: (() => Promise<boolean>) | undefined;
 
@@ -96,8 +96,7 @@ var studioBeforeLeave: (() => Promise<boolean>) | undefined;
   };
 
   unsavedPage = function guardPage({ what, changed, save, discard }) {
-    const g: UnsavedGuard = { what: typeof what === 'function' ? what : () => what, changed, save, discard };
-    g.settle = () => settleOne(g);
+    const g: UnsavedGuard & { settle(): Promise<boolean | string> } = { what: typeof what === 'function' ? what : () => what, changed, save, discard, settle: () => settleOne(g) };
     add(g);
     return g;
   };

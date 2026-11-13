@@ -4,7 +4,7 @@
 
 // ─── Adding sources ───────────────────────────────────────────────────
 // media: [{ name, kind, converting, converted, opaque }] from the helper's media folder.
-function fillMedia(sel, value, kind) {
+function fillMedia(sel: HTMLSelectElement, value: string | undefined, kind: string) {
   sel.innerHTML = '';
   const list = media.filter(m => m.kind === kind);
   if (!list.length) sel.innerHTML = `<option value="">No ${kind}s yet: add one below</option>`;
@@ -23,13 +23,13 @@ function mediaNote() {
     (canConvert ? 'A .mov (ProRes 4444 keeps its transparency) is converted to a WebM beside it when added; the original is kept.'
       : 'A .mov (ProRes) has to be converted to play, and this copy of Studio has no ffmpeg to do it (the Mac app includes one; from a copy of the code run vendor/ffmpeg/build.sh or brew install ffmpeg). MP4 and WebM play as they are.');
 }
-async function loadMedia(value) {
-  try { const body = await (await fetch('/api/scene/media')).json(); media = body.media || []; canConvert = !!body.canConvert; mediaLoaded = true; } catch { media = []; }
+async function loadMedia(value?: string) {
+  try { const body: { media?: MediaFile[]; canConvert?: boolean } = await (await fetch('/api/scene/media')).json(); media = body.media || []; canConvert = !!body.canConvert; mediaLoaded = true; } catch { media = []; }
   renderList();
-  if (adding && adding !== 'browser') fillMedia($('newFile'), value || $('newFile').value, adding);
+  if (adding && adding !== 'browser') fillMedia($<HTMLSelectElement>('newFile'), value || $<HTMLSelectElement>('newFile').value, adding);
   mediaNote();
   const s = current();
-  if (s && s.type !== 'browser') fillMedia($('fFile'), s.file, s.type);
+  if (s && s.type !== 'browser') fillMedia($<HTMLSelectElement>('fFile'), s.file, s.type);
   // A page option that lists the songs (the intro and outro's Theme) shows the ones just added.
   if (s && s.type === 'browser' && $('fOptions').querySelector('[data-list="audio"]')) renderOptions(s);
   if (scene.music) renderMusic();

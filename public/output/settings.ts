@@ -3,40 +3,41 @@
 // scope (plain scripts), so a name defined in an earlier part is in reach of a later one.
 
 // ─── Settings for the selected source ─────────────────────────────────
-const FIELDS = { fName: 'name', fUrl: 'url', fFile: 'file', fWidth: 'width', fHeight: 'height', fFade: 'fadeMs', fX: 'x', fY: 'y', fScale: 'scale' };
-function renderForm(force) {
+const FIELDS = { fName: 'name', fUrl: 'url', fFile: 'file', fWidth: 'width', fHeight: 'height', fFade: 'fadeMs', fX: 'x', fY: 'y', fScale: 'scale' } as const;
+function renderForm(force = false) {
   const s = current();
   $('selForm').classList.toggle('hidden', !s);
   if (!s) return;
   for (const el of document.querySelectorAll('.forBrowser')) el.classList.toggle('hidden', s.type !== 'browser');
   for (const el of document.querySelectorAll('.forMedia')) el.classList.toggle('hidden', s.type === 'browser');
   for (const el of document.querySelectorAll('.forVideo')) el.classList.toggle('hidden', s.type !== 'video');
-  $('fFileLabel').textContent = s.type === 'video' ? 'Video' : 'Image';
-  if (s.type !== 'browser') fillMedia($('fFile'), s.file, s.type);
+  $<HTMLLabelElement>('fFileLabel').textContent = s.type === 'video' ? 'Video' : 'Image';
+  if (s.type !== 'browser') fillMedia($<HTMLSelectElement>('fFile'), s.file, s.type);
   if (s.type === 'video') {
-    $('fRestartOnShow').checked = s.restartOnShow; $('fLoop').checked = s.loop; $('fHideWhenDone').checked = s.hideWhenDone;
-    $('fHideWhenDone').disabled = s.loop; $('fSound').checked = s.sound;
-    if (force || document.activeElement !== $('fVolume')) $('fVolume').value = s.volume;
+    $<HTMLInputElement>('fRestartOnShow').checked = !!s.restartOnShow; $<HTMLInputElement>('fLoop').checked = !!s.loop; $<HTMLInputElement>('fHideWhenDone').checked = !!s.hideWhenDone;
+    $<HTMLInputElement>('fHideWhenDone').disabled = !!s.loop; $<HTMLInputElement>('fSound').checked = !!s.sound;
+    if (force || document.activeElement !== $<HTMLInputElement>('fVolume')) $<HTMLInputElement>('fVolume').value = String(s.volume);
     $('fVolumeText').textContent = s.volume + '%';
   }
   // Don't overwrite a box someone is typing in (a Stream Deck press re-sends the scene).
   for (const [id, key] of Object.entries(FIELDS)) {
-    if (s[key] === undefined) continue;
-    if (force || document.activeElement !== $(id)) $(id).value = s[key];
+    const v = s[key];
+    if (v === undefined) continue;
+    if (force || document.activeElement !== $(id)) $<HTMLInputElement | HTMLSelectElement>(id).value = String(v);
   }
-  $('fReload').checked = !!s.reloadOnShow;
+  $<HTMLInputElement>('fReload').checked = !!s.reloadOnShow;
   renderOptions(s, force);
   const i = scene.sources.indexOf(s);
-  $('fUp').disabled = i === 0;
-  $('fDown').disabled = i === scene.sources.length - 1;
+  $<HTMLButtonElement>('fUp').disabled = i === 0;
+  $<HTMLButtonElement>('fDown').disabled = i === scene.sources.length - 1;
   const name = encodeURIComponent(slug(s.name));
   $('links').innerHTML = '';
   for (const verb of ['toggle', 'on', 'off', ...(s.type === 'image' ? [] : ['restart']), ...(s.type === 'video' ? ['sound/toggle', 'sound/on', 'sound/off'] : [])]) {
     const row = document.createElement('div');
     row.innerHTML = '<code></code><button class="alt">Copy</button>';
     const link = `${deckBase}/deck/layer/${name}/${verb}`;
-    row.querySelector('code').textContent = link;
-    row.querySelector('button').onclick = () => copy(link, row.querySelector('button'));
+    pick(row, 'code').textContent = link;
+    pick<HTMLButtonElement>(row, 'button').onclick = () => copy(link, pick<HTMLButtonElement>(row, 'button'));
     $('links').appendChild(row);
   }
   // With more than one output: each other output's on and off links for this source.
@@ -45,23 +46,23 @@ function renderForm(force) {
       const row = document.createElement('div');
       row.innerHTML = '<code></code><button class="alt">Copy</button>';
       const link = `${deckBase}/deck/output/${encodeURIComponent(o.link)}/layer/${name}/${verb}`;
-      row.querySelector('code').textContent = link;
-      row.querySelector('code').style.borderLeft = `4px solid ${o.colour}`;
-      row.querySelector('button').onclick = () => copy(link, row.querySelector('button'));
+      pick(row, 'code').textContent = link;
+      pick(row, 'code').style.borderLeft = `4px solid ${o.colour}`;
+      pick<HTMLButtonElement>(row, 'button').onclick = () => copy(link, pick<HTMLButtonElement>(row, 'button'));
       $('links').appendChild(row);
     }
   }
 }
 // A Studio page's options (pageoptions.js) as fields, kept in the source's address. Options it
 // doesn't know, and anything typed into the address by hand, stay as they are.
-function renderOptions(s, force) {
+function renderOptions(s: Source, force = false) {
   const [path, query = ''] = s.type === 'browser' ? String(s.url).split('?') : [''];
   const options = !/^https?:/i.test(path) && PAGE_OPTIONS[path.replace(/^\/+/, '')];
   $('fOptionsBox').classList.toggle('hidden', !options);
   if (!options) return;
   const box = $('fOptions');
   if (!force && box.contains(document.activeElement) && box.dataset.url === s.url) return;
-  box.dataset.url = s.url;
+  box.dataset.url = s.url || '';
   box.innerHTML = '';
   const params = new URLSearchParams(query);
   for (const o of options) {
@@ -69,52 +70,59 @@ function renderOptions(s, force) {
     label.textContent = o.label;
     label.htmlFor = 'opt-' + o.key;
     const value = params.get(o.key) ?? '';
-    let input;
+    const choices = o.choices || [];
+    let input: HTMLSelectElement | HTMLInputElement;
+    let sel: HTMLSelectElement | null = null; // the input, when it's a select
     if (o.type === 'select') {
-      input = document.createElement('select');
-      for (const [v, text] of o.choices) input.add(new Option(text, v));
+      input = sel = document.createElement('select');
+      for (const [v, text] of choices) sel.add(new Option(text, v));
       if (o.list === 'audio') {
-        input.dataset.list = 'audio';
-        for (const f of tracks()) if (!o.choices.some(([v]) => v === f)) input.add(new Option(songName(f), f));
+        sel.dataset.list = 'audio';
+        for (const f of tracks()) if (!choices.some(([v]) => v === f)) sel.add(new Option(songName(f), f));
       }
-      if (![...input.options].some(opt => opt.value === value) && !(o.tick && value === o.tick.off)) input.add(new Option(value, value));
+      if (![...sel.options].some(opt => opt.value === value) && !(o.tick && value === o.tick.off)) sel.add(new Option(value, value));
     } else {
-      input = document.createElement('input');
-      input.type = o.type === 'number' ? 'number' : 'text';
-      for (const k of ['min', 'max', 'step', 'placeholder']) if (o[k] !== undefined) input[k] = o[k];
-      if (o.list === 'athletes') input.setAttribute('list', 'list-athletes');
+      const box = input = document.createElement('input');
+      box.type = o.type === 'number' ? 'number' : 'text';
+      if (o.min !== undefined) box.min = String(o.min);
+      if (o.max !== undefined) box.max = String(o.max);
+      if (o.step !== undefined) box.step = String(o.step);
+      if (o.placeholder !== undefined) box.placeholder = o.placeholder;
+      if (o.list === 'athletes') box.setAttribute('list', 'list-athletes');
     }
     input.id = 'opt-' + o.key;
     input.value = value;
-    input.onchange = () => {
-      const q = new URLSearchParams(String(current().url).split('?')[1] || '');
+    const changed = () => {
+      const q = new URLSearchParams(String(current()?.url).split('?')[1] || '');
       if (input.value.trim() === '') q.delete(o.key); else q.set(o.key, input.value.trim());
       const qs = q.toString();
       change({ url: path + (qs ? '?' + qs : '') });
     };
+    input.onchange = changed;
     const cell = document.createElement('div');
     const row = document.createElement('div');
     row.className = 'row';
     row.appendChild(input);
     if (o.type !== 'select') input.style.flex = '1';
     // tick (pageoptions.js): a tick box before the select. Unticked sets the option to tick.off; ticked uses the select.
-    if (o.tick) {
+    const tickOpt = o.tick;
+    if (tickOpt) {
       const tick = document.createElement('label');
       tick.style.cssText = 'display: inline-flex; align-items: center; gap: 6px; font-weight: normal; white-space: nowrap';
       tick.innerHTML = '<input type="checkbox">';
-      tick.append(' ' + o.tick.text);
-      const box = tick.querySelector('input');
+      tick.append(' ' + tickOpt.text);
+      const box = pick<HTMLInputElement>(tick, 'input');
       box.id = 'opt-' + o.key + '-tick';
-      box.checked = value !== o.tick.off;
+      box.checked = value !== tickOpt.off;
       if (!box.checked) input.value = '';
       input.disabled = !box.checked;
-      const set = v => {
-        const q = new URLSearchParams(String(current().url).split('?')[1] || '');
+      const set = (v: string) => {
+        const q = new URLSearchParams(String(current()?.url).split('?')[1] || '');
         if (v === '') q.delete(o.key); else q.set(o.key, v);
         const qs = q.toString();
         change({ url: path + (qs ? '?' + qs : '') });
       };
-      box.onchange = () => { input.disabled = !box.checked; set(box.checked ? input.value : o.tick.off); };
+      box.onchange = () => { input.disabled = !box.checked; set(box.checked ? input.value : tickOpt.off); };
       row.insertBefore(tick, input);
     }
     // A song or sound added here goes into the media folder (as is, no loudness change) and is picked at once.
@@ -123,23 +131,23 @@ function renderOptions(s, force) {
       add.className = 'inline';
       add.style.fontWeight = '400';
       add.innerHTML = 'Add a sound <input type="file" accept=".mp3,.m4a,.aac,.wav,.aif,.aiff,audio/*">';
-      const file = add.querySelector('input');
+      const file = pick<HTMLInputElement>(add, 'input');
       file.id = 'opt-' + o.key + '-add';
       file.onchange = async () => {
-        const f = file.files[0];
+        const f = file.files?.[0];
         if (!f) return;
-        const note = cell.querySelector('.addNote') || cell.appendChild(Object.assign(document.createElement('p'), { className: 'note addNote' }));
+        const note = cell.querySelector<HTMLElement>('.addNote') || cell.appendChild(Object.assign(document.createElement('p'), { className: 'note addNote' }));
         note.textContent = `Adding ${f.name}…`;
         try {
           const res = await fetch(`/api/scene/media?name=${encodeURIComponent(f.name)}&level=0`, { method: 'POST', body: f });
-          const body = await res.json();
-          if (!res.ok) throw new Error(body.error || res.statusText);
+          const body: { error?: string; file?: string } = await res.json();
+          if (!res.ok || !body.file) throw new Error(body.error || res.statusText);
           await loadMedia();
-          input.add(new Option(songName(body.file), body.file));
+          sel?.add(new Option(songName(body.file), body.file));
           input.value = body.file;
           note.remove();
-          input.onchange();
-        } catch (err) { note.textContent = `Could not add ${f.name}: ${err.message}`; }
+          changed();
+        } catch (err) { note.textContent = `Could not add ${f.name}: ${err instanceof Error ? err.message : String(err)}`; }
       };
       row.appendChild(add);
     }
@@ -158,7 +166,7 @@ function renderOptions(s, force) {
       for (const [v, text] of o.picks) {
         const b = document.createElement('button');
         b.type = 'button'; b.className = 'alt'; b.textContent = text; b.title = v ? `Use ${v}` : 'None';
-        b.onclick = () => { input.value = v; input.onchange(); };
+        b.onclick = () => { input.value = v; changed(); };
         picks.appendChild(b);
       }
       cell.appendChild(picks);
@@ -168,8 +176,9 @@ function renderOptions(s, force) {
       tick.className = 'row';
       tick.style.cssText = 'gap: 6px; margin-top: 4px; font-weight: normal';
       tick.innerHTML = '<input type="checkbox" id="opt-gameOnly"> Only athletes in the picked game';
-      tick.querySelector('input').checked = gameOnly();
-      tick.querySelector('input').onchange = e => { try { localStorage.setItem('studio-lowerthird-game', e.target.checked ? '1' : ''); } catch { /* none */ } fillAthletes(); };
+      pick<HTMLInputElement>(tick, 'input').checked = gameOnly();
+      const only = pick<HTMLInputElement>(tick, 'input');
+      only.onchange = () => { try { localStorage.setItem('studio-lowerthird-game', only.checked ? '1' : ''); } catch { /* none */ } fillAthletes(); };
       cell.appendChild(tick);
     }
     if (o.help) { const n = document.createElement('p'); n.className = 'note'; n.style.margin = '2px 0 0'; n.textContent = o.help; cell.appendChild(n); }
@@ -182,8 +191,8 @@ function renderOptions(s, force) {
 // The intro and outro's theme against the animation (introtiming.js), checked again whenever its options change (a new
 // style, theme, timing, hold or division): a warning when the two are more than 25% apart, as the theme can line up
 // with only one end of the animation and stretching it goes only 25% either way.
-const teamCounts = new Map(); // type|division -> { n, at }
-let lengthParams = null;
+const teamCounts = new Map<string, { n: number; at: number }>(); // type|division
+let lengthParams: URLSearchParams | null = null;
 async function checkThemeLength(params = lengthParams) {
   lengthParams = params;
   const note = $('optLengthCheck');
@@ -197,19 +206,21 @@ async function checkThemeLength(params = lengthParams) {
   if (!n || Date.now() - n.at > 60000) {
     try {
       const q = new URLSearchParams({ type: params.get('type') || 'intro' });
-      if (params.get('division')) q.set('division', params.get('division'));
-      const d = await (await fetch('/api/introoutro?' + q, { cache: 'no-store' })).json();
+      const division = params.get('division');
+      if (division) q.set('division', division);
+      const d: { teams?: unknown[] } = await (await fetch('/api/introoutro?' + q, { cache: 'no-store' })).json();
       n = { n: (d.teams || []).length, at: Date.now() };
       teamCounts.set(key, n);
     } catch { n = { n: 8, at: 0 }; }
     if (params !== lengthParams) return; // changed again while asking
   }
-  const hold = Number.isFinite(parseFloat(params.get('hold'))) ? parseFloat(params.get('hold')) : 5, outOn = params.get('out') !== '0';
-  const speed = parseFloat(params.get('speed')) > 0 ? parseFloat(params.get('speed')) : 0;
+  const hold = Number.isFinite(parseFloat(params.get('hold') || '')) ? parseFloat(params.get('hold') || '') : 5, outOn = params.get('out') !== '0';
+  const speed = parseFloat(params.get('speed') || '') > 0 ? parseFloat(params.get('speed') || '') : 0;
   const style = (params.get('style') || 'orbit').toLowerCase(), STYLES = ['orbit', 'parade', 'tiles', 'spotlight', 'court', 'blueprint'];
-  const s1 = x => x.toFixed(1) + ' s';
-  const say = (warn, text) => { note.textContent = (warn ? '⚠️ ' : '') + text; note.style.color = warn ? 'var(--fp-warn-ink)' : ''; note.style.fontWeight = warn ? '700' : ''; };
-  const runs = st => introLength(st, n.n, hold, outOn) / (speed || 1);
+  const s1 = (x: number) => x.toFixed(1) + ' s';
+  const say = (warn: boolean, text: string) => { note.textContent = (warn ? '⚠️ ' : '') + text; note.style.color = warn ? 'var(--fp-warn-ink)' : ''; note.style.fontWeight = warn ? '700' : ''; };
+  const count = n.n;
+  const runs = (st: string) => introLength(st, count, hold, outOn) / (speed || 1);
   if (!STYLES.includes(style)) {
     const lens = STYLES.map(runs), lo = Math.min(...lens), hi = Math.max(...lens);
     const off = lens.some(l => Math.abs(sec - l) / l > .25);
@@ -233,19 +244,23 @@ async function checkThemeLength(params = lengthParams) {
 // The person lower third's suggestions (list: 'athletes' and list: 'teams' in pageoptions.js): the active
 // competition's athletes, read again each time its options are shown so a competition switched on the
 // setup page shows its own. The team picked and the "picked game" tick box narrow the names.
-let lowerThird = null;
+// The person lower third's suggestions (/api/lowerthird/athletes, lowerthird.ts).
+interface AthleteTeam { team: string; division: string }
+interface LowerThird { game: { teams: string[]; division: string }; teams: AthleteTeam[]; athletes: { name: string; teams: AthleteTeam[] }[] }
+let lowerThird: LowerThird | null = null;
 const gameOnly = () => { try { return localStorage.getItem('studio-lowerthird-game') === '1'; } catch { return false; } };
-const sameName = (a, b) => String(a || '').toLowerCase().replace(/[^a-z0-9]/g, '') === String(b || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const sameName = (a: string, b: string) => String(a || '').toLowerCase().replace(/[^a-z0-9]/g, '') === String(b || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 function fillAthletes() {
-  const dl = $('list-athletes') || document.body.appendChild(Object.assign(document.createElement('datalist'), { id: 'list-athletes' }));
+  const dl = document.getElementById('list-athletes') || document.body.appendChild(Object.assign(document.createElement('datalist'), { id: 'list-athletes' }));
   dl.replaceChildren();
   if (!lowerThird) return;
-  const team = $('opt-team') ? $('opt-team').value : '';
+  const teamSel = document.getElementById('opt-team') as HTMLSelectElement | null, only = document.getElementById('opt-gameOnly') as HTMLInputElement | null;
+  const team = teamSel ? teamSel.value : '';
   const g = lowerThird.game;
-  const inGame = t => g.teams.some(n => sameName(n, t.team)) && (!g.division || t.division === g.division);
+  const inGame = (t: AthleteTeam) => g.teams.some(n => sameName(n, t.team)) && (!g.division || t.division === g.division);
   let list = lowerThird.athletes;
   if (team) list = list.filter(a => a.teams.some(t => sameName(t.team, team)));
-  if ($('opt-gameOnly') && $('opt-gameOnly').checked) {
+  if (only && only.checked) {
     list = list.filter(a => a.teams.some(inGame));
     if (!g.teams.length) console.warn('Lower third: no game picked on Scoreboard control, so no athletes are in it');
   }
@@ -254,8 +269,8 @@ function fillAthletes() {
 async function loadAthletes() {
   try {
     lowerThird = await (await fetch('/api/lowerthird/athletes', { cache: 'no-store' })).json();
-  } catch (err) { console.warn('Athlete suggestions unavailable:', err.message); lowerThird = null; }
-  const sel = $('opt-team');
+  } catch (err) { console.warn('Athlete suggestions unavailable:', err instanceof Error ? err.message : String(err)); lowerThird = null; }
+  const sel = document.getElementById('opt-team') as HTMLSelectElement | null;
   if (sel && lowerThird) {
     const keep = sel.value;
     for (const name of [...new Set(lowerThird.teams.map(t => t.team))]) if (![...sel.options].some(o => o.value === name)) sel.add(new Option(name, name));
@@ -264,51 +279,52 @@ async function loadAthletes() {
   }
   fillAthletes();
 }
-function change(changes) { const s = current(); if (s) act({ type: 'update', id: s.id, changes }); }
+function change(changes: Partial<Source>) { const s = current(); if (s) act({ type: 'update', id: s.id, changes }); }
 for (const [id, key] of Object.entries(FIELDS)) {
-  $(id).addEventListener('change', () => change({ [key]: ['name', 'url', 'file'].includes(key) ? $(id).value : Number($(id).value) }));
+  const el = $<HTMLInputElement | HTMLSelectElement>(id);
+  el.addEventListener('change', () => change({ [key]: key === 'name' || key === 'url' || key === 'file' ? el.value : Number(el.value) }));
 }
-$('fReload').onchange = () => change({ reloadOnShow: $('fReload').checked });
-$('fRestartOnShow').onchange = () => change({ restartOnShow: $('fRestartOnShow').checked });
-$('fLoop').onchange = () => change({ loop: $('fLoop').checked });
-$('fHideWhenDone').onchange = () => change({ hideWhenDone: $('fHideWhenDone').checked });
-$('fSound').onchange = () => change({ sound: $('fSound').checked });
-$('fVolume').oninput = () => { $('fVolumeText').textContent = $('fVolume').value + '%'; };
-$('fVolume').onchange = () => change({ volume: Number($('fVolume').value) });
-$('fRestartVideo').onclick = () => act({ type: 'restart', id: selected });
-$('fFull').onclick = () => {
+$<HTMLInputElement>('fReload').onchange = () => change({ reloadOnShow: $<HTMLInputElement>('fReload').checked });
+$<HTMLInputElement>('fRestartOnShow').onchange = () => change({ restartOnShow: $<HTMLInputElement>('fRestartOnShow').checked });
+$<HTMLInputElement>('fLoop').onchange = () => change({ loop: $<HTMLInputElement>('fLoop').checked });
+$<HTMLInputElement>('fHideWhenDone').onchange = () => change({ hideWhenDone: $<HTMLInputElement>('fHideWhenDone').checked });
+$<HTMLInputElement>('fSound').onchange = () => change({ sound: $<HTMLInputElement>('fSound').checked });
+$<HTMLInputElement>('fVolume').oninput = () => { $('fVolumeText').textContent = $<HTMLInputElement>('fVolume').value + '%'; };
+$<HTMLInputElement>('fVolume').onchange = () => change({ volume: Number($<HTMLInputElement>('fVolume').value) });
+$<HTMLButtonElement>('fRestartVideo').onclick = () => act({ type: 'restart', id: selected });
+$<HTMLButtonElement>('fFull').onclick = () => {
   const s = current(); if (!s) return;
-  const [w, h] = s.type === 'browser' ? [s.width, s.height] : (naturalSize.get(s.file) || [1920, 1080]);
+  const [w, h] = s.type === 'browser' ? [s.width, s.height] : (naturalSize.get(s.file || '') || [1920, 1080]);
   change({ x: 0, y: 0, scale: Math.round(Math.min(1920 / w, 1080 / h) * 10000) / 100 });
 };
-$('fUp').onclick = () => act({ type: 'move', id: selected, direction: 'up' });
-$('fDown').onclick = () => act({ type: 'move', id: selected, direction: 'down' });
-$('fRestart').onclick = () => act({ type: 'restart', id: selected });
+$<HTMLButtonElement>('fUp').onclick = () => act({ type: 'move', id: selected, direction: 'up' });
+$<HTMLButtonElement>('fDown').onclick = () => act({ type: 'move', id: selected, direction: 'down' });
+$<HTMLButtonElement>('fRestart').onclick = () => act({ type: 'restart', id: selected });
 // Preview opens the selected source on its own: a page at its address, an image or video from the media folder.
-function previewSource(s) {
-  const to = s.type === 'browser' ? (/^https?:\/\//i.test(s.url) ? s.url : '/' + String(s.url).replace(/^\/+/, '')) : '/media/' + encodeURIComponent(s.file);
+function previewSource(s: Source) {
+  const url = s.url || '';
+  const to = s.type === 'browser' ? (/^https?:\/\//i.test(url) ? url : '/' + url.replace(/^\/+/, '')) : '/media/' + encodeURIComponent(s.file || '');
   console.log(`Preview "${s.name}": ${to}`);
   // Half size (the page is still laid out at 1080p and scaled), so a few fit on one screen.
   window.open(`/pvw.html?src=${encodeURIComponent(to)}&name=${encodeURIComponent(s.name)}`, '_blank', 'popup,width=960,height=540');
 }
-$('fPreview').onclick = () => { const s = current(); if (s) previewSource(s); };
-$('fRemove').onclick = async () => {
+$<HTMLButtonElement>('fPreview').onclick = () => { const s = current(); if (s) previewSource(s); };
+$<HTMLButtonElement>('fRemove').onclick = async () => {
   const s = current();
   if (s && await askConfirm(`Remove "${s.name}" from the scene?`, 'Its Stream Deck links will stop working.', { ok: 'Remove', danger: true })) act({ type: 'remove', id: s.id }).then(() => { selected = null; renderForm(); drawBox(); });
 };
 // Hide all: every source off on one output (hideAllOn, which its label names: see renderList), never on every output
 // at once: clearing a monitor mustn't blank the one on air.
-$('hideAll').onclick = () => act({ type: 'hideAll', ...(hideAllOn !== 'main' ? { output: hideAllOn } : {}) });
+$<HTMLButtonElement>('hideAll').onclick = () => act({ type: 'hideAll', ...(hideAllOn !== 'main' ? { output: hideAllOn } : {}) });
 // The video output state (`out`) is in preview.js, which runs first.
-const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const esc = hEsc;
 let viewWas = '';
-const showOut = o => {
+const showOut = (o: OutputsState) => {
   const hadExtras = extraOutputs().map(x => `${x.id}:${x.name}:${x.colour}`).join();
   // Which outputs are sending, for the sequence cards' "output off".
-  const sendingOf = x => (x && x.outputs || []).filter(y => (y.showing || []).length).map(y => y.id).join();
+  const sendingOf = (x: OutputsState | null) => (x && x.outputs || []).filter(y => (y.showing || []).length).map(y => y.id).join();
   const wasSending = sendingOf(out);
   out = o;
-  if (!o.outputs) o.outputs = [{ ...o, id: 'main', slot: 1, name: 'Output 1', primary: true, colour: '#ea9a38', link: 'output-1' }];
   // The output being set up here (and shown in the Scene View): picked on its card or tab.
   const so = o.outputs.find(x => x.id === outSel) || o.outputs[0];
   outSel = so.id;
@@ -319,13 +335,13 @@ const showOut = o => {
   if (wasSending !== sendingOf(o) && typeof renderSequences === 'function') renderSequences();
   $('outNoApp').classList.toggle('hidden', o.app);
   $('outForm').classList.toggle('hidden', !o.app);
-  $('outOn').classList.toggle('hidden', !o.app);
+  $<HTMLButtonElement>('outOn').classList.toggle('hidden', !o.app);
   const extra = o.displays.filter(d => !d.primary);
-  for (const r of document.querySelectorAll('input[name=outMode]')) { r.checked = r.value === so.mode; r.disabled = false; }
+  for (const r of document.querySelectorAll<HTMLInputElement>('input[name=outMode]')) { r.checked = r.value === so.mode; r.disabled = false; }
   // Fill and key needs two displays besides the Mac's own (an M1 MacBook Pro drives only one).
-  $('outFillKey').disabled = extra.length < 2 && so.mode !== 'fillkey';
-  const fillSel = (id, value, fallback) => {
-    const sel = $(id);
+  $<HTMLInputElement>('outFillKey').disabled = extra.length < 2 && so.mode !== 'fillkey';
+  const fillSel = (id: string, value: string, fallback: Display | undefined) => {
+    const sel = $<HTMLSelectElement>(id);
     sel.innerHTML = '<option value="">Choose a display</option>' + o.displays.map(d => `<option value="${d.id}">${d.label} (${d.width} × ${d.height})${d.primary ? ', this Mac\'s main screen' : ''}</option>`).join('');
     sel.value = o.displays.some(d => d.id === value) ? value : '';
     if (!sel.value && fallback) sel.value = fallback.id;
@@ -343,31 +359,31 @@ const showOut = o => {
   // Blackmagic devices, and the 1080p formats each names (interlaced and 720p look soft, so they aren't offered),
   // with its 2160p ones too in 4K. A format the device says it can't send is still listed, marked, so it's clear
   // why it isn't working. In HD a 2160p format picked in 4K shows as the 1080p one at its rate, which is sent.
-  const dl = o.decklink || {};
-  const devices = dl.ok ? dl.devices : [];
-  $('outDecklink').disabled = !devices.length && so.mode !== 'decklink';
+  const dl = o.decklink;
+  const devices = dl.ok ? dl.devices || [] : [];
+  $<HTMLInputElement>('outDecklink').disabled = !devices.length && so.mode !== 'decklink';
   $('outDlNote').textContent = dl.ok ? (devices.length ? '' : '(no device connected)') : dl.error ? (/Desktop Video/.test(dl.error) ? '(needs Blackmagic Desktop Video)' : '(not available)') : '';
-  $('outDlDevice').innerHTML = devices.length ? devices.map(d => `<option value="${d.id}">${d.name}${d.externalKeying ? '' : ' (no fill and key)'}</option>`).join('') : '<option value="">No device connected</option>';
+  $<HTMLSelectElement>('outDlDevice').innerHTML = devices.length ? devices.map(d => `<option value="${d.id}">${d.name}${d.externalKeying ? '' : ' (no fill and key)'}</option>`).join('') : '<option value="">No device connected</option>';
   const device = devices.find(d => d.id === so.decklinkDevice) || devices[0];
-  $('outDlDevice').value = device ? device.id : '';
+  $<HTMLSelectElement>('outDlDevice').value = device ? device.id : '';
   const uhd = o.quality === 'uhd';
   const modes = device ? device.modes.filter(m => m.height === 1080 && !m.interlaced) : [];
   const uhdModes = device && uhd ? device.modes.filter(m => m.height === 2160 && !m.interlaced) : [];
-  const option = m => `<option value="${m.mode}">${m.name}${!m.supported ? ' (device says it can\'t)' : so.decklinkKeying === 'external' && !m.keying ? ' (no fill and key)' : ''}</option>`;
-  $('outDlMode').innerHTML = uhdModes.length
+  const option = (m: DeckMode) => `<option value="${m.mode}">${m.name}${!m.supported ? ' (device says it can\'t)' : so.decklinkKeying === 'external' && !m.keying ? ' (no fill and key)' : ''}</option>`;
+  $<HTMLSelectElement>('outDlMode').innerHTML = uhdModes.length
     ? `<optgroup label="4K">${uhdModes.map(option).join('')}</optgroup><optgroup label="HD (sent as 4K at the same rate)">${modes.map(option).join('')}</optgroup>`
     : modes.map(option).join('');
   const savedUhd = device && device.modes.find(m => m.mode === so.decklinkMode && m.height === 2160 && !m.interlaced);
   const pickedMode = [...uhdModes, ...modes].find(m => m.mode === so.decklinkMode)
     || (savedUhd && modes.find(m => rateOf(m.name) === rateOf(savedUhd.name))) || defaultMode(modes);
-  $('outDlMode').value = String((pickedMode || {}).mode || '');
-  $('outDlKeying').value = so.decklinkKeying;
-  $('outDlStraight').checked = so.decklinkStraight;
+  $<HTMLSelectElement>('outDlMode').value = String(pickedMode?.mode || '');
+  $<HTMLSelectElement>('outDlKeying').value = so.decklinkKeying;
+  $<HTMLInputElement>('outDlStraight').checked = so.decklinkStraight;
   $('outDlStraightWarn').classList.toggle('hidden', !so.decklinkStraight);
   showSound(so);
   // NDI: whether the NDI runtime is installed, and the formats it can send.
-  const nd = o.ndi || {};
-  $('outNdi').disabled = !nd.ok && so.mode !== 'ndi';
+  const nd = o.ndi;
+  $<HTMLInputElement>('outNdi').disabled = !nd.ok && so.mode !== 'ndi';
   $('outNdiNote').textContent = nd.ok ? '' : nd.error ? (/runtime isn't installed/.test(nd.error) ? '(needs the NDI runtime)' : '(not available)') : '';
   // What to install for an option that can't be picked yet, with where to get it.
   const needs = [];
@@ -379,14 +395,14 @@ const showOut = o => {
     : `<b>NDI:</b> ${esc(nd.error)}`);
   $('outNeeds').innerHTML = needs.join('<br>');
   $('outNeeds').classList.toggle('hidden', !needs.length);
-  $('outNdiSignal').value = so.ndiSignal;
-  if ($('outNdiFormat').options.length !== o.ndiFormats.length) $('outNdiFormat').innerHTML = o.ndiFormats.map(f => `<option value="${f.id}">${f.id}</option>`).join('');
-  $('outNdiFormat').value = so.ndiFormat;
+  $<HTMLSelectElement>('outNdiSignal').value = so.ndiSignal;
+  if ($<HTMLSelectElement>('outNdiFormat').options.length !== o.ndiFormats.length) $<HTMLSelectElement>('outNdiFormat').innerHTML = o.ndiFormats.map(f => `<option value="${f.id}">${f.id}</option>`).join('');
+  $<HTMLSelectElement>('outNdiFormat').value = so.ndiFormat;
   // The output's name unless Use my own name is ticked (outputs.js ndiSource); then the name typed.
-  if (document.activeElement !== $('outNdiName')) $('outNdiName').value = so.ndiSource;
-  $('outNdiOwn').checked = so.ndiOwnName;
-  $('outColor').value = so.chromaColor;
-  $('outChromaSafe').checked = so.chromaSafe;
+  if (document.activeElement !== $<HTMLInputElement>('outNdiName')) $<HTMLInputElement>('outNdiName').value = so.ndiSource;
+  $<HTMLInputElement>('outNdiOwn').checked = so.ndiOwnName;
+  $<HTMLInputElement>('outColor').value = so.chromaColor;
+  $<HTMLInputElement>('outChromaSafe').checked = so.chromaSafe;
   $('outChromaWarn').classList.toggle('hidden', !so.chromaSafeNow);
   // The competition's colours a key on this colour would cut into (logos can't be checked).
   $('outNearKey').innerHTML = (so.nearKey || []).length ? `<b>Close to the key colour:</b> ${so.nearKey.map(c => `${esc(c.name)} (${esc(c.hex)})`).join(', ')}. `
@@ -403,7 +419,7 @@ const showOut = o => {
     if (s) renderOptions(s, true);
   }
   // The Scenes and Sequences sections follow the picked output, and the outputs' names and colours.
-  const view = [so.id, ...(out.outputs || []).map(o => `${o.id}:${o.name}:${o.colour}`)].join('|');
+  const view = [so.id, ...o.outputs.map(o => `${o.id}:${o.name}:${o.colour}`)].join('|');
   if (view !== viewWas) { viewWas = view; if (sceneAll.scenes) show(sceneAll); }
   for (const el of document.querySelectorAll('.forNdi')) el.classList.toggle('hidden', so.mode !== 'ndi');
   for (const el of document.querySelectorAll('.forNdiChroma')) el.classList.toggle('hidden', so.mode !== 'chroma' && !(so.mode === 'ndi' && so.ndiSignal === 'chroma'));
@@ -411,17 +427,17 @@ const showOut = o => {
   for (const el of document.querySelectorAll('.forFillKey')) el.classList.toggle('hidden', so.mode !== 'fillkey');
   for (const el of document.querySelectorAll('.forDecklink')) el.classList.toggle('hidden', so.mode !== 'decklink');
   const sending = so.on && so.mode !== 'off';
-  $('outOn').textContent = o.outputs.length > 1 ? `${so.name} ${sending ? 'on' : 'off'}` : sending ? 'Output on' : 'Output off';
-  $('outOn').className = sending ? '' : 'alt';
-  const name = id => (o.displays.find(d => d.id === id) || {}).label || 'a display';
+  $<HTMLButtonElement>('outOn').textContent = o.outputs.length > 1 ? `${so.name} ${sending ? 'on' : 'off'}` : sending ? 'Output on' : 'Output off';
+  $<HTMLButtonElement>('outOn').className = sending ? '' : 'alt';
+  const name = (id: string | undefined) => o.displays.find(d => d.id === id)?.label || 'a display';
   const st = so.decklinkStatus || {};
   const ns = so.ndiStatus || {};
-  const watching = s => s.connections ? `${s.name} (${s.connections} receiving)` : `${s.name} (nothing receiving yet)`;
+  const watching = (s: { name: string; connections?: number }) => s.connections ? `${s.name} (${s.connections} receiving)` : `${s.name} (nothing receiving yet)`;
   $('outStatus').textContent = so.clash ? `${so.name} can't send: ${so.clash} is already using that ${so.mode === 'ndi' ? 'NDI source name' : so.mode === 'decklink' ? 'Blackmagic device' : 'display'}. Pick another, or change ${so.clash}.`
     : so.mode === 'off' ? 'Web links only: nothing is actively sent from this Mac.'
     : !so.on ? 'Output is off: nothing is sent until it\'s turned on.'
     : so.mode === 'decklink' ? (st.error ? `Couldn't start the Blackmagic output: ${st.error}`
-      : st.running ? `Sending to ${st.name} (${st.mode}${so.decklinkKeying === 'external' ? ', fill and key' : ', fill only'}${{ sdi: ', sound in the SDI', both: ', sound in the SDI and on the Mac', mac: ', sound on the Mac' }[st.sound] || ''}).${st.late || st.dropped ? ` ${st.late} late and ${st.dropped} dropped frames so far.` : ''}`
+      : st.running ? `Sending to ${st.name} (${st.mode}${so.decklinkKeying === 'external' ? ', fill and key' : ', fill only'}${({ sdi: ', sound in the SDI', both: ', sound in the SDI and on the Mac', mac: ', sound on the Mac' } as Record<string, string>)[st.sound || ''] || ''}).${st.late || st.dropped ? ` ${st.late} late and ${st.dropped} dropped frames so far.` : ''}`
       : so.showing.length ? 'Starting the Blackmagic output…' : dl.ok ? 'Pick the device and video format.' : dl.error || 'Looking for Blackmagic devices…')
     : so.mode === 'ndi' ? (ns.error ? `Couldn't start NDI: ${ns.error}`
       : ns.running && ns.sources?.length ? `Sending NDI at ${ns.format}: ${ns.sources.map(watching).join(', ')}.`
@@ -434,64 +450,66 @@ const showOut = o => {
   $('outDeck').textContent = so.primary ? `${deckBase}/deck/output/toggle` : `${deckBase}/deck/output/${so.link}/toggle`;
   // Web links only has nothing to turn on; and while the output is on its setup is locked, so it's turned off before changing.
   const live = sending;
-  $('outOn').disabled = so.mode === 'off';
-  $('outOn').title = so.mode === 'off' ? 'Web links only: nothing is actively sent from this Mac' : '';
-  for (const el of document.querySelectorAll('#outForm .form input, #outForm .form select, #outForm .form button')) {
+  $<HTMLButtonElement>('outOn').disabled = so.mode === 'off';
+  $<HTMLButtonElement>('outOn').title = so.mode === 'off' ? 'Web links only: nothing is actively sent from this Mac' : '';
+  for (const el of document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>('#outForm .form input, #outForm .form select, #outForm .form button')) {
     if (live) el.disabled = true;
     else if (el.name !== 'outMode') el.disabled = false;
   }
   // Counts for sponsors changes nothing being sent, so it stays free while the output is on; so do the sound's
   // other destinations and their mics, which can be put right on the night (the first changes how the output itself
   // is sent, so it waits).
-  $('outSponsors').disabled = false;
-  for (const el of document.querySelectorAll('#outSound select:not(.sdMain), #outSound input, #outSound button, #outSoundFind')) el.disabled = false;
-  $('outSoundAdd').disabled = soundAddOff; // as showSound left it
+  $<HTMLInputElement>('outSponsors').disabled = false;
+  for (const el of document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>('#outSound select:not(.sdMain), #outSound input, #outSound button, #outSoundFind')) el.disabled = false;
+  $<HTMLButtonElement>('outSoundAdd').disabled = soundAddOff; // as showSound left it
   // The source name follows the output's name until Use my own name is ticked.
-  if (!live) $('outNdiName').disabled = !so.ndiOwnName;
-  swOutKey(); // Into the switcher as (output/switcher.js)
+  if (!live) $<HTMLInputElement>('outNdiName').disabled = !so.ndiOwnName;
+  swOutKey(); // Into the switcher as (output/switcher.ts)
   $('outLocked').classList.toggle('hidden', !live);
 };
 // Changes the output being set up here (changes.output), or adds or removes one ({ add }, { remove }).
-const setOut = async changes => {
+// A change to the outputs (outputs.ts change()): to the one picked here, or { add }, { remove }, { quality }.
+type OutChange = Record<string, unknown> & { output?: string; add?: boolean; remove?: string; quality?: string };
+const setOut = async (changes: OutChange) => {
   try {
     if (!changes.add && changes.remove === undefined && changes.output === undefined && changes.quality === undefined) changes = { output: outSel, ...changes };
     const r = await fetch('/api/outputs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(changes) });
-    const body = await r.json();
+    const body: OutputsState = await r.json();
     if (!r.ok && body.error) $('err').textContent = body.error;
     showOut(body);
     setTimeout(loadOut, 1500); // the Blackmagic and NDI outputs report how they started a moment later
-  } catch (err) { $('err').textContent = `Could not change the display output: ${err.message}`; }
+  } catch (err) { $('err').textContent = `Could not change the display output: ${err instanceof Error ? err.message : String(err)}`; }
 };
 // ?scan=1 has the app look for Blackmagic devices again (plugged in or out).
 const loadOut = () => fetch('/api/outputs?scan=1').then(r => r.json()).then(showOut).catch(() => {});
 // The format to start with (the same as outputs.js uses): 1080p50 if the device can key it (Australian
 // switchers mostly run at 50), else the first 1080p format that can, else the first it can send.
 // The frame rate in a format's name (50 for 1080p50 and 2160p 50), as outputs.js matches them.
-const rateOf = name => (String(name).replace(/\s/g, '').match(/^(?:1080|2160)p(.+)$/) || [])[1] || '';
-const defaultMode = modes => ['1080p50', '1080p25'].map(n => modes.find(m => m.supported && m.keying && m.name.replace(/\s/g, '').includes(n))).find(Boolean)
+const rateOf = (name: string) => (String(name).replace(/\s/g, '').match(/^(?:1080|2160)p(.+)$/) || [])[1] || '';
+const defaultMode = (modes: DeckMode[]) => ['1080p50', '1080p25'].map(n => modes.find(m => m.supported && m.keying && m.name.replace(/\s/g, '').includes(n))).find(Boolean)
   || modes.find(m => m.supported && m.keying) || modes.find(m => m.supported) || modes[0];
 loadOut();
 // Displays come and go (plugged in, the app starting up): check again now and then.
 setInterval(() => { if (!document.hidden) loadOut(); }, 5000);
-for (const r of document.querySelectorAll('input[name=outMode]')) r.addEventListener('change', () => {
+for (const r of document.querySelectorAll<HTMLInputElement>('input[name=outMode]')) r.addEventListener('change', () => {
   // Picked with the output off (it has to be): it stays off until Output on, so the setup can be checked first.
-  const changes = { mode: r.value, on: false };
+  const changes: OutChange = { mode: r.value, on: false };
   // Fill in the displays shown as chosen, so picking a mode is enough.
-  if (r.value === 'chroma') changes.chromaDisplay = $('outChromaDisplay').value;
-  if (r.value === 'fillkey') { changes.fillDisplay = $('outFillDisplay').value; changes.keyDisplay = $('outKeyDisplay').value; }
-  if (r.value === 'decklink') { changes.decklinkDevice = $('outDlDevice').value; changes.decklinkMode = Number($('outDlMode').value) || 0; }
-  if (r.value === 'ndi') { changes.ndiSignal = $('outNdiSignal').value; changes.ndiFormat = $('outNdiFormat').value; }
+  if (r.value === 'chroma') changes.chromaDisplay = $<HTMLSelectElement>('outChromaDisplay').value;
+  if (r.value === 'fillkey') { changes.fillDisplay = $<HTMLSelectElement>('outFillDisplay').value; changes.keyDisplay = $<HTMLSelectElement>('outKeyDisplay').value; }
+  if (r.value === 'decklink') { changes.decklinkDevice = $<HTMLSelectElement>('outDlDevice').value; changes.decklinkMode = Number($<HTMLSelectElement>('outDlMode').value) || 0; }
+  if (r.value === 'ndi') { changes.ndiSignal = $<HTMLSelectElement>('outNdiSignal').value; changes.ndiFormat = $<HTMLSelectElement>('outNdiFormat').value; }
   setOut(changes);
 });
-$('outChromaDisplay').onchange = () => setOut({ chromaDisplay: $('outChromaDisplay').value });
-$('outFillDisplay').onchange = () => setOut({ fillDisplay: $('outFillDisplay').value });
-$('outKeyDisplay').onchange = () => setOut({ keyDisplay: $('outKeyDisplay').value });
-$('outColor').onchange = () => setOut({ chromaColor: $('outColor').value });
-$('outChromaSafe').onchange = () => setOut({ chromaSafe: $('outChromaSafe').checked });
-$('outSponsors').onchange = () => setOut({ sponsors: $('outSponsors').checked });
-$('outDlDevice').onchange = () => setOut({ decklinkDevice: $('outDlDevice').value, decklinkMode: 0 }).then(() => setOut({ decklinkMode: Number($('outDlMode').value) || 0 }));
-$('outDlMode').onchange = () => setOut({ decklinkMode: Number($('outDlMode').value) || 0 });
-$('outDlKeying').onchange = () => setOut({ decklinkKeying: $('outDlKeying').value });
+$<HTMLSelectElement>('outChromaDisplay').onchange = () => setOut({ chromaDisplay: $<HTMLSelectElement>('outChromaDisplay').value });
+$<HTMLSelectElement>('outFillDisplay').onchange = () => setOut({ fillDisplay: $<HTMLSelectElement>('outFillDisplay').value });
+$<HTMLSelectElement>('outKeyDisplay').onchange = () => setOut({ keyDisplay: $<HTMLSelectElement>('outKeyDisplay').value });
+$<HTMLInputElement>('outColor').onchange = () => setOut({ chromaColor: $<HTMLInputElement>('outColor').value });
+$<HTMLInputElement>('outChromaSafe').onchange = () => setOut({ chromaSafe: $<HTMLInputElement>('outChromaSafe').checked });
+$<HTMLInputElement>('outSponsors').onchange = () => setOut({ sponsors: $<HTMLInputElement>('outSponsors').checked });
+$<HTMLSelectElement>('outDlDevice').onchange = () => setOut({ decklinkDevice: $<HTMLSelectElement>('outDlDevice').value, decklinkMode: 0 }).then(() => setOut({ decklinkMode: Number($<HTMLSelectElement>('outDlMode').value) || 0 }));
+$<HTMLSelectElement>('outDlMode').onchange = () => setOut({ decklinkMode: Number($<HTMLSelectElement>('outDlMode').value) || 0 });
+$<HTMLSelectElement>('outDlKeying').onchange = () => setOut({ decklinkKeying: $<HTMLSelectElement>('outDlKeying').value });
 
 // ─── Sound goes to ──────────────────────────────────────────────────────
 // Where the output's sound plays (outputs.js sound): a list of destinations. The first is where the output itself
@@ -500,11 +518,11 @@ $('outDlKeying').onchange = () => setOut({ decklinkKeying: $('outDlKeying').valu
 // of its own (desktop/soundcopy.ts) with the Mac mics ticked for it. The Mac's sound outputs are listed here in the
 // Mac app, by the names macOS gives them. No sound (an empty list) is picked in the first destination's list: the output
 // plays no sound anywhere, for a screen with no speakers.
-let soundDevices = [];
+let soundDevices: string[] = [];
 let soundWas = '';
 let soundAddOff = false; // Add a destination can't add one (No sound, nothing spare, or four already)
-const soundNamed = device => device !== 'own' && device !== 'mac' && device !== 'none';
-async function findSoundDevices(ask) {
+const soundNamed = (device: string) => device !== 'own' && device !== 'mac' && device !== 'none';
+async function findSoundDevices(ask: boolean) {
   if (!navigator.mediaDevices) return;
   const outs = async () => (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audiooutput' && d.deviceId !== 'default' && d.deviceId !== 'communications');
   try {
@@ -518,17 +536,17 @@ async function findSoundDevices(ask) {
     $('outSoundNote').classList.add('hidden');
     if (out) showOut(out);
   } catch (err) {
-    $('outSoundNote').textContent = err.name === 'NotAllowedError' ? 'The Mac hasn\'t let Studio use its sound devices: allow FirstPass Studio in System Settings, Privacy & Security, Microphone, then press Find sound outputs again.'
-      : `Couldn't list the sound outputs: ${err.message}`;
+    $('outSoundNote').textContent = err instanceof Error && err.name === 'NotAllowedError' ? 'The Mac hasn\'t let Studio use its sound devices: allow FirstPass Studio in System Settings, Privacy & Security, Microphone, then press Find sound outputs again.'
+      : `Couldn't list the sound outputs: ${err instanceof Error ? err.message : String(err)}`;
     $('outSoundNote').classList.remove('hidden');
   }
 }
-const setSound = (so, sound) => setOut({ output: so.id, sound });
-function showSound(so) {
+const setSound = (so: OutputInfo, sound: SoundDest[]) => setOut({ output: so.id, sound });
+function showSound(so: OutputInfo) {
   const here = so.mode !== 'off';
   for (const el of document.querySelectorAll('.forSound')) el.classList.toggle('hidden', !here);
   if (!here) return;
-  $('outSoundFind').classList.toggle('hidden', !onThisMac);
+  $<HTMLButtonElement>('outSoundFind').classList.toggle('hidden', !onThisMac);
   const dl = so.mode === 'decklink';
   const live = so.showing.length > 0;
   // The Mac's mics, for the ticks on each added destination of Output 1 (none to start with: the commentators don't hear themselves).
@@ -538,9 +556,9 @@ function showSound(so) {
   const spare = soundDevices.find(n => !used.has(n)) || (dl && !used.has('mac') ? 'mac' : '');
   const none = !so.sound.length;
   soundAddOff = none || !spare || so.sound.length >= 4;
-  $('outSoundAdd').disabled = soundAddOff;
-  $('outSoundAdd').title = none ? 'No sound is picked: pick where the sound goes first' : so.sound.length >= 4 ? 'Four destinations at most' : !spare ? (onThisMac ? 'Press Find sound outputs to list the Mac\'s sound outputs' : 'Open this page in the Studio app to add one of the Mac\'s sound outputs') : 'Send this output\'s sound somewhere else as well, such as the commentators\' mixer';
-  $('outSoundAdd').onclick = () => { if (spare) setSound(so, [...so.sound, { device: spare, mics: [] }]); };
+  $<HTMLButtonElement>('outSoundAdd').disabled = soundAddOff;
+  $<HTMLButtonElement>('outSoundAdd').title = none ? 'No sound is picked: pick where the sound goes first' : so.sound.length >= 4 ? 'Four destinations at most' : !spare ? (onThisMac ? 'Press Find sound outputs to list the Mac\'s sound outputs' : 'Open this page in the Studio app to add one of the Mac\'s sound outputs') : 'Send this output\'s sound somewhere else as well, such as the commentators\' mixer';
+  $<HTMLButtonElement>('outSoundAdd').onclick = () => { if (spare) setSound(so, [...so.sound, { device: spare, mics: [] }]); };
   const key = JSON.stringify([so.id, so.mode, so.sound, so.soundState, soundDevices, mac.map(m => [m.id, m.name]), live]);
   if (key === soundWas) return;
   soundWas = key;
@@ -571,10 +589,10 @@ function showSound(so) {
       for (const m of mac) {
         const l = document.createElement('label');
         l.innerHTML = '<input type="checkbox"> <span></span>';
-        const c = l.querySelector('input');
+        const c = pick<HTMLInputElement>(l, 'input');
         c.checked = d.mics.includes(m.id);
         c.onchange = () => setSound(so, so.sound.map((x, j) => j === i ? { ...x, mics: mac.filter(y => y.id === m.id ? c.checked : x.mics.includes(y.id)).map(y => y.id) } : x));
-        l.querySelector('span').textContent = m.name;
+        pick(l, 'span').textContent = m.name;
         ticks.append(l);
       }
       row.append(ticks);
@@ -588,7 +606,7 @@ function showSound(so) {
       row.append(rm);
     }
     // How it's doing, while the output is on: from the copy's own window, or the Blackmagic output.
-    const s = (so.soundState || [])[i] || {};
+    const s: Partial<SoundDestState> = (so.soundState || [])[i] || {};
     const words = none ? (so.primary ? 'This output plays no sound, and as the music and the mics go out on Output 1 only, they\'re silent too.' : 'This output plays no sound.')
       : s.state === 'problem' ? s.error : !soundNamed(d.device) ? '' : !live ? 'Starts when this output is on.'
       : s.state === 'sending' ? `Sending${i && so.primary && mac.length && !d.mics.length ? ', with no mics' : ''}.` : 'Starting…';
@@ -601,35 +619,35 @@ function showSound(so) {
     box.append(row);
   });
 }
-$('outSoundFind').onclick = () => findSoundDevices(true);
+$<HTMLButtonElement>('outSoundFind').onclick = () => findSoundDevices(true);
 if (onThisMac) findSoundDevices(false);
 // Ticking Straight asks first: straight fill into a Pre Multiplied key leaves a light fringe round logos and text.
-$('outDlStraight').onchange = async () => {
-  const on = $('outDlStraight').checked;
+$<HTMLInputElement>('outDlStraight').onchange = async () => {
+  const on = $<HTMLInputElement>('outDlStraight').checked;
   if (on && !await askConfirm('Send a straight fill?', 'Premultiplied keys are much better if the switcher supports it (every ATEM does).\n\nTick Straight only if the switcher can\'t do a Pre Multiplied key: into one, Straight leaves a light fringe round logos and text.', { ok: 'Tick Straight' })) {
-    $('outDlStraight').checked = false;
+    $<HTMLInputElement>('outDlStraight').checked = false;
     return;
   }
   setOut({ decklinkStraight: on });
 };
-$('outNdiSignal').onchange = () => setOut({ ndiSignal: $('outNdiSignal').value });
-$('outNdiFormat').onchange = () => setOut({ ndiFormat: $('outNdiFormat').value });
-$('outNdiName').onchange = () => setOut({ ndiOwnName: true, ndiName: $('outNdiName').value });
+$<HTMLSelectElement>('outNdiSignal').onchange = () => setOut({ ndiSignal: $<HTMLSelectElement>('outNdiSignal').value });
+$<HTMLSelectElement>('outNdiFormat').onchange = () => setOut({ ndiFormat: $<HTMLSelectElement>('outNdiFormat').value });
+$<HTMLInputElement>('outNdiName').onchange = () => setOut({ ndiOwnName: true, ndiName: $<HTMLInputElement>('outNdiName').value });
 // Ticked: starts from the name the sources have now; unticked: they take the output's name again.
-$('outNdiOwn').onchange = () => {
+$<HTMLInputElement>('outNdiOwn').onchange = () => {
   const so = selectedOutput();
-  setOut($('outNdiOwn').checked ? { ndiOwnName: true, ndiName: so.ndiName || so.ndiSource } : { ndiOwnName: false });
+  setOut($<HTMLInputElement>('outNdiOwn').checked ? { ndiOwnName: true, ndiName: so?.ndiName || so?.ndiSource } : { ndiOwnName: false });
 };
-for (const b of document.querySelectorAll('[data-color]')) b.onclick = () => setOut({ chromaColor: b.dataset.color });
-$('outOn').onclick = () => setOut({ on: !(selectedOutput() && selectedOutput().on) });
-$('outName').onchange = () => setOut({ name: $('outName').value });
-$('outAdd').onclick = async () => {
+for (const b of document.querySelectorAll<HTMLElement>('[data-color]')) b.onclick = () => setOut({ chromaColor: b.dataset.color });
+$<HTMLButtonElement>('outOn').onclick = () => setOut({ on: !selectedOutput()?.on });
+$<HTMLInputElement>('outName').onchange = () => setOut({ name: $<HTMLInputElement>('outName').value });
+$<HTMLButtonElement>('outAdd').onclick = async () => {
   const before = new Set((out?.outputs || []).map(o => o.id));
   await setOut({ add: true });
   const added = (out?.outputs || []).find(o => !before.has(o.id));
   if (added) pickOutput(added.id);
 };
-$('outRemove').onclick = async () => {
+$<HTMLButtonElement>('outRemove').onclick = async () => {
   const so = selectedOutput();
   if (!so || so.primary) return;
   if (!await askConfirm(`Remove ${so.name}?`, `It stops sending, and its Stream Deck links stop working. The sources stay; only what was on for ${so.name} is forgotten.`, { ok: 'Remove', danger: true })) return;
@@ -639,16 +657,16 @@ $('outRemove').onclick = async () => {
 // ─── More than one output ─────────────────────────────────────────────
 // The cards above the setup (one per output, with its colour, what it sends to and an on/off), shown once
 // there's more than one. Picking a card picks that output here and in the Scene View.
-function renderOutputs(o, so) {
+function renderOutputs(o: OutputsState, so: OutputInfo) {
   const many = o.outputs.length > 1;
-  $('outAdd').classList.toggle('hidden', !o.app || o.outputs.length >= (o.max || 4));
+  $<HTMLButtonElement>('outAdd').classList.toggle('hidden', !o.app || o.outputs.length >= (o.max || 4));
   $('outList').classList.toggle('hidden', !many);
   for (const el of document.querySelectorAll('.forMulti')) el.classList.toggle('hidden', !many);
-  $('outRemove').classList.toggle('hidden', so.primary);
+  $<HTMLButtonElement>('outRemove').classList.toggle('hidden', so.primary);
   $('outExtraNote').classList.toggle('hidden', so.primary);
   for (const el of document.querySelectorAll('.forExtra')) el.classList.toggle('hidden', so.primary);
-  $('outSponsors').checked = !!so.sponsors;
-  if (document.activeElement !== $('outName')) $('outName').value = so.name;
+  $<HTMLInputElement>('outSponsors').checked = !!so.sponsors;
+  if (document.activeElement !== $<HTMLInputElement>('outName')) $<HTMLInputElement>('outName').value = so.name;
   document.documentElement.style.setProperty('--oc', many ? so.colour : 'transparent');
   $('outSection').classList.toggle('picked', many);
   const list = $('outList');
@@ -659,9 +677,9 @@ function renderOutputs(o, so) {
     card.className = 'outCard' + (x.id === so.id ? ' sel' : '');
     card.style.setProperty('--c', x.colour);
     card.innerHTML = '<span class="dot"></span><span class="what"><b></b> <small></small></span><button></button>';
-    card.querySelector('b').textContent = `${x.slot} · ${x.name}`;
-    const small = card.querySelector('small');
-    // With the switcher: "On air with Court" or "Waiting for Court" (output/switcher.js).
+    pick(card, 'b').textContent = `${x.slot} · ${x.name}`;
+    const small = pick(card, 'small');
+    // With the switcher: "On air with Court" or "Waiting for Court" (output/switcher.ts).
     const withCam = ((sw && sw.state === 'connected' && sw.keys) || []).find(k => k.output === x.id)?.withCamera;
     small.textContent = (x.clash ? `can't send (${x.clash} has it)` : outWhere(o, x)) + (x.picture && x.picture.uhd ? ' · 4K' : '') + (x.mode !== 'off' ? ` · Sound: ${soundWhere(x).text}` : '') + (withCam ? ` · ${withCam}` : '');
     if (x.perf) {
@@ -671,7 +689,7 @@ function renderOutputs(o, so) {
       small.appendChild(p);
     }
     const live = x.on && x.mode !== 'off';
-    const b = card.querySelector('button');
+    const b = pick<HTMLButtonElement>(card, 'button');
     b.textContent = live ? 'On' : 'Off';
     b.className = live ? 'onBtn' : 'alt';
     b.disabled = x.mode === 'off';
@@ -682,10 +700,10 @@ function renderOutputs(o, so) {
   }
 }
 // How hard an output is working (the app checks every 5 seconds while it's on).
-const perfText = p => `${p.cpu}% CPU, ${p.memMB} MB, ${p.fps} of ${p.target} fps`;
+const perfText = (p: Perf) => `${p.cpu}% CPU, ${p.memMB} MB, ${p.fps} of ${p.target} fps`;
 // Drawing well under its frame rate: the Mac isn't keeping up.
-const perfSlow = p => p.target > 0 && p.fps < p.target * 0.9;
-function renderPerf(o, so) {
+const perfSlow = (p: Perf) => p.target > 0 && p.fps < p.target * 0.9;
+function renderPerf(o: OutputsState, so: OutputInfo) {
   const el = $('outPerf');
   const t = o.perfTotal;
   el.classList.toggle('hidden', !so.perf && !t);
@@ -696,7 +714,7 @@ function renderPerf(o, so) {
   el.classList.toggle('slow', !!so.perf && perfSlow(so.perf));
 }
 // Picture: HD or 4K for every output at once (outputs.js quality), in the section's title row with the app.
-function renderQuality(o) {
+function renderQuality(o: OutputsState) {
   const q = o.quality || 'hd';
   $('outQuality').classList.toggle('hidden', !o.app);
   for (const b of $('outQuality').querySelectorAll('button')) {
@@ -707,7 +725,7 @@ function renderQuality(o) {
   // What will look soft in 4K, by name, so a bigger file can go in (outputs.js soft, from picturesize.ts).
   const soft = (o.app && q === 'uhd' && o.soft) || [];
   const logos = soft.filter(x => x.what === 'logo'), videos = soft.filter(x => x.what === 'video');
-  const name = x => `${esc(x.name)} (${x.width} × ${x.height})`;
+  const name = (x: { name: string; width: number; height: number }) => `${esc(x.name)} (${x.width} × ${x.height})`;
   $('outSoft').innerHTML = (logos.length ? `<b>Soft in 4K, logos under 1024 pixels:</b> ${logos.map(name).join(', ')}. Swap in a bigger file (1024 pixels or more, or an SVG). ` : '')
     + (videos.length ? `<b>Videos under 2160 pixels tall:</b> ${videos.map(name).join(', ')}. They're scaled up in 4K; a 4K export of each is sharp.` : '');
   $('outSoft').classList.toggle('hidden', !soft.length);
@@ -719,11 +737,11 @@ for (const b of $('outQuality').querySelectorAll('button')) b.onclick = () => { 
 // "Mac, not over NDI"); an added one by its device's name, with the Mac mics ticked for it. worst is how the
 // sound is doing ('off' while the output isn't on, else 'sending', 'waiting' or 'problem'), why the first problem.
 // No sound (an empty list) is "none".
-function soundWhere(x) {
+function soundWhere(x: OutputInfo) {
   const mics = micsOf();
   const parts = (x.sound || []).map((d, i) => {
     const name = d.device === 'own' ? (x.mode === 'decklink' ? 'SDI' : x.mode === 'ndi' ? 'Mac, not over NDI' : 'Mac') : d.device === 'mac' ? 'Mac' : d.device;
-    const ticked = i ? (d.mics || []).map(id => (mics.find(m => m.id === id) || {}).name).filter(Boolean) : [];
+    const ticked = i ? (d.mics || []).map(id => mics.find(m => m.id === id)?.name || '').filter(Boolean) : [];
     return { name, ticked, text: ticked.length ? `${name} (${ticked.join(', ')})` : name };
   });
   const st = x.soundState || [];
@@ -731,24 +749,24 @@ function soundWhere(x) {
   const worst = !st.length || st.every(d => d.state === 'off') ? 'off' : problem ? 'problem' : st.some(d => d.state === 'waiting') ? 'waiting' : 'sending';
   return { text: parts.map(p => p.text).join(' + ') || 'none', names: parts.map(p => p.name).join(' + '), parts, worst, why: problem ? problem.error : '' };
 }
-function outWhere(o, x) {
-  const disp = id => (o.displays.find(d => d.id === id) || {}).label || 'a display';
+function outWhere(o: OutputsState, x: OutputInfo) {
+  const disp = (id: string) => o.displays.find(d => d.id === id)?.label || 'a display';
   return x.mode === 'off' ? 'web links only'
     : x.mode === 'chroma' ? `chroma on ${disp(x.chromaDisplay)}`
     : x.mode === 'fillkey' ? `fill and key on ${disp(x.fillDisplay)} and ${disp(x.keyDisplay)}`
     : x.mode === 'decklink' ? 'Blackmagic, ' + (x.decklinkKeying === 'external' ? 'fill and key' : 'fill only')
-    : `NDI "${x.ndiSource}"` + { fillkey: ', fill and key', chroma: ', chroma', alpha: ', with transparency' }[x.ndiSignal];
+    : `NDI "${x.ndiSource}"` + (({ fillkey: ', fill and key', chroma: ', chroma', alpha: ', with transparency' } as Record<string, string>)[x.ndiSignal] || '');
 }
 
 // The Stream Deck plugin ships with the Mac app; opening it hands it to the Stream Deck app to install.
 fetch('/api/scene/streamdeck').then(r => r.json()).then(b => $('deckRow').classList.toggle('hidden', !b.available)).catch(() => {});
-$('deckInstall').onclick = async () => {
+$<HTMLButtonElement>('deckInstall').onclick = async () => {
   $('err').textContent = '';
   try {
     const r = await fetch('/api/scene/streamdeck', { method: 'POST' });
-    const body = await r.json();
+    const body: { error?: string } = await r.json();
     if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
-    $('deckInstall').textContent = 'Opened in the Stream Deck app';
+    $<HTMLButtonElement>('deckInstall').textContent = 'Opened in the Stream Deck app';
     console.log('Opened the Stream Deck plugin to install it');
-  } catch (err) { $('err').textContent = `Could not open the Stream Deck plugin: ${err.message}`; }
+  } catch (err) { $('err').textContent = `Could not open the Stream Deck plugin: ${err instanceof Error ? err.message : String(err)}`; }
 };

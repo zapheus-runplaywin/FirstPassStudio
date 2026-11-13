@@ -1,5 +1,5 @@
 // FirstPass Studio - playhqnet: what Studio's talk with PlayHQ costs, for the PlayHQ line above the score on the
-// Output page's status board (public/output/board.js, through /api/health playhq.net): how long PlayHQ took to answer
+// Output page's status board (public/output/board.ts, through /api/health playhq.net): how long PlayHQ took to answer
 // (the ping, timed on a real request), the download over the last minute, and everything downloaded since Studio
 // went on air (server.ts runs only while on air, so the count starts again each time).
 //

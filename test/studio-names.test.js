@@ -29,7 +29,11 @@ test('the Go menu and the menu bar icon use the tabs\' own names', () => {
 
 test('Studio\'s pages say "Scoreboard control" and "game night", not "the control page" or "game day"', () => {
   for (const f of ['output.html', 'planner.html', 'control.html', 'recordings.html', 'socials.html', 'setup.html', 'sponsors.html', 'athletes.html', 'api.html', 'devices.html']) {
-    const html = fs.readFileSync(path.join(__dirname, '..', 'public', f), 'utf8').replace(/<!--[\s\S]*?-->/g, '').replace(/^\s*\/\/.*$/gm, '');
+    // The page and its own script (public/<page>.ts, or the Output page's parts in public/output/).
+    const pub = path.join(__dirname, '..', 'public'), name = f.replace(/\.html$/, '');
+    const scripts = name === 'output' ? fs.readdirSync(path.join(pub, 'output')).filter(x => x.endsWith('.ts')).map(x => `output/${x}`)
+      : fs.existsSync(path.join(pub, `${name}.ts`)) ? [`${name}.ts`] : [];
+    const html = [f, ...scripts].map(x => fs.readFileSync(path.join(pub, x), 'utf8')).join('\n').replace(/<!--[\s\S]*?-->/g, '').replace(/^\s*\/\/.*$/gm, '');
     assert.doesNotMatch(html, /control page/i, `${f} says "control page"`);
     assert.doesNotMatch(html, /[Gg]ame day/, `${f} says "game day"`);
   }

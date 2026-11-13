@@ -1,4 +1,4 @@
-// The Run order panel on the Output page (public/output/runorder.js): Add… queues scenes and sequences, Play next
+// The Run order panel on the Output page (public/output/runorder.ts): Add… queues scenes and sequences, Play next
 // plays the head and the list moves on, a sequence that ends plays what's queued after it, the board's Run order line and the
 // bar's Run order chip say what Play next plays and what follows, and Saved… keeps tonight's order under a name.
 const test = require('node:test');

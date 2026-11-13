@@ -5,24 +5,24 @@
 // ─── Switcher ──────────────────────────────────────────────────────────
 // What switcher.ts says (over the scene's socket, as it changes): whether one is set up and answering, its
 // inputs (red on program, green on preview) and its upstream and downstream keys (red while on air).
-let sw = null;
+let sw: SwitcherState | null = null;
 let swFormOpen = false;
 let swWithCams = ''; // the output cards' On air with ... as last drawn
-const swTime = ms => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-async function swPost(path, body) {
+const swTime = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+async function swPost(path: string, body?: Record<string, unknown>): Promise<(Partial<SwitcherState> & { error?: string }) | undefined> {
   $('swErr').textContent = '';
   try {
     const res = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}) });
-    const json = await res.json();
-    if (!res.ok) $('swErr').textContent = json.error || res.statusText;
+    const json: (SwitcherState & { error?: string }) | null = await res.json();
+    if (!res.ok) $('swErr').textContent = json?.error || res.statusText;
     // A refusal's error is why it was refused, not the connection's, so it isn't drawn as the switcher's state. Nor
     // is an answer older than what the scene's socket has drawn since (connected while the answer was on its way).
     else if (json && json.state && !(sw && json.rev < sw.rev)) showSwitcher(json);
-    return json;
-  } catch (err) { $('swErr').textContent = `Studio isn't answering: ${err.message}`; }
+    return json || undefined;
+  } catch (err) { $('swErr').textContent = `Studio isn't answering: ${err instanceof Error ? err.message : String(err)}`; }
 }
-const swDo = body => swPost('/api/switcher', body);
-function swButton(text, cls, title, onclick) {
+const swDo = (body: Record<string, unknown>) => swPost('/api/switcher', body);
+function swButton(text: string, cls: string, title: string, onclick: () => void) {
   const b = document.createElement('button');
   b.textContent = text;
   if (cls) b.className = cls;
@@ -30,7 +30,7 @@ function swButton(text, cls, title, onclick) {
   b.onclick = onclick;
   return b;
 }
-function showSwitcher(s) {
+function showSwitcher(s: SwitcherState) {
   sw = s;
   const live = s.state === 'connected';
   const name = s.pick ? s.pick.name || s.pick.address : '';
@@ -41,11 +41,11 @@ function showSwitcher(s) {
     : ['bad', `<span class="badText">${hEsc(name)} not answering since ${swTime(s.since)}${s.error && s.error !== 'Not answering' ? ` (${hEsc(s.error)})` : ''}, trying again</span>`];
   $('swDot').className = `hdot ${dot}`;
   $('swText').innerHTML = text;
-  $('swRetry').classList.toggle('hidden', !s.setUp || live || s.state === 'connecting');
-  $('swSetup').textContent = swFormOpen ? 'Done' : s.setUp ? 'Change' : 'Set up';
+  $<HTMLButtonElement>('swRetry').classList.toggle('hidden', !s.setUp || live || s.state === 'connecting');
+  $<HTMLButtonElement>('swSetup').textContent = swFormOpen ? 'Done' : s.setUp ? 'Change' : 'Set up';
   $('swLive').classList.toggle('hidden', !live);
   if (live) {
-    const plural = (n, one) => `${n === 1 ? 'one' : n} ${one}${n === 1 ? '' : 's'}`;
+    const plural = (n: number, one: string) => `${n === 1 ? 'one' : n} ${one}${n === 1 ? '' : 's'}`;
     $('swHas').textContent = `${s.inputs.length} inputs, ${plural(s.usk.length, 'upstream key')}, ${plural(s.dsk.length, 'downstream key')}`
       + `${s.ftb ? ' · faded to black' : ''}${s.inTransition ? ' · in a transition' : ''}`;
     const box = $('swInputs');
@@ -58,27 +58,27 @@ function showSwitcher(s) {
     // the cut underneath, and that output's line-up.
     const on = (s.stingerOutput || {}).name || 'Output 1';
     const off = s.stingerOutput && s.stingerOutput.on === false;
-    $('swStinger').disabled = !s.stinger;
-    $('swStinger').title = s.stinger ? `Play "${s.stinger}" on ${on} and cut to the preview input underneath it` : 'Add the Stinger page as a source first (+ Add, Studio pages)';
-    $('swLineupTest').disabled = !s.stinger;
+    $<HTMLButtonElement>('swStinger').disabled = !s.stinger;
+    $<HTMLButtonElement>('swStinger').title = s.stinger ? `Play "${s.stinger}" on ${on} and cut to the preview input underneath it` : 'Add the Stinger page as a source first (+ Add, Studio pages)';
+    $<HTMLButtonElement>('swLineupTest').disabled = !s.stinger;
     $('swLineupLabel').textContent = `line-up for ${on}`;
     $('swStingerName').textContent = off ? `${on} is off: turn it on for stinger cuts. Until then a stinger is a plain cut, 3 s late.`
       : s.stinger ? `"${s.stinger}" on ${on}, cut in the middle of its cover (from its own settings), at ${s.fps} frames a second`
       : 'Add the Stinger page as a source to cut under it; without one, a stinger is an auto.';
-    if (document.activeElement !== $('swLineup')) $('swLineup').value = s.lineup || 0;
+    if (document.activeElement !== $<HTMLInputElement>('swLineup')) $<HTMLInputElement>('swLineup').value = String(s.lineup || 0);
     // Music under it: the stinger source's own Music option (?music=), set here beside the button that plays it.
-    $('swStingerMusic').disabled = !s.stingerId;
-    $('swStingerMusic').dataset.id = s.stingerId || '';
-    if (document.activeElement !== $('swStingerMusic')) $('swStingerMusic').value = s.stingerMusic || '';
-    $('swFtb').classList.toggle('on', s.ftb);
-    $('swFtb').textContent = s.ftb ? 'Faded to black' : 'Fade to black';
+    $<HTMLSelectElement>('swStingerMusic').disabled = !s.stingerId;
+    $<HTMLSelectElement>('swStingerMusic').dataset.id = s.stingerId || '';
+    if (document.activeElement !== $<HTMLSelectElement>('swStingerMusic')) $<HTMLSelectElement>('swStingerMusic').value = s.stingerMusic || '';
+    $<HTMLButtonElement>('swFtb').classList.toggle('on', s.ftb);
+    $<HTMLButtonElement>('swFtb').textContent = s.ftb ? 'Faded to black' : 'Fade to black';
     $('swUskLabel').classList.toggle('hidden', !s.usk.length);
     $('swDskLabel').classList.toggle('hidden', !s.dsk.length);
     const usk = $('swUsk'), dsk = $('swDsk');
     usk.innerHTML = '';
     dsk.innerHTML = '';
     // A key an output comes into is underlined in its colour, and says whose it is.
-    const keyButton = (b, keyer) => {
+    const keyButton = (b: HTMLButtonElement, keyer: string) => {
       const o = (s.keys || []).find(x => x.keyer === keyer);
       if (o) { b.classList.add('outKey'); b.style.setProperty('--c', o.colour); b.title = `${o.name}'s key. ${b.title}${o.withCamera ? ` · ${o.withCamera}` : ''}`; }
       return b;
@@ -89,18 +89,18 @@ function showSwitcher(s) {
       dsk.appendChild(swButton('Auto', 'alt', `Downstream key ${k + 1} ${on ? 'off' : 'on'} at its own rate`, () => swDo({ type: 'dsk', key: k + 1, on: 'auto' })));
     });
   }
-  $('swFollow').checked = s.follow !== false;
+  $<HTMLInputElement>('swFollow').checked = s.follow !== false;
   const paired = (s.keys || []).filter(k => k.cameras && k.cameras.length);
   $('swFollowNote').textContent = paired.length ? paired.map(k => `${k.name}: ${k.withCamera}`).join(' · ')
     : 'Pick the cameras an output goes with (under Video output, Into the switcher as) and its key comes on with them.';
   // Picking the switcher: what was found on the network, or a typed address.
   $('swForm').classList.toggle('hidden', !swFormOpen);
-  $('swForget').classList.toggle('hidden', !s.setUp);
-  $('swFind').disabled = s.finding || !s.canFind;
-  $('swFind').textContent = s.finding ? 'Looking…' : 'Look for switchers';
+  $<HTMLButtonElement>('swForget').classList.toggle('hidden', !s.setUp);
+  $<HTMLButtonElement>('swFind').disabled = s.finding || !s.canFind;
+  $<HTMLButtonElement>('swFind').textContent = s.finding ? 'Looking…' : 'Look for switchers';
   $('swFindNote').textContent = !s.canFind ? 'Looking for switchers needs a Mac: type its address instead.'
     : s.finding ? '' : s.found.length ? '' : 'None found yet. Is the switcher on, and on the same network as this Mac?';
-  const list = $('swFound');
+  const list = $<HTMLUListElement>('swFound');
   list.innerHTML = '';
   for (const f of s.found) {
     const li = document.createElement('li');
@@ -110,71 +110,74 @@ function showSwitcher(s) {
     li.appendChild(using ? Object.assign(document.createElement('span'), { textContent: 'In use', className: 'note' }) : swButton('Use this one', '', '', () => swDo({ type: 'use', name: f.name })));
     list.appendChild(li);
   }
-  if (document.activeElement !== $('swAddress') && s.pick && s.pick.kind === 'address') $('swAddress').value = s.pick.port === 9910 ? s.pick.address : `${s.pick.address}:${s.pick.port}`;
+  if (document.activeElement !== $<HTMLInputElement>('swAddress') && s.pick && s.pick.kind === 'address') $<HTMLInputElement>('swAddress').value = s.pick.port === 9910 ? s.pick.address : `${s.pick.address}:${s.pick.port}`;
   swOutKey();
   // The output cards say On air with Court: redrawn only when that changes, not on every cut.
   const withCams = (s.keys || []).map(k => `${k.output}:${k.withCamera}`).join('|');
-  if (withCams !== swWithCams && out && out.outputs) { swWithCams = withCams; renderOutputs(out, selectedOutput()); }
+  const so = selectedOutput();
+  if (withCams !== swWithCams && out && so) { swWithCams = withCams; renderOutputs(out, so); }
 }
-$('swSetup').onclick = () => {
+$<HTMLButtonElement>('swSetup').onclick = () => {
   swFormOpen = !swFormOpen;
   if (sw) showSwitcher(sw);
   if (swFormOpen && sw && sw.canFind && !sw.found.length) swPost('/api/switcher/find');
 };
-$('swFind').onclick = () => { showSwitcher({ ...sw, finding: true }); swPost('/api/switcher/find'); };
-$('swUseAddress').onclick = () => swDo({ type: 'use', address: $('swAddress').value });
-$('swAddress').onkeydown = e => { if (e.key === 'Enter') $('swUseAddress').click(); };
-$('swForget').onclick = async () => { if (await askConfirm('Forget this switcher?', 'Studio stops controlling it until you pick it again.', { ok: 'Forget', danger: true })) swDo({ type: 'forget' }); };
-$('swRetry').onclick = () => swDo({ type: 'reconnect' });
-$('swCut').onclick = () => swDo({ type: 'cut' });
-$('swAuto').onclick = () => swDo({ type: 'auto' });
-$('swStinger').onclick = () => swDo({ type: 'stinger' });
-$('swStingerMusic').onchange = () => {
-  const src = scene && scene.sources.find(x => x.id === $('swStingerMusic').dataset.id);
+$<HTMLButtonElement>('swFind').onclick = () => { if (sw) showSwitcher({ ...sw, finding: true }); swPost('/api/switcher/find'); };
+$<HTMLButtonElement>('swUseAddress').onclick = () => swDo({ type: 'use', address: $<HTMLInputElement>('swAddress').value });
+$<HTMLInputElement>('swAddress').onkeydown = e => { if (e.key === 'Enter') $<HTMLButtonElement>('swUseAddress').click(); };
+$<HTMLButtonElement>('swForget').onclick = async () => { if (await askConfirm('Forget this switcher?', 'Studio stops controlling it until you pick it again.', { ok: 'Forget', danger: true })) swDo({ type: 'forget' }); };
+$<HTMLButtonElement>('swRetry').onclick = () => swDo({ type: 'reconnect' });
+$<HTMLButtonElement>('swCut').onclick = () => swDo({ type: 'cut' });
+$<HTMLButtonElement>('swAuto').onclick = () => swDo({ type: 'auto' });
+$<HTMLButtonElement>('swStinger').onclick = () => swDo({ type: 'stinger' });
+$<HTMLSelectElement>('swStingerMusic').onchange = () => {
+  const src = scene && scene.sources.find(x => x.id === $<HTMLSelectElement>('swStingerMusic').dataset.id);
   if (!src) return;
   const [path, query = ''] = String(src.url).split('?');
   const q = new URLSearchParams(query);
-  if ($('swStingerMusic').value) q.set('music', $('swStingerMusic').value); else q.delete('music');
+  if ($<HTMLSelectElement>('swStingerMusic').value) q.set('music', $<HTMLSelectElement>('swStingerMusic').value); else q.delete('music');
   const qs = q.toString();
   act({ type: 'update', id: src.id, changes: { url: path + (qs ? '?' + qs : '') } });
 };
-$('swLineup').onchange = () => swDo({ type: 'lineup', frames: Number($('swLineup').value) || 0 });
-$('swLineupTest').onclick = async () => {
-  const on = (sw && sw.stingerOutput || {}).name || 'Output 1';
+$<HTMLInputElement>('swLineup').onchange = () => swDo({ type: 'lineup', frames: Number($<HTMLInputElement>('swLineup').value) || 0 });
+$<HTMLButtonElement>('swLineupTest').onclick = async () => {
+  const on = sw?.stingerOutput.name || 'Output 1';
   if (await askConfirm('Test the line-up?', `This plays the stinger on ${on} and cuts program to the preview input, 2 frames after the stinger covers the frame. Do it before you're live. If you see the old picture before the bands cover it, add frames; if the bands are late on screen, take frames off.`, { ok: 'Test' })) swDo({ type: 'lineupTest' });
 };
-$('swFtb').onclick = () => swDo({ type: 'ftb' });
+$<HTMLButtonElement>('swFtb').onclick = () => swDo({ type: 'ftb' });
 
 // ─── Into the switcher as: the output's key on the switcher ──────────────
 // In the Video output setup (drawn here, as it needs the switcher): the key the picked output comes into (the usual
 // one: Output 1 on downstream key 1, the others on upstream keys 2 to 4, a chroma output on an upstream key) and
 // the inputs its fill and key are plugged into. switcher.ts checks that key's settings in the switcher against what
 // the output sends; Set up this key for me changes them (only when pressed). Called when the switcher or the outputs change.
-const SW_KEYERS = [['dsk1', 'Downstream key 1'], ['dsk2', 'Downstream key 2'], ['usk1', 'Upstream key 1'], ['usk2', 'Upstream key 2'], ['usk3', 'Upstream key 3'], ['usk4', 'Upstream key 4']];
+const SW_KEYERS: [string, string][] = [['dsk1', 'Downstream key 1'], ['dsk2', 'Downstream key 2'], ['usk1', 'Upstream key 1'], ['usk2', 'Upstream key 2'], ['usk3', 'Upstream key 3'], ['usk4', 'Upstream key 4']];
 function swOutKey() {
   const so = selectedOutput();
   const show = !!so && so.mode !== 'off';
   for (const el of document.querySelectorAll('.forSw')) el.classList.toggle('hidden', !show);
-  if (!show) return;
+  if (!so || !show) return;
   const live = swLive();
+  const ls = live ? sw : null;
   const chroma = so.signal === 'chroma';
   const none = so.keyerNow === 'none';
-  const has = k => !live || (k.startsWith('usk') ? sw.usk.length : sw.dsk.length) >= Number(k.slice(3));
+  const has = (k: string) => !ls || (k.startsWith('usk') ? ls.usk.length : ls.dsk.length) >= Number(k.slice(3));
   const usual = SW_KEYERS.find(([k]) => k === (chroma || !so.primary ? `usk${so.slot}` : 'dsk1'));
-  const keyers = [['', `The usual (${usual ? usual[1] : 'Upstream key'})`], ...SW_KEYERS.map(([k, t]) => [k, has(k) ? t : `${t} (not on the ${sw.model})`]),
+  const keyers: [string, string][] = [['', `The usual (${usual ? usual[1] : 'Upstream key'})`], ...SW_KEYERS.map(([k, t]): [string, string] => [k, has(k) ? t : `${t} (not on the ${ls?.model})`]),
     ['none', 'Not keyed by the switcher']];
-  const sel = $('outKeyer');
+  const sel = $<HTMLSelectElement>('outKeyer');
   const keyersKey = keyers.map(x => x.join(':')).join('|');
   if (sel.dataset.k !== keyersKey) { sel.innerHTML = keyers.map(([v, t]) => `<option value="${v}">${hEsc(t)}</option>`).join(''); sel.dataset.k = keyersKey; }
   sel.value = so.keyer || '';
   // The switcher's inputs (cameras and other things plugged in), or Input 1 to 8 until it's connected.
-  const inputs = live ? sw.inputs.map(i => [i.id, `${i.id} · ${i.name}`]) : Array.from({ length: 8 }, (_, k) => [k + 1, `Input ${k + 1}`]);
-  const fillIn = (id, value) => {
-    const opts = [[0, 'Pick an input'], ...inputs];
+  const inputs: [number, string][] = ls ? ls.inputs.map((i): [number, string] => [i.id, `${i.id} · ${i.name}`]) : Array.from({ length: 8 }, (_, k): [number, string] => [k + 1, `Input ${k + 1}`]);
+  const fillIn = (id: string, value: number) => {
+    const opts: [number, string][] = [[0, 'Pick an input'], ...inputs];
     if (value && !opts.some(([v]) => v === value)) opts.push([value, `Input ${value} (not on this switcher)`]);
     const html = opts.map(([v, t]) => `<option value="${v}">${hEsc(t)}</option>`).join('');
-    if ($(id).dataset.k !== html) { $(id).innerHTML = html; $(id).dataset.k = html; }
-    $(id).value = String(value || 0);
+    const sel = $<HTMLSelectElement>(id);
+    if (sel.dataset.k !== html) { sel.innerHTML = html; sel.dataset.k = html; }
+    sel.value = String(value || 0);
   };
   fillIn('outSwFill', so.swFill);
   fillIn('outSwKey', so.swKey);
@@ -182,9 +185,9 @@ function swOutKey() {
   for (const el of document.querySelectorAll('.forSwIn')) el.classList.toggle('hidden', none);
   for (const el of document.querySelectorAll('.forSwKey')) el.classList.toggle('hidden', none || chroma);
   // The check, from switcher.ts.
-  const c = live ? (sw.keys || []).find(k => k.output === so.id) : null;
+  const c = ls ? (ls.keys || []).find(k => k.output === so.id) : null;
   const box = $('outKeyCheck');
-  let html;
+  let html: string;
   if (none) html = 'Studio leaves the switcher\'s keys alone for this output.';
   else if (!sw || !sw.setUp) html = 'Set up the switcher (under Switcher, below) and Studio checks the key\'s settings for this output.';
   else if (!live) html = 'Studio checks the key\'s settings once the switcher is answering.';
@@ -193,14 +196,14 @@ function swOutKey() {
   else if (c.fixes.length) html = `<span class="badText">${hEsc(c.label)} isn't set up for ${hEsc(so.name)}:</span><ul>${c.fixes.map(f => `<li>${hEsc(f)}</li>`).join('')}</ul>`;
   else html = `<span class="okText">✓ ${hEsc(c.label)} is set up for ${hEsc(so.name)}</span>${chroma ? ': pick the key colour with ATEM Software Control\'s sample picker' : ''}.`;
   box.innerHTML = html;
-  $('outKeySetup').classList.toggle('hidden', !c || !c.fixes.length || !!c.problems.length);
-  $('outKeySetup').title = c && c.fixes.length ? `Changes ${c.label} on the switcher: ${c.fixes.join('; ')}` : '';
+  $<HTMLButtonElement>('outKeySetup').classList.toggle('hidden', !c || !c.fixes.length || !!c.problems.length);
+  $<HTMLButtonElement>('outKeySetup').title = c && c.fixes.length ? `Changes ${c.label} on the switcher: ${c.fixes.join('; ')}` : '';
   // The cameras it goes with, for an output on an upstream key (a downstream key is over every camera).
   const usk = !none && so.keyerNow.startsWith('usk');
   for (const el of document.querySelectorAll('.forSwCams')) el.classList.toggle('hidden', !usk);
   if (usk) {
     // Every input but the outputs' own fills and keys.
-    const taken = new Set(out.outputs.flatMap(x => [x.swFill, x.swKey]).filter(Boolean));
+    const taken = new Set((out?.outputs || []).flatMap(x => [x.swFill, x.swKey]).filter(Boolean));
     const cams = inputs.filter(([id]) => !taken.has(id));
     for (const id of so.swCameras || []) if (!cams.some(([v]) => v === id)) cams.push([id, `Input ${id} (not on this switcher)`]);
     const html = cams.map(([id, t]) => `<label><input type="checkbox" value="${id}"${(so.swCameras || []).includes(id) ? ' checked' : ''}> ${hEsc(t)}</label>`).join('');
@@ -208,38 +211,40 @@ function swOutKey() {
     if (box.dataset.k !== html) {
       box.innerHTML = html;
       box.dataset.k = html;
-      for (const cb of box.querySelectorAll('input')) cb.onchange = () => setOut({ swCameras: [...box.querySelectorAll('input:checked')].map(x => Number(x.value)) });
+      for (const cb of box.querySelectorAll('input')) cb.onchange = () => setOut({ swCameras: [...box.querySelectorAll<HTMLInputElement>('input:checked')].map(x => Number(x.value)) });
     }
     $('outSwCamsNote').textContent = !(so.swCameras || []).length ? 'No cameras picked: Studio leaves this key alone. Pick some and Studio\'s cuts take the key on with them and off with the others.'
       : `${c && c.withCamera ? `${c.withCamera}. ` : ''}Studio's cuts, autos and stingers take the key on with these cameras and off with the others, on the same frame${sw && sw.follow === false ? '' : ', and it follows cuts made on the switcher a frame or two later (Keys follow the camera)'}.`;
   }
   // These change nothing being sent, so they stay free while the output is on.
-  for (const el of document.querySelectorAll('#outKeyer, #outSwFill, #outSwKey, #outKeySetup, #outSwCams input')) el.disabled = false;
+  for (const el of document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLButtonElement>('#outKeyer, #outSwFill, #outSwKey, #outKeySetup, #outSwCams input')) el.disabled = false;
 }
-$('outKeyer').onchange = () => setOut({ keyer: $('outKeyer').value });
-$('swFollow').onchange = () => swDo({ type: 'follow', on: $('swFollow').checked });
-$('outSwFill').onchange = () => setOut({ swFill: Number($('outSwFill').value) || 0 });
-$('outSwKey').onchange = () => setOut({ swKey: Number($('outSwKey').value) || 0 });
-$('outKeySetup').onclick = async () => {
+$<HTMLSelectElement>('outKeyer').onchange = () => setOut({ keyer: $<HTMLSelectElement>('outKeyer').value });
+$<HTMLInputElement>('swFollow').onchange = () => swDo({ type: 'follow', on: $<HTMLInputElement>('swFollow').checked });
+$<HTMLSelectElement>('outSwFill').onchange = () => setOut({ swFill: Number($<HTMLSelectElement>('outSwFill').value) || 0 });
+$<HTMLSelectElement>('outSwKey').onchange = () => setOut({ swKey: Number($<HTMLSelectElement>('outSwKey').value) || 0 });
+$<HTMLButtonElement>('outKeySetup').onclick = async () => {
   const so = selectedOutput();
   const c = so && sw && (sw.keys || []).find(k => k.output === so.id);
   if (!c) return;
   const air = c.onAir ? `\n\n${c.label} is on air now, so the change shows on the programme straight away.` : '';
   const restart = c.want && c.want.straightOff && so.on ? `\n\nUnticking Straight restarts ${so.name}'s Blackmagic output, so its picture drops for a moment.` : '';
-  if (await askConfirm(`Set up ${c.label} on the ${sw.model} for ${so.name}?`, `${c.fixes.join('\n')}\n\nIts clip, gain, mask and position are left as they are, and so is whether it's on air.${air}${restart}`, { ok: 'Set it up' })) swDo({ type: 'keySetup', output: so.id });
+  if (await askConfirm(`Set up ${c.label} on the ${sw?.model} for ${so.name}?`, `${c.fixes.join('\n')}\n\nIts clip, gain, mask and position are left as they are, and so is whether it's on air.${air}${restart}`, { ok: 'Set it up' })) swDo({ type: 'keySetup', output: so.id });
 };
 
 // ─── Switcher actions on sequence steps and scenes ───────────────────────
 // A step or a scene can carry up to 8 (switcher.ts cleanActions): cut or auto to an input, an input on
 // preview, a key on or off, fade to black, a macro, each as it starts or some seconds in. The editor offers
 // what the connected switcher has; what it hasn't is greyed with the reason, and skipped if it's saved.
-const SW_TYPES = [['cut', 'Cut to'], ['auto', 'Auto to'], ['stinger', 'Stinger to'], ['preview', 'Put on preview'], ['usk', 'Upstream key'], ['dsk', 'Downstream key'], ['ftb', 'Fade to black'], ['macro', 'Run macro']];
+const SW_TYPES: [string, string][] = [['cut', 'Cut to'], ['auto', 'Auto to'], ['stinger', 'Stinger to'], ['preview', 'Put on preview'], ['usk', 'Upstream key'], ['dsk', 'Downstream key'], ['ftb', 'Fade to black'], ['macro', 'Run macro']];
 const SW_MAX = 8;
 const swLive = () => !!sw && sw.state === 'connected';
-const swCount = (n, one) => `${n === 1 ? 'one' : n || 'no'} ${one}${n === 1 ? '' : 's'}`;
-const swInputName = a => { const i = swLive() && sw.inputs.find(x => x.id === a.input); return i ? i.name : a.name || `Input ${a.input}`; };
+// The switcher while it's answering, with its inputs and keys; else null.
+const swNow = () => sw && sw.state === 'connected' ? sw : null;
+const swCount = (n: number, one: string) => `${n === 1 ? 'one' : n || 'no'} ${one}${n === 1 ? '' : 's'}`;
+const swInputName = (a: SwAction) => { const i = swNow()?.inputs.find(x => x.id === a.input); return i ? i.name : a.name || `Input ${a.input}`; };
 // One action in words ("Cut to Court", "DSK 1 on (auto) at 2 s").
-function swActText(a) {
+function swActText(a: SwAction) {
   const to = a.input ? swInputName(a) : 'preview';
   const what = a.type === 'cut' ? `Cut to ${to}` : a.type === 'auto' ? `Auto to ${to}` : a.type === 'stinger' ? `Stinger to ${to}` : a.type === 'preview' ? `${swInputName(a)} on preview`
     : a.type === 'usk' ? `Key ${a.key} ${a.on}` : a.type === 'dsk' ? `DSK ${a.key} ${a.on}${a.mix ? ' (auto)' : ''}`
@@ -247,27 +252,30 @@ function swActText(a) {
   return a.atSec ? `${what} at ${a.atSec} s` : what;
 }
 // Why the connected switcher can't do an action (so it's skipped), or ''.
-function swProblem(a) {
-  if (!swLive()) return '';
+function swProblem(a: SwAction) {
+  const sw = swNow();
+  if (!sw) return '';
   if (a.input && !sw.inputs.some(i => i.id === a.input)) return `The ${sw.model} has no input ${a.input}, so this is skipped.`;
   const keys = a.type === 'usk' ? sw.usk.length : a.type === 'dsk' ? sw.dsk.length : null;
   const label = a.type === 'usk' ? 'upstream key' : 'downstream key';
-  if (keys !== null && a.key > keys) return `The ${sw.model} has ${swCount(keys, label)}, so ${label} ${a.key} is skipped.`;
+  if (keys !== null && (a.key || 0) > keys) return `The ${sw.model} has ${swCount(keys, label)}, so ${label} ${a.key} is skipped.`;
   return '';
 }
 // 🎥 beside a scene's name, or on a step, with what it does to the switcher.
-function switcherMark(list) {
+function switcherMark(list: SwAction[]) {
   const m = Object.assign(document.createElement('span'), { textContent: ' 🎥', className: 'swMark' + (list.some(swProblem) ? ' bad' : '') });
   const text = `Switcher: ${list.map(swActText).join(', ')}`;
   m.title = text;
   m.setAttribute('role', 'img'); m.setAttribute('aria-label', text);
   return m;
 }
-function swSelect(label, options, value, onchange) {
+// A choice: its value, its words, and greyed out with why.
+type SwOption = [string | number, string, boolean?, string?];
+function swSelect(label: string, options: SwOption[], value: unknown, onchange: (v: string) => void) {
   const sel = document.createElement('select');
   sel.setAttribute('aria-label', label);
   for (const [v, text, disabled, title] of options) {
-    const o = new Option(text, v);
+    const o = new Option(text, String(v));
     if (disabled) { o.disabled = true; o.title = title || ''; }
     sel.add(o);
   }
@@ -276,20 +284,20 @@ function swSelect(label, options, value, onchange) {
   return sel;
 }
 // The editor for a list of actions, changed in place; redraw() after a change that alters its rows.
-function switcherEditor(list, redraw) {
+function switcherEditor(list: SwAction[], redraw: () => void) {
   const box = document.createElement('div');
   box.className = 'swActs';
-  const live = swLive();
-  const inputs = live ? sw.inputs.map(i => [i.id, i.name]) : Array.from({ length: 8 }, (_, k) => [k + 1, `Input ${k + 1}`]);
+  const sw = swNow(), live = !!sw;
+  const inputs: [number, string][] = sw ? sw.inputs.map((i): [number, string] => [i.id, i.name]) : Array.from({ length: 8 }, (_, k): [number, string] => [k + 1, `Input ${k + 1}`]);
   list.forEach((a, n) => {
     const row = document.createElement('div');
     row.className = 'swAct';
-    const types = SW_TYPES.map(([v, text]) => {
-      const none = live && ((v === 'usk' && !sw.usk.length) || (v === 'dsk' && !sw.dsk.length));
-      return [v, text, none, none ? `The ${sw.model} has no ${v === 'usk' ? 'upstream' : 'downstream'} keys` : ''];
+    const types = SW_TYPES.map(([v, text]): SwOption => {
+      const none = !!sw && ((v === 'usk' && !sw.usk.length) || (v === 'dsk' && !sw.dsk.length));
+      return [v, text, none, none ? `The ${sw?.model} has no ${v === 'usk' ? 'upstream' : 'downstream'} keys` : ''];
     });
     row.appendChild(swSelect('Switcher action', types, a.type, v => {
-      for (const k of ['input', 'name', 'key', 'on', 'mix', 'macro']) delete a[k];
+      delete a.input; delete a.name; delete a.key; delete a.on; delete a.mix; delete a.macro;
       a.type = v;
       if (v === 'preview') { a.input = inputs[0][0]; a.name = inputs[0][1]; }
       if (v === 'usk' || v === 'dsk') { a.key = 1; a.on = 'on'; }
@@ -298,7 +306,7 @@ function switcherEditor(list, redraw) {
       redraw();
     }));
     if (['cut', 'auto', 'stinger', 'preview'].includes(a.type)) {
-      const opts = inputs.map(([id, name]) => [id, name]);
+      const opts: SwOption[] = inputs.map(([id, name]): SwOption => [id, name]);
       if (a.input && !opts.some(([id]) => id === a.input)) opts.push([a.input, `${a.name || `Input ${a.input}`} (not on this switcher)`]);
       if (a.type !== 'preview') opts.unshift(['', "what's on preview"]);
       row.appendChild(swSelect('Input', opts, a.input || '', v => {
@@ -306,8 +314,8 @@ function switcherEditor(list, redraw) {
         redraw();
       }));
     } else if (a.type === 'usk' || a.type === 'dsk') {
-      const have = live ? (a.type === 'usk' ? sw.usk.length : sw.dsk.length) : (a.type === 'usk' ? 4 : 2);
-      const keys = Array.from({ length: Math.max(have, a.key || 1) }, (_, k) => [k + 1, `${a.type === 'usk' ? 'Key' : 'DSK'} ${k + 1}`, k >= have, live ? `The ${sw.model} hasn't this key` : '']);
+      const have = sw ? (a.type === 'usk' ? sw.usk.length : sw.dsk.length) : (a.type === 'usk' ? 4 : 2);
+      const keys = Array.from({ length: Math.max(have, a.key || 1) }, (_, k): SwOption => [k + 1, `${a.type === 'usk' ? 'Key' : 'DSK'} ${k + 1}`, k >= have, sw ? `The ${sw.model} hasn't this key` : '']);
       row.appendChild(swSelect('Key', keys, a.key, v => { a.key = Number(v); redraw(); }));
       row.appendChild(swSelect('On or off', [['on', 'on'], ['off', 'off'], ['toggle', 'toggle']], a.on, v => { a.on = v; }));
       if (a.type === 'dsk') {
@@ -320,14 +328,14 @@ function switcherEditor(list, redraw) {
     } else if (a.type === 'ftb') {
       row.appendChild(swSelect('Fade', [['on', 'Fade to black'], ['off', 'Fade back from black']], a.on, v => { a.on = v; }));
     } else if (a.type === 'macro') {
-      const num = Object.assign(document.createElement('input'), { type: 'number', min: 1, max: 100, value: a.macro || 1 });
+      const num = Object.assign(document.createElement('input'), { type: 'number', min: '1', max: '100', value: String(a.macro || 1) });
       num.setAttribute('aria-label', 'Macro number');
-      num.onchange = () => { a.macro = Math.max(1, Math.min(100, Math.round(Number(num.value) || 1))); num.value = a.macro; };
+      num.onchange = () => { a.macro = Math.max(1, Math.min(100, Math.round(Number(num.value) || 1))); num.value = String(a.macro); };
       row.appendChild(num);
     }
     const at = Object.assign(document.createElement('label'), { className: 'note', title: 'Seconds after the step starts or the scene is picked (0: straight away)' });
-    const sec = Object.assign(document.createElement('input'), { type: 'number', min: 0, max: 60, step: 0.1, value: a.atSec || 0 });
-    sec.onchange = () => { a.atSec = Math.round(Math.max(0, Math.min(60, Number(sec.value) || 0)) * 10) / 10; sec.value = a.atSec; };
+    const sec = Object.assign(document.createElement('input'), { type: 'number', min: '0', max: '60', step: '0.1', value: String(a.atSec || 0) });
+    sec.onchange = () => { a.atSec = Math.round(Math.max(0, Math.min(60, Number(sec.value) || 0)) * 10) / 10; sec.value = String(a.atSec); };
     at.append('at ', sec, ' s');
     row.appendChild(at);
     row.appendChild(Object.assign(document.createElement('button'), { className: 'alt', textContent: '✕', title: 'Take this switcher action out', onclick: () => { list.splice(n, 1); redraw(); } }));
@@ -345,26 +353,28 @@ function switcherEditor(list, redraw) {
 }
 
 // A scene's switcher actions, from the scene's settings (the pencil on its tile).
-let swScene = null; // { id, list } being edited
-function editSceneSwitcher(sc) {
-  swScene = { id: sc.id, list: JSON.parse(JSON.stringify(sc.switcher || [])) };
-  if (!swScene.list.length) swScene.list.push({ type: 'cut', atSec: 0 });
+let swScene: { id: string; list: SwAction[] } | null = null; // being edited
+function editSceneSwitcher(sc: Scene) {
+  const list: SwAction[] = (sc.switcher || []).map(a => ({ ...a }));
+  if (!list.length) list.push({ type: 'cut', atSec: 0 });
+  swScene = { id: sc.id, list };
   $('swSceneTitle').textContent = `Switcher when ${sc.name} is picked`;
   drawSceneSwitcher();
-  $('swSceneDialog').showModal();
+  $<HTMLDialogElement>('swSceneDialog').showModal();
   swSceneGuard.opened();
 }
 function drawSceneSwitcher() {
   const box = $('swSceneActs');
   box.innerHTML = '';
-  box.appendChild(switcherEditor(swScene.list, drawSceneSwitcher));
+  if (swScene) box.appendChild(switcherEditor(swScene.list, drawSceneSwitcher));
 }
-$('swSceneSave').onclick = async () => {
-  if (await act({ type: 'sceneUpdate', scene: swScene.id, changes: { switcher: swScene.list } })) $('swSceneDialog').close();
-};
-$('swSceneCancel').onclick = () => $('swSceneDialog').close();
-const swSceneGuard = unsavedDialog($('swSceneDialog'), {
-  what: () => $('swSceneTitle').textContent.replace(/^Switcher when /, '').replace(/ is picked$/, '') + "'s switcher actions",
+async function swSceneSave() {
+  if (swScene && await act({ type: 'sceneUpdate', scene: swScene.id, changes: { switcher: swScene.list } })) $<HTMLDialogElement>('swSceneDialog').close();
+}
+$<HTMLButtonElement>('swSceneSave').onclick = swSceneSave;
+$<HTMLButtonElement>('swSceneCancel').onclick = () => $<HTMLDialogElement>('swSceneDialog').close();
+const swSceneGuard = unsavedDialog($<HTMLDialogElement>('swSceneDialog'), {
+  what: () => ($('swSceneTitle').textContent || '').replace(/^Switcher when /, '').replace(/ is picked$/, '') + "'s switcher actions",
   snapshot: () => swScene && swScene.list,
-  save: async () => { await $('swSceneSave').onclick(); return !$('swSceneDialog').open; },
+  save: async () => { await swSceneSave(); return !$<HTMLDialogElement>('swSceneDialog').open; },
 });

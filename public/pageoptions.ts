@@ -16,7 +16,8 @@
 // One option a page's link takes, as the Output page's source options show it.
 interface PageOption {
   key: string, label: string, type: string, choices?: [string, string][], placeholder?: string, help?: string,
-  min?: number, max?: number, step?: number, unit?: string, picks?: [string, string][], [more: string]: unknown,
+  min?: number, max?: number, step?: number, unit?: string, picks?: [string, string][],
+  tick?: { text: string, off: string }, list?: string, gameOnly?: boolean, lengthCheck?: boolean, chroma?: string,
 }
 
 const PAGE_OPTIONS = ((): Record<string, PageOption[]> => {

@@ -43,7 +43,7 @@ test('an old Scene View sound setting is dropped, and the page says the Scene Vi
   assert.doesNotMatch(page, /id="previewSound"/);
   assert.doesNotMatch(page, /only while <b>Video output<\/b> is off/);
   assert.match(page, /id="previewSoundNote">Silent: an output's sound plays where its <b>Sound goes to<\/b> says/);
-  for (const f of ['public/output/preview.js', 'public/preview.html', 'public/output/settings.js', 'public/scene.html']) {
+  for (const f of ['public/output/preview.ts', 'public/preview.ts', 'public/output/settings.ts', 'public/scene.html']) {
     assert.doesNotMatch(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), /outputs\/listen|previewSound|unlockSound/, `${f} no longer asks to play the sound`);
   }
 });

@@ -67,13 +67,15 @@ test('the Scene View pops out, comes back and pops out again', async t => {
   win = await popOut();
 
   // A window that goes without a word (as the Mac app's can): the Output page notices it's gone.
-  await win.evaluate(() => { channel.close(); });
+  // (Its script is a module, so its channel isn't in reach: the window stops being able to post instead.)
+  await win.evaluate(() => { BroadcastChannel.prototype.postMessage = () => {}; });
   await win.close();
   await becomes(here);
 
   // And Show window on a window that's gone opens a new one.
   win = await popOut();
-  await win.evaluate(() => { channel.close(); });
+  // (Its script is a module, so its channel isn't in reach: the window stops being able to post instead.)
+  await win.evaluate(() => { BroadcastChannel.prototype.postMessage = () => {}; });
   await win.close();
   const [again] = await Promise.all([output.waitForEvent('popup'), output.click('#popOut')]);
   await again.waitForLoadState('load');

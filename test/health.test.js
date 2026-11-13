@@ -41,7 +41,7 @@ test('health names the game, follows PlayHQ and reports a recent reading', async
   assert.equal(h.armed, null);
   assert.equal(typeof h.recording.on, 'boolean');
   assert.equal(typeof h.recording.record, 'boolean');
-  // For the Output page's status board (output/board.js): the score with the team names, and the automatic game
+  // For the Output page's status board (output/board.ts): the score with the team names, and the automatic game
   // switch's note (empty with auto-select off).
   assert.equal(h.score.home, 0);
   assert.equal(h.score.away, 0);

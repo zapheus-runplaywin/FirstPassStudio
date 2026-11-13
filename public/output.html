@@ -34,7 +34,7 @@
   .pgmUnder { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
   .pgmUnder .note { margin: 0; font-size: 13px; }
   .pgmView { gap: 10px; }
-  /* The status board (output/board.js): the game, then lines in two columns (Sound out and the next game across both), each a
+  /* The status board (output/board.ts): the game, then lines in two columns (Sound out and the next game across both), each a
      light, a word, a bar or meter and a time, readable from arm's length. (The outputs, ATEM and REC are the bar's chips.) */
   /* The board fills the picture's height: the game row takes what it needs, and the lines
      share the rest, so on a big screen everything has room and on a small one nothing is cut. */
@@ -47,7 +47,7 @@
   .sboard .game .pq.bad, .sboard .game .pq.warn { color: var(--fp-warn-ink); }
   .sboard .game .pq.bad { color: var(--fp-danger); }
 
-  /* The PlayHQ line above the score: status, ping, bandwidth and data, as chips (output/board.js boardPlayhq). */
+  /* The PlayHQ line above the score: status, ping, bandwidth and data, as chips (output/board.ts boardPlayhq). */
   .sboard .game .pqrow { grid-column: 1 / -1; display: flex; flex-wrap: nowrap; justify-content: space-between; gap: 4px; min-width: 0; }
   /* Always one line: the chips keep their size and the status word gives way with an ellipsis (its title has it all). */
   .sboard .pqchip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border: 1px solid var(--fp-line); border-radius: 999px; white-space: nowrap; font-size: 12px; flex: none; min-width: 0; }
@@ -191,7 +191,7 @@
   .mediaList li:hover { background: none; }
   .mediaList .uses { font-size: 13px; color: var(--fp-muted); margin-top: 2px; overflow-wrap: anywhere; }
   .mediaList .uses b { color: var(--fp-danger); }
-  /* Folding sections: each folds down to its header row (output/common.js remembers which); its dialogs stay outside the fold. */
+  /* Folding sections: each folds down to its header row (output/common.ts remembers which); its dialogs stay outside the fold. */
   .secHead { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
   section.folded > :not(.secHead):not(dialog) { display: none !important; }
   section.folded > .secHead { margin-bottom: 0; }
@@ -434,7 +434,7 @@
       <p class="sub">What is on air and tonight's scenes and sequences; every setting is a click away in its section. <a href="/guide/#s3-3">More in the guide</a></p></div>
   </div>
 
-  <!-- The stage: the picture of the output picked and the status board beside it (output/board.js). Above the picture:
+  <!-- The stage: the picture of the output picked and the status board beside it (output/board.ts). Above the picture:
        the tools row (HD/4K, Add an output, Settings, Output on), then Settings' drawer (that output's set-up, pushing the
        rest down), then the output tabs sitting directly on the picture, like a switcher's bus above its monitor. It
        scrolls with the rest of the page. -->
@@ -606,7 +606,7 @@
         <button class="alt" id="addVideo">Add video</button>
       </div>
       <!-- Top layer first. Each row: the name, the speaker (videos only), On/Off (for the output picked over the Scene View, in its colour, once there's more than one), the eye (preview on
-           its own) and the pencil, which opens the Source settings section under the row (output/sources.js). -->
+           its own) and the pencil, which opens the Source settings section under the row (output/sources.ts). -->
       <ul class="sources" id="sources"></ul>
       <div class="row">
         <button class="alt" id="hideAll">Hide all</button>
@@ -703,7 +703,7 @@
     </section>
 
   <div class="stack">
-  <!-- The run order: what it has played tonight on the picked output, what's on air, then what plays next, sequences and scenes in order (output/runorder.js), above Scenes and Sequences. -->
+  <!-- The run order: what it has played tonight on the picked output, what's on air, then what plays next, sequences and scenes in order (output/runorder.ts), above Scenes and Sequences. -->
   <section id="roSection" data-fold="runorder">
     <div class="secHead">
       <h2 id="roHead">Run order</h2>
@@ -802,7 +802,7 @@
     <div class="scenes" id="scenes"></div>
     <div class="drift hidden" id="drift"></div>
     <p class="fp-empty" id="scenesEmpty"></p>
-    <!-- One scene's settings, from the pencil on its tile (output/scenes.js). -->
+    <!-- One scene's settings, from the pencil on its tile (output/scenes.ts). -->
     <dialog id="sceneDialog">
       <h2 id="sdTitle">Scene</h2>
       <div class="form" style="grid-template-columns:auto minmax(0,1fr)">
