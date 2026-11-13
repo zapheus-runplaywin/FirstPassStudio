@@ -33,8 +33,8 @@ const SEQUENCE_ACTION = "com.runplaywin.firstpass-studio.sequence";
 const SWITCHER_ACTION = "com.runplaywin.firstpass-studio.switcher";
 const PLAYBACK_ACTION = "com.runplaywin.firstpass-studio.playback";
 const RUNORDER_ACTION = "com.runplaywin.firstpass-studio.runorder";
-// Studio's stand-in ATEM switcher (CommonJS, shared with Studio's own tests).
-const { startAtem } = createRequire(import.meta.url)(path.join(REPO, "test", "support", "atem.js"));
+// Studio's stand-in ATEM switcher (test/support/atem.mts, shared with Studio's own tests).
+const { startAtem } = createRequire(import.meta.url)(path.join(REPO, "test", "support", "atem.mts"));
 
 // any: each Stream Deck event has a payload of its own shape, and each test reads only what it sent.
 type Msg = { event: string; context?: string; payload?: any; _at: number }; // eslint-disable-line @typescript-eslint/no-explicit-any
