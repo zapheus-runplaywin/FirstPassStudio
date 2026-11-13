@@ -15,14 +15,22 @@ test('mini countdown: the title banner\'s size, in each of the nine spots', asyn
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   t.after(() => context.close());
   await context.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
+  // 4 minutes 32 seconds to go, whatever the test game's start: Studio's answer with the start moved (leftMs from now).
+  // Long team names (names) when a check needs them.
+  let leftMs = 272400;
+  let names = null;
+  await context.route(url => String(url).startsWith(`${studio.base}/api/countdown`), async route => {
+    const res = await route.fetch();
+    const body = await res.json();
+    const teams = names ? { home: { ...body.home, name: names[0] }, away: { ...body.away, name: names[1] } } : {};
+    route.fulfill({ response: res, json: { ...body, ...teams, start: body.serverNow + leftMs } });
+  });
   const open = async query => {
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', err => errors.push(err.message));
     await page.goto(`${studio.base}/countdown.html?${query}`);
     await page.waitForFunction(() => !document.getElementById('mini').hidden || !document.getElementById('card').hidden);
-    // 4 minutes 32 seconds to go, whatever the test game's start.
-    await page.evaluate(() => { start = Date.now() + offset + 272400; shown = ''; }); // eslint-disable-line no-undef
     await page.waitForTimeout(700);
     t.after(() => page.close());
     return { page, errors };
@@ -40,8 +48,11 @@ test('mini countdown: the title banner\'s size, in each of the nine spots', asyn
   assert.deepEqual(errors, []);
 
   // Long team names scale it down further, no wider than 600px, so at the top it still fits between the branding logos.
-  await page.evaluate(() => { document.getElementById('miniTeams').textContent = 'Travis\' Disciples Reserves v The Mighty Blizzardz United'; fitMini(); }); // eslint-disable-line no-undef
-  assert.ok((await box(page, 'mini')).width <= 600.5, 'long names: no wider than 600px');
+  names = ['Travis\' Disciples Reserves', 'The Mighty Blizzardz United'];
+  const long = await open('size=mini');
+  names = null;
+  assert.equal(await long.page.textContent('#miniTeams'), 'Travis\' Disciples Reserves v The Mighty Blizzardz United');
+  assert.ok((await box(long.page, 'mini')).width <= 600.5, 'long names: no wider than 600px');
 
   const spots = {
     'top-left': b => Math.abs(b.left - 100) <= 1 && Math.abs(b.mid - 95) <= 1,
@@ -65,14 +76,14 @@ test('mini countdown: the title banner\'s size, in each of the nine spots', asyn
   assert.equal(await bare.page.isVisible('#sponsor'), false);
 
   // At zero: the words at zero, or gone with ?end=hide.
+  leftMs = -1000;
   const end = await open('size=mini&end=Game%20on');
-  await end.page.evaluate(() => { start = Date.now() - 1000; }); // eslint-disable-line no-undef
   await end.page.waitForFunction(() => document.getElementById('miniTime').textContent === 'Game on');
   const hide = await open('size=mini&end=hide');
-  await hide.page.evaluate(() => { start = Date.now() - 1000; }); // eslint-disable-line no-undef
   await hide.page.waitForFunction(() => document.getElementById('mini').classList.contains('is-gone'));
 
   // The full card takes the side spots too: 100px in from the edge.
+  leftMs = 272400;
   const full = await open('position=bottom-right');
   const card = await box(full.page, 'card');
   assert.ok(Math.abs(card.right - 1820) <= 1, `the card sits 100px in from the right (${card.right})`);

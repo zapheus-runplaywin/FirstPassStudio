@@ -84,65 +84,6 @@
     <div class="title__sponsor" id="sponsor" hidden></div>
   </div>
   <script src="sponsorspot.js"></script>
-  <script>
-    const params = new URLSearchParams(location.search);
-    let emoji = '';
-    if (params.get('position') === 'bottom') document.body.classList.add('bottom');
-    const wide = params.get('layout') === 'wide';
-    if (wide) document.body.classList.add('wide');
-    if (wide && params.get('ends') === 'yellow') document.body.classList.add('yellow-ends');
-    let last = '';
-
-    // branding.html's logos sit 100px in from the frame's edges: the left pair's inside edge is about 660px from the centre, and the
-    // competition logo's about 750px (500px for the widest it allows). At most 600px wide keeps the banner well clear of both;
-    // the wide shape may take 1200px, 60px clear of the left pair and of a square competition logo.
-    const SCALE = 0.8, MAX_WIDTH = wide ? 1200 : 600;
-    function fitBetweenLogos() {
-      const title = document.getElementById('title');
-      const s = Math.min(SCALE, MAX_WIDTH / title.offsetWidth);
-      title.style.scale = String(Math.floor(s * 1000) / 1000);
-      if (s < SCALE && window.pageLog) window.pageLog('info', `Title scaled to ${title.style.scale} to fit between the branding logos (${title.offsetWidth}px wide)`);
-    }
-
-    function setComp(name) {
-      const comp = document.getElementById('comp');
-      comp.replaceChildren();
-      const side = () => { const s = document.createElement('span'); s.className = 'fire'; s.textContent = emoji; return s; };
-      if (emoji) comp.append(side(), ' ');
-      comp.append(name);
-      if (emoji) comp.append(' ', side());
-    }
-
-    async function load() {
-      try {
-        const s = await (await fetch('/api/scoreboard', { cache: 'no-store' })).json();
-        const rules = s.rules || {};
-        const compLogo = (params.get('mode') === 'dark' ? rules.competitionLogoDark : rules.competitionLogoLight) || rules.competitionLogo;
-        const view = JSON.stringify([s.round, s.competition, s.venueName, compLogo]);
-        if (view === last) return;
-        last = view;
-        emoji = (params.get('emoji') || '').trim();
-        const logo = document.getElementById('logo');
-        // Off unless asked for: branding.html usually shows the competition logo beside the title.
-        const showLogo = ['show', '1', 'on', 'true'].includes((params.get('logo') || '').toLowerCase());
-        logo.hidden = !compLogo || !showLogo;
-        if (!logo.hidden) logo.src = compLogo;
-        document.getElementById('round').textContent = s.round || '';
-        setComp(s.competition || '');
-        document.getElementById('venue').textContent = s.venueName || '';
-        document.getElementById('title').hidden = false;
-        fitBetweenLogos();
-        if (document.fonts) document.fonts.ready.then(fitBetweenLogos);
-      } catch (err) { console.warn('Title unavailable:', err.message); }
-    }
-    load();
-    sponsorSpot.naming('title').then(s => {
-      if (!s) return;
-      const box = document.getElementById('sponsor');
-      box.replaceChildren(sponsorSpot.badge(s));
-      box.hidden = false;
-      fitBetweenLogos();
-    });
-  </script>
+  <script type="module" src="title.js"></script>
 </body>
 </html>

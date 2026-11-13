@@ -18,7 +18,10 @@ test('every graphics page loads zoom.js, and the canvas pages draw through sharp
   assert.deepEqual(missing, []);
   for (const n of graphicsPages()) {
     const src = fs.readFileSync(path.join(ROOT, 'public', n), 'utf8');
-    if (/<canvas/.test(src)) assert.match(src, /sharpCanvas\(/, `${n} sizes its canvas for 4K`);
+    // The page's own script (public/<page>.ts) does the drawing.
+    const script = path.join(ROOT, 'public', n.replace('.html', '.ts'));
+    const code = fs.existsSync(script) ? fs.readFileSync(script, 'utf8') : src;
+    if (/<canvas/.test(src)) assert.match(code, /sharpCanvas\(/, `${n} sizes its canvas for 4K`);
   }
 });
 

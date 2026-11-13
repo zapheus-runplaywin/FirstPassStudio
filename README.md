@@ -340,7 +340,7 @@ so don't run it while the app is on air.
 The helper (`server.ts` and the modules beside it) and the Mac app (`desktop/`) are TypeScript: `npm run build` compiles them into `out/`, which
 is what runs (`npm start`, `npm run app` and `npm test` build first; `npm run watch` keeps compiling as you edit). It's strict,
 outside data comes in as `unknown` and is checked, and an `any` needs a comment starting `any:` saying why (a test checks).
-The pages' scripts are TypeScript too (`public/*.ts` and the Output page's `public/output/*.ts`), compiled into `out/public/`.
+The pages' and graphics' scripts are TypeScript too (`public/*.ts` and the Output page's `public/output/*.ts`), compiled into `out/public/`.
 `npm test` runs the tests (they also run on every pull request, as the Tests check). The ones that need PlayHQ run
 Studio against a stand-in for it (`test/support/playhq.js`, a made-up Thunder League season around today's date), in a
 data folder of their own, so they never touch PlayHQ or your settings.
