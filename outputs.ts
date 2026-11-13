@@ -43,11 +43,16 @@ import fs from 'node:fs';
 import * as datadir from './datadir';
 import * as savefile from './savefile';
 import { errorCode, errorMessage } from './errors';
+import { obj, str, arr, isObj } from './check';
+import type { Log, Body, Send, ReadBody } from './types';
 
 const FILE = datadir.file('outputs.json');
 // 'off' is Web links only on the Output page: nothing sent from this Mac (the scene's web links work whatever the mode).
-const MODES = ['off', 'chroma', 'fillkey', 'decklink', 'ndi'];
-const KEYING = ['external', 'off'];
+const MODES = ['off', 'chroma', 'fillkey', 'decklink', 'ndi'] as const;
+const KEYING = ['external', 'off'] as const;
+type Mode = typeof MODES[number];
+// Whether v is one of a list's words, so it can be kept as that word.
+function isOneOf<T extends string>(list: readonly T[], v: unknown): v is T { return (list as readonly unknown[]).includes(v); }
 // Where a Blackmagic output's sound goes: embedded in the SDI (with fill and key, the fill), the Mac's sound output, or both.
 // Sound goes to: where an output's sound plays (sound, a list of destinations). device is 'own' (where the output
 // itself carries its sound: the SDI, on the fill, of a Blackmagic output; the Mac's sound output for the rest), 'mac'
@@ -58,108 +63,144 @@ const KEYING = ['external', 'off'];
 // list is No sound: the output plays no sound anywhere (a screen with no speakers, such as a billboard over NDI), its
 // windows muted and no copies.
 const SOUND_MAX = 4;
-const SOUND_DEFAULT = [{ device: 'own', mics: [] }];
-const soundDevice = v => String(v || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 200);
-const micIds = v => [...new Set((Array.isArray(v) ? v : []).map(id => String(id).replace(/[^a-z0-9]/gi, '').slice(0, 20)).filter(Boolean))].slice(0, 8);
-function soundList(v) {
+interface Dest { device: string; mics: string[] }
+const SOUND_DEFAULT: Dest[] = [{ device: 'own', mics: [] }];
+const soundDevice = (v: unknown) => String(v || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 200);
+const micIds = (v: unknown) => [...new Set(arr(v).map(id => String(id).replace(/[^a-z0-9]/gi, '').slice(0, 20)).filter(Boolean))].slice(0, 8);
+function soundList(v: unknown): Dest[] {
   if (Array.isArray(v) && !v.length) return [];
-  const seen = new Set(), out = [];
-  for (const d of Array.isArray(v) ? v : []) {
-    const device = soundDevice(d && typeof d === 'object' ? d.device : d);
+  const seen = new Set<string>(), out: Dest[] = [];
+  for (const d of arr(v)) {
+    const device = soundDevice(isObj(d) ? d.device : d);
     if (!device || seen.has(device)) continue;
     seen.add(device);
-    out.push({ device, mics: micIds(d && typeof d === 'object' ? d.mics : []) });
+    out.push({ device, mics: micIds(isObj(d) ? d.mics : []) });
   }
   if (!out.length) out.push({ device: 'own', mics: [] });
   return out.slice(0, SOUND_MAX);
 }
 // The destinations an older outputs.json set with Sound (decklinkSound: sdi, both or mac) and Also send the sound to
 // (copySound, with copyMics), as one list.
-function soundFromOld(s) {
-  const out = s.decklinkSound === 'mac' ? [{ device: 'mac' }] : s.decklinkSound === 'both' ? [{ device: 'own' }, { device: 'mac' }] : [{ device: 'own' }];
+function soundFromOld(s: Body) {
+  const out: { device: unknown; mics?: unknown }[] = s.decklinkSound === 'mac' ? [{ device: 'mac' }] : s.decklinkSound === 'both' ? [{ device: 'own' }, { device: 'mac' }] : [{ device: 'own' }];
   if (s.copySound) out.push({ device: s.copySound, mics: s.copyMics });
   return out;
 }
-const hasSound = (o, device) => o.sound.some(d => d.device === device);
+const hasSound = (o: Output, device: string) => o.sound.some(d => d.device === device);
 // Where a Blackmagic output's own window's sound goes (desktop/decklink.js): the SDI, the Mac, both, or none (muted:
 // No sound, or only to the Mac's other sound outputs).
-const decklinkSoundOf = o => hasSound(o, 'own') ? (hasSound(o, 'mac') ? 'both' : 'sdi') : hasSound(o, 'mac') ? 'mac' : 'none';
+const decklinkSoundOf = (o: Output) => hasSound(o, 'own') ? (hasSound(o, 'mac') ? 'both' : 'sdi') : hasSound(o, 'mac') ? 'mac' : 'none';
 // Whether any other output's own window plays its sound (to the Mac's sound output) or is muted.
-const windowSoundOf = o => hasSound(o, 'own') || hasSound(o, 'mac') ? 'mac' : 'none';
+const windowSoundOf = (o: Output) => hasSound(o, 'own') || hasSound(o, 'mac') ? 'mac' : 'none';
 // Which of the switcher's keys an output comes into ('' for the usual one: Output 1 on downstream key 1, the others
 // on upstream keys 2 to 4, and a chroma output on an upstream key, as only those key on a colour), or none.
-const KEYERS = ['', 'none', 'dsk1', 'dsk2', 'usk1', 'usk2', 'usk3', 'usk4'];
+const KEYERS = ['', 'none', 'dsk1', 'dsk2', 'usk1', 'usk2', 'usk3', 'usk4'] as const;
 const DEFAULT_CHROMA = '#00b140';
-const NDI_SIGNALS = ['fillkey', 'chroma', 'alpha'];
+const NDI_SIGNALS = ['fillkey', 'chroma', 'alpha'] as const;
 // The video formats NDI can send at (receivers take any; pick what the switcher runs at): 1080p at the
 // same rates a Blackmagic device can name, and 720p.
-const NDI_FORMATS = [
-  ...[['23.98', 24000, 1001], ['24', 24, 1], ['25', 25, 1], ['29.97', 30000, 1001], ['30', 30, 1], ['47.95', 48000, 1001], ['48', 48, 1],
-    ['50', 50, 1], ['59.94', 60000, 1001], ['60', 60, 1], ['95.9', 96000, 1001], ['96', 96, 1], ['100', 100, 1], ['119.88', 120000, 1001], ['120', 120, 1]]
-    .map(([rate, n, d]) => [`1080p${rate}`, 1920, 1080, n, d]),
+interface NdiFormat { id: string; width: number; height: number; rateN: number; rateD: number }
+const NDI_FORMATS: NdiFormat[] = ([
+  ...([['23.98', 24000, 1001], ['24', 24, 1], ['25', 25, 1], ['29.97', 30000, 1001], ['30', 30, 1], ['47.95', 48000, 1001], ['48', 48, 1],
+    ['50', 50, 1], ['59.94', 60000, 1001], ['60', 60, 1], ['95.9', 96000, 1001], ['96', 96, 1], ['100', 100, 1], ['119.88', 120000, 1001], ['120', 120, 1]] as const)
+    .map(([rate, n, d]) => [`1080p${rate}`, 1920, 1080, n, d] as const),
   ['720p25', 1280, 720, 25, 1], ['720p29.97', 1280, 720, 30000, 1001], ['720p30', 1280, 720, 30, 1],
   ['720p50', 1280, 720, 50, 1], ['720p59.94', 1280, 720, 60000, 1001], ['720p60', 1280, 720, 60, 1],
-].map(([id, width, height, rateN, rateD]) => ({ id, width, height, rateN, rateD }));
+] as (readonly [string, number, number, number, number])[]).map(([id, width, height, rateN, rateD]) => ({ id, width, height, rateN, rateD }));
 const DEFAULT_NDI_FORMAT = '1080p50';
 
 // Picture: hd (as before) or uhd (4K, 2160p).
-const QUALITY = ['hd', 'uhd'];
+const QUALITY = ['hd', 'uhd'] as const;
+type Quality = typeof QUALITY[number];
 
 const MAX = 4;
 const PRIMARY = 'main';
 // Each output's colour, by its number (slot): the same colours light its Stream Deck keys.
-const COLOURS = { 1: '#ea9a38', 2: '#f24f91', 3: '#4ec1e6', 4: '#95ba45' };
-const DEFAULTS = {
+const COLOURS: Record<number, string> = { 1: '#ea9a38', 2: '#f24f91', 3: '#4ec1e6', 4: '#95ba45' };
+
+// One output's settings (clean() says what each is).
+interface Output {
+  id: string; slot: number; name: string; mode: Mode; on: boolean;
+  chromaDisplay: string; chromaColor: string; chromaSafe: boolean; fillDisplay: string; keyDisplay: string;
+  decklinkDevice: string; decklinkMode: number; decklinkKeying: typeof KEYING[number]; decklinkStraight: boolean;
+  ndiSignal: typeof NDI_SIGNALS[number]; ndiOwnName: boolean; ndiName: string; ndiFormat: string; sponsors: boolean;
+  keyer: typeof KEYERS[number]; swFill: number; swKey: number; swCameras: number[]; sound: Dest[];
+}
+type Settings = Omit<Output, 'id' | 'slot' | 'name'> & Partial<Pick<Output, 'id' | 'slot' | 'name'>>;
+// The Mac app's displays, Blackmagic devices (desktop/decklink.js) and their video formats.
+interface Display { id: string; label: string; width: number; height: number; scale: number; primary: boolean }
+interface DeckMode { mode: number; name: string; height: number; interlaced: boolean; supported?: boolean; keying?: boolean }
+interface DeckDevice { id: string; name: string; modes: DeckMode[]; [key: string]: unknown }
+interface Decklink { ok: boolean; error: string; version: string; devices: DeckDevice[] }
+interface Ndi { ok: boolean; error: string; version: string; url: string }
+// How the Blackmagic output or an output's NDI sources are doing, as the app says (shown on the Output page as it is).
+type Status = { running?: unknown; name?: unknown; sound?: unknown; [key: string]: unknown };
+// A window the Mac app opens for an output (see windows()), tagged with its output's id once in outputWindows().
+type Win =
+  | { kind: 'decklink'; device: string; mode: number; keying: string; straight: boolean; sound: string; density: number }
+  | { kind: 'ndi'; signal: string; name: string; format: NdiFormat; color: string; safe: boolean; sound: string; density: number }
+  | { kind: 'chroma'; display: string; color: string; safe: boolean; sound: string }
+  | { kind: 'fill'; display: string; sound: string }
+  | { kind: 'key'; display: string };
+type Shown = Win & { output: string; safe?: boolean };
+interface PerfOut { cpu: number; memMB: number; fps: number; target: number }
+interface Perf { at: number; outputs: Record<string, PerfOut>; total: { cpu: number; memMB: number; gpu: number } | null }
+interface Colour { name: string; hex: string }
+
+const DEFAULTS: Settings = {
   mode: 'off', on: true, chromaDisplay: '', chromaColor: DEFAULT_CHROMA, chromaSafe: true, fillDisplay: '', keyDisplay: '',
   decklinkDevice: '', decklinkMode: 0, decklinkKeying: 'external', decklinkStraight: false,
   ndiSignal: 'fillkey', ndiOwnName: false, ndiName: '', ndiFormat: DEFAULT_NDI_FORMAT, sponsors: false,
   keyer: '', swFill: 0, swKey: 0, swCameras: [], sound: SOUND_DEFAULT,
 };
 
-let log = () => {};
-let list = [{ id: PRIMARY, slot: 1, name: 'Output 1', ...DEFAULTS }];
-let quality = 'hd';
+let log: Log = () => {};
+let list: Output[] = [{ ...DEFAULTS, id: PRIMARY, slot: 1, name: 'Output 1' }];
+let quality: Quality = 'hd';
 const primary = () => list[0];
 // Called with an output's id when it's removed, so the scene forgets what was on for it.
-let onRemove = () => {};
+let onRemove = (_id: string) => {};
 // Called after any change to the outputs' settings (the switcher's key settings check follows them).
 let onChange = () => {};
 // The pictures and videos that look soft in 4K (picturesize.js soft()), for the Output page while 4K is on.
-let softPictures = () => [];
+let softPictures = (): unknown[] => [];
 // The Mac app's displays: [{ id, label, width, height, scale, primary }]; null when not run by the app.
 // width x height is the size macOS draws at; scale 2 means it draws each point as 2 x 2 pixels (HiDPI).
-let displays = null;
+let displays: Display[] | null = null;
 // The Mac app's Blackmagic devices: { ok, version, devices: [{ id, name, externalKeying, modes }] } or
 // { ok: false, error }, and how its output is doing: { running, error, name, late, dropped }.
-let decklink = null;
-let decklinkStatus = { running: false };
+let decklink: Decklink | null = null;
+let decklinkStatus: Status = { running: false };
 let decklinkOutput = ''; // the output whose picture the Blackmagic device is sending
 // Whether the Mac app can send NDI: { ok, version } or { ok: false, error, url }, and how it's doing:
 // { running, format, sources: [{ kind, name, connections }], late, error }.
-let ndi = null;
-const ndiStatus = new Map(); // output id -> its NDI sources' status
+let ndi: Ndi | null = null;
+const ndiStatus = new Map<string, Status>(); // output id -> its NDI sources' status
 // How hard each output is working, from the app (desktop/perf.js) every few seconds while one is showing:
 // { at, outputs: { id: { cpu, memMB, fps, target } }, total: { cpu, memMB, gpu } }; and the samples
 // since the last minute's log line.
-let perf = null;
-let perfSamples = [];
+let perf: Perf | null = null;
+let perfSamples: Perf[] = [];
 let perfLoggedAt = 0;
 const PERF_STALE_MS = 15000;
 const PERF_LOG_MS = 60000;
 const port = process.parentPort || null;
 
-const hex = c => /^#?[0-9a-f]{6}$/i.test(String(c || '')) ? `#${String(c).replace('#', '').toLowerCase()}` : DEFAULT_CHROMA;
+const hex = (c: unknown) => /^#?[0-9a-f]{6}$/i.test(String(c || '')) ? `#${String(c).replace('#', '').toLowerCase()}` : DEFAULT_CHROMA;
 
-function clean(s, old = DEFAULTS) {
-  const pick = (k, d) => (s[k] === undefined ? old[k] : s[k]) ?? d;
+function clean(s: Body, old: Settings = DEFAULTS): Output {
+  const pick = (k: string, d?: unknown): unknown => (s[k] === undefined ? (old as Record<string, unknown>)[k] : s[k]) ?? d;
+  const mode = pick('mode');
+  const words = <T extends string>(k: string, list: readonly T[], d: T): T => { const v = pick(k); return isOneOf(list, v) ? v : d; };
+  const ndiFormat = pick('ndiFormat');
   return {
     id: String(old.id || s.id || '').replace(/[^a-z0-9]/gi, '').slice(0, 20) || PRIMARY,
     slot: Math.min(MAX, Math.max(1, Math.round(Number(pick('slot', 1))) || 1)),
     // The name shown on the Output page and used in its Stream Deck links (/deck/output/big-screen/on).
     name: String(pick('name', '')).replace(/\s+/g, ' ').trim().slice(0, 40),
-    mode: MODES.includes(pick('mode')) ? pick('mode') : 'off',
+    mode: isOneOf(MODES, mode) ? mode : 'off',
     // Switched on (Output on). An output set to Web links only is always off: there's nothing to turn on until it's set up.
-    on: MODES.includes(pick('mode')) && pick('mode') !== 'off' && pick('on', true) !== false,
+    on: isOneOf(MODES, mode) && mode !== 'off' && pick('on', true) !== false,
     chromaDisplay: String(pick('chromaDisplay', '')),
     chromaColor: hex(pick('chromaColor')),
     // Chroma key safe graphics (public/chroma.js): solid panels, no soft shadows, nothing half see-through.
@@ -169,35 +210,35 @@ function clean(s, old = DEFAULTS) {
     keyDisplay: String(pick('keyDisplay', '')),
     decklinkDevice: String(pick('decklinkDevice', '')),
     decklinkMode: Number(pick('decklinkMode', 0)) || 0,
-    decklinkKeying: KEYING.includes(pick('decklinkKeying')) ? pick('decklinkKeying') : 'external',
+    decklinkKeying: words('decklinkKeying', KEYING, 'external'),
     decklinkStraight: pick('decklinkStraight', false) === true,
     // Sound goes to (see the top). Saved before there was a list: made from Sound and Also send the sound to.
     sound: soundList(s.sound === undefined && (s.decklinkSound !== undefined || s.copySound !== undefined) ? soundFromOld(s) : pick('sound', SOUND_DEFAULT)),
-    ndiSignal: NDI_SIGNALS.includes(pick('ndiSignal')) ? pick('ndiSignal') : 'fillkey',
+    ndiSignal: words('ndiSignal', NDI_SIGNALS, 'fillkey'),
     // The NDI sources take the output's name unless ndiOwnName is ticked: then ndiName, the name typed (see ndiSource).
     ndiOwnName: pick('ndiOwnName', false) === true,
     ndiName: ndiClean(pick('ndiName', '')),
-    ndiFormat: NDI_FORMATS.some(f => f.id === pick('ndiFormat')) ? pick('ndiFormat') : DEFAULT_NDI_FORMAT,
+    ndiFormat: typeof ndiFormat === 'string' && NDI_FORMATS.some(f => f.id === ndiFormat) ? ndiFormat : DEFAULT_NDI_FORMAT,
     // What's on it counts in the sponsors' exposure report (Output 1's always does). Off unless ticked, as Studio
     // can't tell whether another output is on the stream.
     sponsors: pick('sponsors', false) === true,
     // Into the switcher as: the key it comes into and the switcher inputs its fill and key are plugged into (0: not
     // picked). Only read by the key settings check (switcher.js); nothing is sent to the switcher until asked.
-    keyer: KEYERS.includes(pick('keyer')) ? pick('keyer') : '',
+    keyer: words('keyer', KEYERS, ''),
     swFill: swInput(pick('swFill', 0)),
     swKey: swInput(pick('swKey', 0)),
     // The cameras this output's graphics go with (switcher inputs), for an output on an upstream key: Studio's cuts
     // take its key on with them and off with any other camera (switcher.js). None: Studio leaves its key alone.
-    swCameras: [...new Set((Array.isArray(pick('swCameras')) ? pick('swCameras') : []).map(swInput).filter(Boolean))].sort((a, b) => a - b).slice(0, 20),
+    swCameras: [...new Set(arr(pick('swCameras')).map(swInput).filter(Boolean))].sort((a, b) => a - b).slice(0, 20),
   };
 }
 // NDI shows sources as "MAC NAME (this name)", so brackets in it would confuse things.
-const ndiClean = t => String(t || '').replace(/[()\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+const ndiClean = (t: unknown) => String(t || '').replace(/[()\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
 // The name an output's NDI sources go by: its own name typed when that's ticked, else the output's name.
-const ndiSource = o => (o.ndiOwnName && o.ndiName) || ndiClean(o.name) || `Output ${o.slot}`;
-const swInput = v => { const n = Math.round(Number(v)); return n >= 1 && n <= 40 ? n : 0; };
+const ndiSource = (o: Output) => (o.ndiOwnName && o.ndiName) || ndiClean(o.name) || `Output ${o.slot}`;
+const swInput = (v: unknown) => { const n = Math.round(Number(v)); return n >= 1 && n <= 40 ? n : 0; };
 
-const slug = t => String(t || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+const slug = (t: unknown) => String(t || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 // Words a name can't take in a link, as /deck/output/<name>/... would mean something else.
 const RESERVED = new Set(['on', 'off', 'toggle', 'all', 'main', 'layer', 'layers']);
 // Every output's name set and different from the others' (and from Stream Deck words), so its links work.
@@ -205,7 +246,7 @@ function tidy() {
   list[0] = { ...list[0], id: PRIMARY, slot: 1 };
   const slots = new Set();
   for (const o of list) {
-    if (slots.has(o.slot)) o.slot = [1, 2, 3, 4].find(n => !slots.has(n));
+    if (slots.has(o.slot)) o.slot = [1, 2, 3, 4].find(n => !slots.has(n)) || o.slot;
     slots.add(o.slot);
   }
   const taken = new Set();
@@ -220,22 +261,22 @@ function tidy() {
 
 function load() {
   try {
-    const saved = JSON.parse(fs.readFileSync(FILE, 'utf8'));
+    const saved = obj(JSON.parse(fs.readFileSync(FILE, 'utf8')));
     // An older outputs.json is one output's settings: it becomes Output 1.
     const items = Array.isArray(saved.outputs) ? saved.outputs : [{ ...saved, id: PRIMARY, slot: 1 }];
-    const seen = new Set();
+    const seen = new Set<string>();
     list = [];
     for (const item of items.slice(0, MAX)) {
-      if (!item || typeof item !== 'object') continue;
+      if (!isObj(item)) continue;
       // Saved before NDI sources followed the output's name: the source name saved then is dropped, so they follow it now.
-      const o = clean(item.ndiOwnName === undefined ? { ...item, ndiName: '' } : item, { ...DEFAULTS, id: list.length ? item.id : PRIMARY });
+      const o = clean(item.ndiOwnName === undefined ? { ...item, ndiName: '' } : item, { ...DEFAULTS, id: list.length ? str(item.id) : PRIMARY });
       if (seen.has(o.id) || (list.length && o.id === PRIMARY)) continue;
       seen.add(o.id);
       list.push(o);
     }
     if (!list.length || list[0].id !== PRIMARY) list.unshift(clean({ name: 'Output 1' }, { ...DEFAULTS, id: PRIMARY }));
     tidy();
-    quality = QUALITY.includes(saved.quality) ? saved.quality : 'hd';
+    quality = isOneOf(QUALITY, saved.quality) ? saved.quality : 'hd';
   } catch (err) { if (errorCode(err) !== 'ENOENT') log('warn', 'outputs', `Could not read outputs.json: ${errorMessage(err)}`); }
 }
 
@@ -250,14 +291,14 @@ function save() {
 // [{ kind: 'decklink', device, mode, keying, straight, sound, density }] for the Blackmagic device, or
 // [{ kind: 'ndi', signal, name, format, color, safe, density }] for NDI. safe: the scene drawn chroma key safe;
 // density: 2 when it's sent at 2160p (4K), the 1920 x 1080 scene drawn at twice the density.
-const windows = () => outputWindows();
+const windows = (): Shown[] => outputWindows();
 
 // The Blackmagic format to send: the one picked if it's 1080p (even one the device says it can't send: it
 // may be wrong, and if not the output says so), else (nothing picked yet, or an interlaced or 720p format
 // saved before they were taken off the Output page, as they look soft) the one the Output page starts with:
 // 1080p50 if the device can key it, else the first 1080p format that can, else the first it can send.
 // A 2160p format picked in 4K is sent as it is in 4K (uhdPicked), and in HD as the 1080p one at its rate.
-function decklinkMode(device, o) {
+function decklinkMode(device: DeckDevice, o: Output): DeckMode | undefined {
   const modes = device.modes.filter(m => m.height === 1080 && !m.interlaced);
   const sends = modes.filter(m => m.supported);
   const picked = uhdPicked(device, o);
@@ -267,9 +308,9 @@ function decklinkMode(device, o) {
     || sends.find(m => m.keying) || sends[0] || modes[0];
 }
 // The device's 2160p progressive format picked for this output, or null.
-const uhdPicked = (device, o) => device.modes.find(m => m.mode === o.decklinkMode && m.height === 2160 && !m.interlaced) || null;
+const uhdPicked = (device: DeckDevice, o: Output) => device.modes.find(m => m.mode === o.decklinkMode && m.height === 2160 && !m.interlaced) || null;
 // What a Blackmagic output sends: { mode, uhd } (uhd: 2160p, drawn at twice the density).
-function decklinkSends(device, o) {
+function decklinkSends(device: DeckDevice, o: Output): { mode: DeckMode | undefined; uhd: boolean } {
   if (quality === 'uhd') {
     const picked = uhdPicked(device, o);
     if (picked) return { mode: picked, uhd: true };
@@ -282,36 +323,39 @@ function decklinkSends(device, o) {
 // The 2160p format to send in 4K for a 1080p one, at the same rate: for NDI, the 1080p format at twice the size
 // (2160p50 for 1080p50); for a Blackmagic device, its own 2160p progressive format with the same rate in its name,
 // if it has one. null when there isn't one (720p, or a device that only does HD).
-const rateOf = name => (String(name).replace(/\s/g, '').match(/^(?:1080|2160)p(.+)$/) || [])[1] || '';
-function uhdNdi(format) {
+const rateOf = (name: unknown) => (String(name).replace(/\s/g, '').match(/^(?:1080|2160)p(.+)$/) || [])[1] || '';
+function uhdNdi(format: NdiFormat | undefined): NdiFormat | null {
   if (!format || format.height !== 1080) return null;
   return { ...format, id: format.id.replace(/^1080p/, '2160p'), width: 3840, height: 2160 };
 }
-function uhdDecklink(device, mode) {
+function uhdDecklink(device: DeckDevice, mode: DeckMode) {
   const rate = rateOf(mode.name);
   return (rate && device.modes.find(m => m.height === 2160 && !m.interlaced && rateOf(m.name) === rate)) || null;
 }
 
 // One output's windows, as if it were the only one.
-function windowsOf(o) {
+function windowsOf(o: Output): Win[] {
   if (!o.on) return [];
   if (o.mode === 'decklink') {
     const device = decklink?.devices?.find(d => d.id === o.decklinkDevice);
     const sends = device && decklinkSends(device, o);
-    if (!sends || !sends.mode) return [];
+    if (!device || !sends || !sends.mode) return [];
     return [{ kind: 'decklink', device: device.id, mode: sends.mode.mode, keying: o.decklinkKeying, straight: o.decklinkStraight, sound: decklinkSoundOf(o), density: sends.uhd ? 2 : 1 }];
   }
   if (o.mode === 'ndi') {
     if (!ndi?.ok) return [];
     const hd = NDI_FORMATS.find(f => f.id === o.ndiFormat);
     const uhd = quality === 'uhd' ? uhdNdi(hd) : null;
-    return [{ kind: 'ndi', signal: o.ndiSignal, name: ndiSource(o), format: uhd || hd, color: o.chromaColor, safe: chromaSafe(o), sound: windowSoundOf(o), density: uhd ? 2 : 1 }];
+    const format = uhd || hd;
+    if (!format) return [];
+    return [{ kind: 'ndi', signal: o.ndiSignal, name: ndiSource(o), format, color: o.chromaColor, safe: chromaSafe(o), sound: windowSoundOf(o), density: uhd ? 2 : 1 }];
   }
-  if (!displays) return [];
-  const have = id => displays.some(d => d.id === id);
+  const shown = displays;
+  if (!shown) return [];
+  const have = (id: string) => shown.some(d => d.id === id);
   if (o.mode === 'chroma' && have(o.chromaDisplay)) return [{ display: o.chromaDisplay, kind: 'chroma', color: o.chromaColor, safe: chromaSafe(o), sound: windowSoundOf(o) }];
   if (o.mode === 'fillkey') {
-    const out = [];
+    const out: Win[] = [];
     if (have(o.fillDisplay)) out.push({ display: o.fillDisplay, kind: 'fill', sound: windowSoundOf(o) });
     if (have(o.keyDisplay) && o.keyDisplay !== o.fillDisplay) out.push({ display: o.keyDisplay, kind: 'key' });
     return out;
@@ -321,7 +365,7 @@ function windowsOf(o) {
 
 // What an output would use, to find two outputs wanting the same thing: displays, the Blackmagic device,
 // NDI source names. (Set up, whether or not it's on: the Output page warns before it's turned on.)
-function uses(o) {
+function uses(o: Output) {
   if (o.mode === 'chroma') return [`display:${o.chromaDisplay}`];
   if (o.mode === 'fillkey') return [`display:${o.fillDisplay}`, `display:${o.keyDisplay}`];
   if (o.mode === 'decklink') return ['decklink'];
@@ -330,8 +374,8 @@ function uses(o) {
 }
 // For each output, the earlier output already using what it needs (or null): that one keeps it.
 function clashes() {
-  const owner = new Map();
-  const out = new Map();
+  const owner = new Map<string, Output>();
+  const out = new Map<string, Output | null>();
   for (const o of list) {
     const mine = uses(o).filter(u => !u.endsWith(':'));
     const taken = mine.map(u => owner.get(u)).find(Boolean) || null;
@@ -347,20 +391,20 @@ function outputWindows() {
 }
 
 // Whether an output's scene goes out chroma key safe: ticked, and it's keyed on a colour.
-const chromaSafe = o => o.chromaSafe && (o.mode === 'chroma' || (o.mode === 'ndi' && o.ndiSignal === 'chroma'));
+const chromaSafe = (o: Output) => o.chromaSafe && (o.mode === 'chroma' || (o.mode === 'ndi' && o.ndiSignal === 'chroma'));
 
 // The competition's colours that sit close to the key colour, so a keyer would cut holes in them:
 // a strong colour (not too grey or dark) within 55 degrees of its hue. colours: [{ name, hex }].
-let competitionColours = () => [];
-const hsv = h => {
+let competitionColours = (): Colour[] => [];
+const hsv = (h: string) => {
   const [r, g, b] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
   const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
   const hue = !d ? 0 : max === r ? 60 * (((g - b) / d) % 6) : max === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
   return { h: (hue + 360) % 360, s: max ? d / max : 0, v: max };
 };
-function nearKey(colours, key) {
+function nearKey(colours: Colour[], key: string) {
   const k = hsv(key);
-  const seen = new Set();
+  const seen = new Set<string>();
   return colours.filter(c => {
     if (!/^#[0-9a-f]{6}$/i.test(c.hex || '') || seen.has(c.name)) return false;
     const x = hsv(c.hex.toLowerCase());
@@ -373,7 +417,7 @@ function nearKey(colours, key) {
 
 
 // A destination that is one of the Mac's sound outputs by name (not where the output itself plays).
-const named = d => d.device !== 'own' && d.device !== 'mac';
+const named = (d: Dest) => d.device !== 'own' && d.device !== 'mac';
 // The sound copies to play while their outputs are on, one per named destination: [{ output, device, mics, main }].
 // mics: the mic ids to mix in, or 'all' for Output 1's main destination (every Mac mic); main: it's the output's
 // first destination, so its window also reports the mics' meters as the output's own window would.
@@ -383,11 +427,11 @@ function copies() {
     .map(({ d, i }) => ({ output: o.id, device: d.device, mics: i === 0 ? (o.id === PRIMARY ? 'all' : []) : o.id === PRIMARY ? d.mics : [], main: i === 0 })));
 }
 // How each copy is doing, from its window (POST /api/outputs/copy) every few seconds: "output id|device" -> { at, error }.
-const copyHeard = new Map();
+const copyHeard = new Map<string, { at: number; error: string }>();
 const COPY_STALE_MS = 15000;
-function copyReport({ output, device, error } = {}) {
+function copyReport({ output, device: given, error }: Body) {
   const o = list.find(x => x.id === output);
-  device = soundDevice(device);
+  const device = soundDevice(given);
   if (!o || !device) return;
   const was = copyHeard.get(`${o.id}|${device}`);
   const now = { at: Date.now(), error: String(error || '').slice(0, 300) };
@@ -402,10 +446,11 @@ function copyReport({ output, device, error } = {}) {
 // dry in the last minute), 'own' (an output's own window playing on the Mac's sound output) or a Mac device by name
 // (a sound copy); those two come from their windows (POST /api/outputs/level, scene.html), with the device's sample
 // rate and channels. A reading older than LEVEL_STALE_MS is left out: that window isn't sending.
-const soundLevels = new Map();
+interface Level { peak: number[]; rate: number; channels: number; dry: number }
+const soundLevels = new Map<string, Level & { at: number }>();
 const LEVEL_STALE_MS = 3000;
-const level = v => Math.max(0, Math.min(4, Number(v) || 0));
-function noteLevel({ output, device, peak, rate, channels, dry } = {}) {
+const level = (v: unknown) => Math.max(0, Math.min(4, Number(v) || 0));
+function noteLevel({ output, device, peak, rate, channels, dry }: Body) {
   const o = list.find(x => x.id === output);
   const where = device === 'sdi' || device === 'own' ? device : soundDevice(device);
   if (!o || !where || !Array.isArray(peak)) return;
@@ -413,7 +458,7 @@ function noteLevel({ output, device, peak, rate, channels, dry } = {}) {
 }
 // The readings that are fresh: { "output id|where": { peak, rate, channels, dry } }.
 function soundLive() {
-  const now = Date.now(), live = {};
+  const now = Date.now(), live: Record<string, Level> = {};
   for (const [id, l] of soundLevels) {
     if (now - l.at > LEVEL_STALE_MS) soundLevels.delete(id);
     else live[id] = { peak: l.peak, rate: l.rate, channels: l.channels, dry: l.dry };
@@ -423,7 +468,7 @@ function soundLive() {
 
 // How each of an output's destinations is doing, for the Output page: [{ device, mics, state, error }], state 'off'
 // (the output isn't on), 'waiting' (its window hasn't found the device yet), 'sending' or 'problem' (error says).
-function soundState(o, showing) {
+function soundState(o: Output, showing: Shown[]) {
   const on = showing.some(w => w.output === o.id);
   const dl = o.mode === 'decklink' && decklinkOutput === o.id ? decklinkStatus : null;
   return o.sound.map(d => {
@@ -446,17 +491,18 @@ function send() {
 
 // What an output sends at in 4K, for its card and status: { uhd, format, why }. uhd: it goes out at 2160p;
 // otherwise why says what it stays at and why (nothing while the picture is HD).
-function pictureOf(o) {
+function pictureOf(o: Output) {
   if (quality !== 'uhd') return { uhd: false, format: '', why: '' };
   if (o.mode === 'ndi') {
     const hd = NDI_FORMATS.find(f => f.id === o.ndiFormat);
     const uhd = uhdNdi(hd);
+    if (!hd) return { uhd: false, format: '', why: '' };
     return uhd ? { uhd: true, format: uhd.id, why: '' } : { uhd: false, format: hd.id, why: `${hd.id} has no 4K version, so it stays ${hd.id}` };
   }
   if (o.mode === 'decklink') {
     const device = decklink?.devices?.find(d => d.id === o.decklinkDevice);
     const sends = device && decklinkSends(device, o);
-    if (!sends || !sends.mode) return { uhd: false, format: '', why: '' };
+    if (!device || !sends || !sends.mode) return { uhd: false, format: '', why: '' };
     const m = sends.mode;
     return sends.uhd ? { uhd: true, format: m.name, why: m.supported === false ? `${device.name} says it can't send ${m.name}` : '' }
       : { uhd: false, format: m.name, why: `${device.name} has no 4K version of ${m.name}, so it stays ${m.name}` };
@@ -466,14 +512,15 @@ function pictureOf(o) {
 }
 
 // One output as the Output page shows it: its settings, colour, what it's sending and how that's going.
-function outputState(o, clash, showing) {
+function outputState(o: Output, clash: Map<string, Output | null>, showing: Shown[]) {
   const mine = showing.filter(w => w.output === o.id);
+  const clashWith = clash.get(o.id);
   return {
     ...o, colour: COLOURS[o.slot], primary: o.id === PRIMARY, link: slug(o.name), ndiSource: ndiSource(o),
     chromaSafeNow: chromaSafe(o), showing: mine,
     // Into the switcher as: the key it comes into now (the usual one when not picked), and what it sends.
     keyerNow: keyerOf(o), signal: signalOf(o),
-    clash: clash.get(o.id) ? clash.get(o.id).name : '',
+    clash: clashWith ? clashWith.name : '',
     decklinkStatus: decklinkOutput === o.id ? decklinkStatus : { running: false },
     ndiStatus: ndiStatus.get(o.id) || { running: false },
     perf: perfNow()?.outputs[o.id] || null,
@@ -495,7 +542,7 @@ function state() {
   };
 }
 
-const find = ref => {
+const find = (ref: unknown) => {
   const r = String(ref ?? '');
   return list.find(o => o.id === r) || list.find(o => String(o.slot) === r) || list.find(o => slug(o.name) === slug(r)) || null;
 };
@@ -503,20 +550,20 @@ const find = ref => {
 // Changes from the Output page: { output, ...settings } changes that output (the primary without one);
 // { add: true } adds an output (off, with every source off, so nothing shows until something's turned
 // on), { remove: id } removes one, { quality: 'hd' | 'uhd' } sets the picture for every output. Returns an error or null.
-function change(changes = {}) {
+function change(changes: Body = {}) {
   if (changes.quality !== undefined) {
-    if (!QUALITY.includes(changes.quality)) return 'The picture is hd or uhd (4K).';
+    if (!isOneOf(QUALITY, changes.quality)) return 'The picture is hd or uhd (4K).';
     quality = changes.quality;
     return null;
   }
   if (changes.add) {
     if (list.length >= MAX) return `Studio can send to ${MAX} outputs at most.`;
-    const slot = [1, 2, 3, 4].find(n => !list.some(o => o.slot === n));
+    const slot = [1, 2, 3, 4].find(n => !list.some(o => o.slot === n)) || list.length + 1;
     const id = Math.random().toString(36).slice(2, 10);
     // Its NDI sources take its name, which no other output has, so they never take Output 1's.
     list.push(clean({ name: changes.name || `Output ${slot}`, slot, on: false }, { ...DEFAULTS, id }));
     tidy();
-    log('info', 'outputs', `Added ${list.at(-1).name}`);
+    log('info', 'outputs', `Added ${list[list.length - 1].name}`);
     return null;
   }
   if (changes.remove !== undefined) {
@@ -538,10 +585,10 @@ function change(changes = {}) {
   return null;
 }
 
-function apply(changes) {
+function apply(changes: unknown) {
   const before = new Map(list.map(o => [o.id, JSON.stringify(o)]));
   const wasQuality = quality;
-  const error = change(changes || {});
+  const error = change(obj(changes));
   if (quality !== wasQuality) log('info', 'outputs', `Picture ${quality === 'uhd' ? '4K (2160p)' : 'HD'}`);
   if (quality !== wasQuality || list.length !== before.size || list.some(o => before.get(o.id) !== JSON.stringify(o))) {
     const w = windows();
@@ -557,25 +604,26 @@ function apply(changes) {
   return error;
 }
 
-const describe = x => (x.safe ? 'chroma key safe ' : '') + describe1(x);
-const describe1 = x => x.kind === 'decklink' ? `${deviceName(x.device)} (${modeName(x.device, x.mode)}, ${x.keying === 'external' ? 'fill and key' : 'fill only'})`
-  : x.kind === 'ndi' ? `NDI "${x.name}" (${x.format.id}, ${{ fillkey: 'fill and key', chroma: `chroma ${x.color}`, alpha: 'with transparency' }[x.signal]})`
+const describe = (x: Shown) => (x.safe ? 'chroma key safe ' : '') + describe1(x);
+const NDI_SIGNAL_NAMES: Record<string, string> = { fillkey: 'fill and key', alpha: 'with transparency' };
+const describe1 = (x: Win) => x.kind === 'decklink' ? `${deviceName(x.device)} (${modeName(x.device, x.mode)}, ${x.keying === 'external' ? 'fill and key' : 'fill only'})`
+  : x.kind === 'ndi' ? `NDI "${x.name}" (${x.format.id}, ${x.signal === 'chroma' ? `chroma ${x.color}` : NDI_SIGNAL_NAMES[x.signal]})`
   : `${x.kind} on ${label(x.display)}`;
-const label = id => (displays || []).find(d => d.id === id)?.label || `display ${id}`;
-const deviceName = id => decklink?.devices?.find(d => d.id === id)?.name || 'Blackmagic device';
-const modeName = (id, mode) => decklink?.devices?.find(d => d.id === id)?.modes.find(m => m.mode === mode)?.name || 'video format';
+const label = (id: string) => (displays || []).find(d => d.id === id)?.label || `display ${id}`;
+const deviceName = (id: string) => decklink?.devices?.find(d => d.id === id)?.name || 'Blackmagic device';
+const modeName = (id: string, mode: number) => decklink?.devices?.find(d => d.id === id)?.modes.find(m => m.mode === mode)?.name || 'video format';
 
-async function route(req, res, url, { send: reply, readBody }) {
+async function route(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, url: URL, { send: reply, readBody }: { send: Send; readBody: ReadBody }) {
   // A sound copy's window saying how it's doing (scene.html?copy=1).
   if (url.pathname === '/api/outputs/copy' && req.method === 'POST') {
-    copyReport(await readBody(req).catch(() => ({})));
+    copyReport(await readBody(req).catch((): Body => ({})));
     reply(res, 200, { ok: true });
     return true;
   }
   // Every window playing an output's sound saying how loud it is, and what it plays at; and the board reading them all.
   if (url.pathname === '/api/outputs/level' && req.method === 'POST') {
-    const b = await readBody(req).catch(() => ({}));
-    if (b && b.device !== 'sdi') noteLevel(b);
+    const b = await readBody(req).catch((): Body => ({}));
+    if (b.device !== 'sdi') noteLevel(b);
     reply(res, 200, { ok: true });
     return true;
   }
@@ -597,9 +645,9 @@ async function route(req, res, url, { send: reply, readBody }) {
 // /deck/output/on|off|toggle shows or blanks the primary output without changing its setup;
 // /deck/output/<name or number>/on|off|toggle one output, /deck/output/all/on|off|toggle every one
 // (toggle: all off if any is on, else all on). /deck/output/<name or number>/layer/... is the scene's.
-function deck(parts) {
+function deck(parts: string[]) {
   if (parts[0] !== 'output') return null;
-  const verbs = o => ({ on: true, off: false, toggle: !o.on });
+  const verbs = (o: Output): Record<string, boolean | undefined> => ({ on: true, off: false, toggle: !o.on });
   if (parts.length <= 2) {
     const on = verbs(primary())[parts[1]];
     if (on === undefined) return { status: 404, body: { error: 'Use /deck/output/on, off or toggle, or /deck/output/<output>/on, off or toggle.' } };
@@ -608,7 +656,7 @@ function deck(parts) {
   }
   if (parts[1] === 'all') {
     const any = list.some(o => o.on && o.mode !== 'off');
-    const on = { on: true, off: false, toggle: !any }[parts[2]];
+    const on = ({ on: true, off: false, toggle: !any } as Record<string, boolean | undefined>)[parts[2]];
     if (on === undefined || parts.length > 3) return { status: 404, body: { error: 'Use /deck/output/all/on, off or toggle.' } };
     const before = JSON.stringify(list);
     for (const o of list) o.on = on && o.mode !== 'off'; // one set to Web links only stays off
@@ -621,43 +669,53 @@ function deck(parts) {
   const on = verbs(o)[parts[2]];
   if (on === undefined) return { status: 404, body: { error: `Use /deck/output/${slug(o.name)}/on, off or toggle.` } };
   apply({ output: o.id, on });
-  const now = find(o.id);
+  const now = find(o.id) || o;
   return { status: 200, body: { ok: true, on: now.on, mode: now.mode, output: now.name } };
 }
 
+// A Blackmagic device as the Mac app describes it (desktop/decklink.js), its formats checked.
+function deviceOf(v: unknown): DeckDevice {
+  const d = obj(v);
+  const modes = arr(d.modes).map(m => { const x = obj(m); return { ...x, mode: Number(x.mode) || 0, name: str(x.name), height: Number(x.height) || 0, interlaced: !!x.interlaced,
+    ...(x.supported !== undefined ? { supported: !!x.supported } : {}), ...(x.keying !== undefined ? { keying: !!x.keying } : {}) }; });
+  return { ...d, id: String(d.id ?? ''), name: str(d.name), modes };
+}
+
 // A message from the Mac app: its displays, Blackmagic devices, NDI and how they're doing.
-function message(msg) {
+function message(given: unknown) {
+  const msg = obj(given);
   if (msg.type === 'displays' && Array.isArray(msg.displays)) {
-    displays = msg.displays.map(d => ({ id: String(d.id), label: String(d.label || `Display ${d.id}`), width: d.width, height: d.height, scale: Number(d.scale) || 1, primary: !!d.primary }));
+    displays = msg.displays.map(obj).map(d => ({ id: String(d.id), label: String(d.label || `Display ${d.id}`), width: Number(d.width) || 0, height: Number(d.height) || 0, scale: Number(d.scale) || 1, primary: !!d.primary }));
     send();
   }
   if (msg.type === 'decklink') {
     const before = JSON.stringify(windows());
-    decklink = { ok: !!msg.ok, error: String(msg.error || ''), version: String(msg.version || ''), devices: Array.isArray(msg.devices) ? msg.devices : [] };
+    decklink = { ok: !!msg.ok, error: String(msg.error || ''), version: String(msg.version || ''), devices: arr(msg.devices).map(deviceOf) };
     if (JSON.stringify(windows()) !== before) send();
   }
   if (msg.type === 'soundLevel') noteLevel({ ...msg, device: 'sdi' });
-  if (msg.type === 'decklinkStatus') { decklinkStatus = msg.status || { running: false }; decklinkOutput = String(msg.output || PRIMARY); }
+  if (msg.type === 'decklinkStatus') { decklinkStatus = isObj(msg.status) ? msg.status : { running: false }; decklinkOutput = String(msg.output || PRIMARY); }
   if (msg.type === 'ndi') {
     const before = JSON.stringify(windows());
     ndi = { ok: !!msg.ok, error: String(msg.error || ''), version: String(msg.version || ''), url: String(msg.url || '') };
     if (JSON.stringify(windows()) !== before) send();
   }
-  if (msg.type === 'ndiStatus') ndiStatus.set(String(msg.output || PRIMARY), msg.status || { running: false });
+  if (msg.type === 'ndiStatus') ndiStatus.set(String(msg.output || PRIMARY), isObj(msg.status) ? msg.status : { running: false });
   if (msg.type === 'perf') notePerf(msg);
   // Esc on an output window turns that output off, in case it covers the screen you work on.
   if (msg.type === 'escape') apply({ output: msg.output || PRIMARY, on: false });
 }
 
-const num = n => Number.isFinite(Number(n)) ? Math.max(0, Math.round(Number(n))) : 0;
+const num = (n: unknown) => Number.isFinite(Number(n)) ? Math.max(0, Math.round(Number(n))) : 0;
 const perfNow = () => perf && Date.now() - perf.at < PERF_STALE_MS ? perf : null;
 
-function notePerf(msg) {
-  const outputs = {};
-  for (const [id, p] of Object.entries(msg.outputs || {})) {
-    outputs[String(id)] = { cpu: num(p?.cpu), memMB: num(p?.memMB), fps: num(p?.fps), target: num(p?.target) };
+function notePerf(msg: Body) {
+  const outputs: Record<string, PerfOut> = {};
+  for (const [id, v] of Object.entries(obj(msg.outputs))) {
+    const p = obj(v);
+    outputs[String(id)] = { cpu: num(p.cpu), memMB: num(p.memMB), fps: num(p.fps), target: num(p.target) };
   }
-  const t = msg.total;
+  const t = isObj(msg.total) ? msg.total : null;
   perf = { at: Date.now(), outputs, total: t ? { cpu: num(t.cpu), memMB: num(t.memMB), gpu: num(t.gpu) } : null };
   if (!Object.keys(outputs).length) { perfSamples = []; return; }
   perfSamples.push(perf);
@@ -672,15 +730,15 @@ function logPerf() {
   perfSamples = [];
   perfLoggedAt = Date.now();
   if (!samples.length) return;
-  const avg = xs => Math.round(xs.reduce((n, x) => n + x, 0) / xs.length);
+  const avg = (xs: number[]) => Math.round(xs.reduce((n, x) => n + x, 0) / xs.length);
   const parts = list.map(o => {
     const mine = samples.map(s => s.outputs[o.id]).filter(Boolean);
     if (!mine.length) return '';
     const low = Math.min(...mine.map(p => p.fps));
-    const target = mine.at(-1).target;
+    const target = mine[mine.length - 1].target;
     return `${o.name} ${avg(mine.map(p => p.cpu))}% CPU, ${avg(mine.map(p => p.memMB))} MB, ${avg(mine.map(p => p.fps))} of ${target} fps (lowest ${low})`;
   }).filter(Boolean);
-  const totals = samples.map(s => s.total).filter(Boolean);
+  const totals = samples.flatMap(s => (s.total ? [s.total] : []));
   if (totals.length) parts.push(`Studio in all ${avg(totals.map(t => t.cpu))}% CPU, ${avg(totals.map(t => t.memMB))} MB, graphics processor ${avg(totals.map(t => t.gpu))}% CPU`);
   log('info', 'outputs', `Performance over the last minute: ${parts.join('; ')}`);
 }
@@ -688,7 +746,8 @@ function logPerf() {
 // colours(): the active competition's colours and club colours, [{ name, hex }].
 // removed(id): an output was removed (the scene drops what was on for it). changed(): any setting changed.
 // soft(): the pictures and videos that look soft in 4K, [{ what, name, width, height }].
-function init(logger, { colours, removed, changed, soft } = {}) {
+interface Hooks { colours?(): Colour[]; removed?(id: string): void; changed?(): void; soft?(): unknown[] }
+function init(logger: Log, { colours, removed, changed, soft }: Hooks = {}) {
   log = logger;
   if (changed) onChange = changed;
   if (soft) softPictures = () => { try { return soft() || []; } catch (err) { log('warn', 'outputs', `Checking pictures for 4K: ${errorMessage(err)}`); return []; } };
@@ -697,7 +756,7 @@ function init(logger, { colours, removed, changed, soft } = {}) {
   load();
 
   if (port) {
-    port.on('message', e => message(e.data || {}));
+    port.on('message', e => message(e.data));
     port.postMessage({ type: 'ready' });
   }
 }
@@ -714,9 +773,9 @@ function summary() {
 // [{ id, name, slot, colour, keyer: 'dsk1' | 'usk2' | ... | 'none', fill, key, cameras, signal, premultiplied }]. signal is
 // chroma (over a colour), fillkey (a fill and a key), fill (fill only) or alpha (one NDI source with transparency);
 // premultiplied: the fill is premultiplied (Studio's always is, unless the Blackmagic device's Straight is ticked).
-const signalOf = o => o.mode === 'chroma' ? 'chroma' : o.mode === 'fillkey' ? 'fillkey'
+const signalOf = (o: Output) => o.mode === 'chroma' ? 'chroma' : o.mode === 'fillkey' ? 'fillkey'
   : o.mode === 'decklink' ? (o.decklinkKeying === 'external' ? 'fillkey' : 'fill') : o.mode === 'ndi' ? o.ndiSignal : 'off';
-const keyerOf = o => o.keyer || (signalOf(o) === 'chroma' || o.slot !== 1 ? `usk${o.slot}` : 'dsk1');
+const keyerOf = (o: Output) => o.keyer || (signalOf(o) === 'chroma' || o.slot !== 1 ? `usk${o.slot}` : 'dsk1');
 function switcherPlan() {
   return list.filter(o => o.mode !== 'off').map(o => ({ id: o.id, name: o.name, on: !!o.on, slot: o.slot, colour: COLOURS[o.slot], keyer: keyerOf(o),
     fill: o.swFill, key: o.swKey, cameras: o.swCameras, signal: signalOf(o), premultiplied: !(o.mode === 'decklink' && o.decklinkStraight) }));
@@ -729,4 +788,6 @@ function sponsorsOnAir() {
   return windows().some(w => counting.has(w.output));
 }
 
-export { init, route, deck, state, apply, windows, copies, message, summary, switcherPlan, sponsorsOnAir, find, PRIMARY, MAX, COLOURS };
+export type { Output, Shown as OutputWindow };
+export { init, route,
+ deck, state, apply, windows, copies, message, summary, switcherPlan, sponsorsOnAir, find, PRIMARY, MAX, COLOURS };
