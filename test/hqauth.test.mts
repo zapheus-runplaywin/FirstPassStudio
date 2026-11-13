@@ -117,6 +117,12 @@ test('the clubs list keeps only clubs with a code, a name, an https address and 
   // The list the app ships with reads, and every club in it is a real one.
   const shipped = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '..', 'hqclubs.json'), 'utf8'));
   assert.equal(hqauth.readClubs(path.join(import.meta.dirname, '..', 'hqclubs.json')).length, shipped.clubs.length);
+  // A test or development project says so in both its code and its name, so the card never passes one off as the club.
+  for (const c of shipped.clubs) {
+    const testInCode = /(TEST|DEV)$/.test(c.code);
+    const testInName = /\((test|dev)\)$/i.test(c.name);
+    assert.equal(testInCode, testInName, `${c.code}: a test project ends its code in TEST and its name in (test)`);
+  }
 });
 
 test('signing in: PKCE through a one-time 127.0.0.1 address, the role checked, the refresh token kept in the Keychain only', async t => {
