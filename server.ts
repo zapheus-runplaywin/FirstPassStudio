@@ -169,7 +169,7 @@ const playhq = createPlayhq({
   log, apiUrl: API_URL, cacheMs: CACHE_MS, linkBase: LINK_BASE, record: recorder, practice,
   config: () => CONFIG, leadMs: () => theGames.leadMs(), logoFor: name => logoFor(name), positionOf: p => positionOf(p),
 });
-const { gql, getStructure, getLadder, findGrade, pickSeason, Q_COMPETITIONS, getGame, lineup, getLive, scoringNotYet, lastLive, liveSeenFor } = playhq;
+const { competitions: playhqCompetitions, getStructure, getLadder, findGrade, pickSeason, getGame, getLive, scoringNotYet, lastLive, liveSeenFor } = playhq;
 import { parsePlayhqUrl, startOf, isFinished } from './playhq';
 import * as playhqNet from './playhqnet';
 import { errorMessage, errorStack } from './errors';
@@ -574,11 +574,9 @@ function setupInfo(id: string) {
 async function findCompetitions(organisationUrl: unknown) {
   const u = parsePlayhqUrl(organisationUrl);
   if (!u) throw new Error('That doesn\'t look like a PlayHQ organisation link. Open the organisation on playhq.com and copy the address, e.g. https://www.playhq.com/netball-australia/org/<name>/<8 characters>.');
-  const data = await gql('discoverCompetitions', Q_COMPETITIONS, { organisationID: u.orgId }, false, u.tenant);
-  const list = arr(data.discoverCompetitions).map(obj);
-  const seasonsOf = (c: Body) => arr(c.seasons).map(obj).map(x => ({ name: str(x.name), startDate: str(x.startDate) || null, endDate: str(x.endDate) || null, status: x.status }));
-  return { tenant: u.tenant, organisationId: u.orgId, organisation: str(obj(list.find(c => isObj(c.organisation))?.organisation).name),
-    competitions: list.map(c => ({ name: str(c.name), seasons: seasonsOf(c).map(x => x.name), currentSeason: pickSeason(seasonsOf(c))?.name || '' })) };
+  const list = await playhqCompetitions(u.orgId, u.tenant);
+  return { tenant: u.tenant, organisationId: u.orgId, organisation: list.find(c => c.organisation)?.organisation?.name || '',
+    competitions: list.map(c => ({ name: c.name, seasons: c.seasons.map(x => x.name), currentSeason: pickSeason(c.seasons)?.name || '' })) };
 }
 
 // Every team in the competition in use, with the logo each one gets, for the setup page.

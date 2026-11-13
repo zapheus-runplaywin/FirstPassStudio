@@ -1,7 +1,8 @@
 # Runs the tests on every pull request (and on main after a merge), so a change that breaks
 # something shows as a red check on the pull request before it's merged.
 #   Studio: npm test (test/*.test.js), the helper, scenes, sequences, music, packing, every page in a browser, and the
-#   Mac app itself (Electron, on a virtual display).
+#   Mac app itself (Electron, on a virtual display); and FirstPass's own packages in packages/ (@firstpass/playhq):
+#   built, their tests, type check, and the built files loaded as Studio loads them.
 #   Stream Deck plugin: plugins/studio-deck's type check and tests.
 #   NDI output module: native/ndi built, and its send timing against a stand-in NDI runtime.
 #   Packages: npm audit on the packages that ship (not the build tools), so a known vulnerability in
@@ -40,6 +41,12 @@ jobs:
           cache: npm
       # No install scripts (as in mac-app.yml); Electron's binary is fetched on its own below, for the app's test.
       - run: npm ci --ignore-scripts
+      # FirstPass's own packages in packages/ (@firstpass/playhq) built to dist/ for Studio's require(), and Studio compiled into out/;
+      # then the packages' own tests: vitest against a stand-in PlayHQ, the type check, and the built files loaded as Studio does.
+      - run: npm run build
+      - run: npm test --workspaces
+      - run: npm run typecheck --workspaces
+      - run: npm run test:dist --workspaces
       # Known vulnerabilities in the packages Studio ships (electron-updater, qrcode-generator and what they
       # pull in). Build-time packages are left out: they never run on anyone's Mac.
       - run: npm audit --omit=dev --audit-level=high

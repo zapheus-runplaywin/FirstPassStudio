@@ -130,7 +130,7 @@ test('a ladder PlayHQ refuses for some other reason fails with that reason, with
 test('GraphQL errors in an answer that is otherwise OK fail with PlayHQ\'s message and are logged', async () => {
   const c = client();
   playhq.world.answers.gradeRounds = () => graphqlError('Internal server error');
-  await assert.rejects(c.getRounds('grade-div1'), /^Error: Internal server error$/);
+  await assert.rejects(c.getRounds('grade-div1'), /^PlayhqError: Internal server error$/);
   assert.ok(logged.some(l => /^error playhq gradeRounds GraphQL errors/.test(l)), logged.join('\n'));
 });
 

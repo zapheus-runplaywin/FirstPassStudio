@@ -1,0 +1,44 @@
+{
+  "name": "@firstpass/playhq",
+  "version": "0.2.0",
+  "description": "PlayHQ's public data for FirstPass: link parsing, the GraphQL queries, the guest session, and parsers for fixtures, line ups, ladders and the live scoring feed.",
+  "license": "MIT",
+  "author": "PIVT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zapheus-runplaywin/FirstPassStudio.git",
+    "directory": "packages/playhq"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "prepare": "tsc -b",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:dist": "node --test test-dist/*.test.cjs test-dist/*.test.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@vitest/coverage-v8": "4.1.12",
+    "typescript": "7.0.2",
+    "vitest": "4.1.12"
+  }
+}

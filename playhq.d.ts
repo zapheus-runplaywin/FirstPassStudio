@@ -1,7 +1,7 @@
 // FirstPass Studio - the types of the PlayHQ client (playhq.js), for the TypeScript modules that use it.
 //
-// playhq.js stays JavaScript until the shared PlayHQ package (packages/playhq) takes its place; until then this
-// file says what it hands over. The shapes are the ones playhq.js builds (the package's model starts from them).
+// playhq.js (Studio's own layer on the shared PlayHQ package, @firstpass/playhq in packages/playhq) is still JavaScript;
+// it moves to TypeScript in a change of its own, and until then this file says what it hands over.
 
 import type { Log } from './types';
 
@@ -68,9 +68,6 @@ export interface Scored extends Timed { home?: { score?: number | null }; away?:
 /** One item's outcome from eachLimited. */
 export type Each<T> = { value: T; error?: undefined } | { value?: undefined; error: unknown };
 
-/** What a GraphQL query answers (data), unchecked until read. */
-export type GqlData = Record<string, unknown>;
-
 export interface Deps {
   log: Log; apiUrl: string; cacheMs: number; linkBase: string;
   config(): import('./types').Config; leadMs(): number;
@@ -84,19 +81,17 @@ export interface Client {
   resetCaches(): void;
   organisation(): { tenant: string; orgId: string | null };
   structureNow(): Structure | null;
-  gql(operationName: string, query: string, variables: Record<string, unknown>, retried?: boolean, tenant?: string): Promise<GqlData>;
+  competitions(orgId: string, tenant: string): Promise<import('@firstpass/playhq').Competition[]>;
   getStructure(): Promise<Structure>;
   getLadder(gradeId: string): Promise<Ladder>;
   findGrade(st: Structure, q: { gradeId?: string; division?: string }): GradeRef | undefined;
   pickSeason<S extends { name: string; startDate?: string | null; endDate?: string | null; status?: unknown }>(seasons: S[]): S | undefined;
-  Q_COMPETITIONS: string;
   getRounds(gradeId: string): Promise<Round[]>;
   getRoundGames(roundId: string, maxAgeMs: number): Promise<RoundGames>;
   getGame(gameId: string, maxAgeMs: number): Promise<GameDetail>;
   readGame(g: Scored & { id: string }, maxAgeMs: number): Promise<GameDetail>;
   eachLimited<I, T>(items: I[], limit: number, fn: (item: I, i: number) => Promise<T>): Promise<Each<T>[]>;
   PLAYHQ_AT_ONCE: number;
-  lineup(): string;
   POSITION_RANK: string[];
   getLive(gameId: string, maxAgeMs: number): Promise<LiveGame>;
   liveScore(game: { id: string }, maxAgeMs: number): Promise<LiveScore | null>;

@@ -7,6 +7,9 @@
   "license": "MIT",
   "private": true,
   "main": "out/desktop/main.js",
+  "workspaces": [
+    "packages/playhq"
+  ],
   "scripts": {
     "start": "npm run build && node out/server.js",
     "test": "node --test test/*.test.js",
@@ -16,13 +19,14 @@
     "app": "npm run build && electron .",
     "dist": "npm run build && electron-builder --mac --publish never",
     "release": "npm run build && electron-builder --mac --publish always",
-    "build": "tsc -p .",
+    "build": "npm run build --workspaces && tsc -p .",
     "watch": "tsc -p . --watch",
     "examples": "npm run build && node out/examples.js",
     "pretest": "npm run build",
     "pretest:ci": "npm run build"
   },
   "dependencies": {
+    "@firstpass/playhq": "0.2.0",
     "atem-connection": "3.10.3",
     "electron-updater": "6.8.11",
     "qrcode-generator": "2.0.4",
