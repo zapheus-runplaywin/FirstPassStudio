@@ -204,7 +204,7 @@ test('a game\'s run order loads into Output 1\'s run order as the scoreboard mov
 });
 
 test('the commentators graphics read who is on the mic', async () => {
-  const page = await fetch(`${studio.base}/commentators.html`).then(r => r.text());
+  const page = await fetch(`${studio.base}/commentators.js`).then(r => r.text());
   assert.match(page, /\/api\/planner\/onair/, 'the Commentators graphic falls back to the plan');
   const res = await fetch(`${studio.base}/api/planner/onair`);
   assert.equal(res.status, 200);

@@ -3,8 +3,8 @@
   // loaded by script tags with no bundler, as they always were: Studio serves out/public/ first, so a page's links
   // don't change. What one script puts on window (a top-level function or var) the others can use. The output is
   // strict mode, where setting a name nobody declared fails, so a script that fills in a global declares it with a
-  // plain top-level `var name: Type;` (not `declare var`, which leaves nothing in the output). A Studio page's own
-  // script (planner.ts for planner.html) starts with `export {};` and is loaded with <script type="module">, so its
+  // plain top-level `var name: Type;` (not `declare var`, which leaves nothing in the output). A page's own
+  // script (planner.ts for planner.html) ends with `export {};` and is loaded with <script type="module">, so its
   // names stay its own and don't clash with another page's. view.d.ts types what Studio answers the pages.
   "compilerOptions": {
     "target": "es2022",

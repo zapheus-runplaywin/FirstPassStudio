@@ -55,40 +55,6 @@
   <div class="side side--right" id="right" hidden>
     <img class="comp" id="comp" alt="">
   </div>
-  <script>
-    (function () {
-      const params = new URLSearchParams(location.search);
-      const $ = id => document.getElementById(id);
-      const root = document.documentElement.style;
-      const num = k => { const v = parseFloat(params.get(k)); return Number.isFinite(v) ? v : null; };
-      if (num('edge') !== null) root.setProperty('--edge', num('edge') + 'px');
-      if (num('gap') !== null) { root.setProperty('--gap', num('gap') + 'px'); document.body.classList.add('from-centre'); }
-      if (num('top') !== null) root.setProperty('--mid', num('top') + 'px');
-      if (num('size') !== null && num('size') > 0) {
-        const css = getComputedStyle(document.documentElement);
-        ['--pivt', '--studio', '--comp'].forEach(v => root.setProperty(v, parseFloat(css.getPropertyValue(v)) * num('size') + 'px'));
-      }
-      // The brand kit's two FirstPass Studio logos: dark for a dark picture behind it, light for a light one.
-      const dark = (params.get('mode') || params.get('theme') || 'light').toLowerCase() === 'dark';
-      if (dark) $('studio').src = 'studio/firstpass-studio.svg';
-      $('pivt').hidden = params.get('pivt') === '0';
-      $('studio').hidden = params.get('studio') === '0';
-      $('left').hidden = $('pivt').hidden && $('studio').hidden;
-
-      async function load() {
-        if (params.get('comp') === '0') return;
-        try {
-          const res = await fetch('/api/scoreboard', { cache: 'no-store' });
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          const rules = (await res.json()).rules || {};
-          const logo = (dark ? rules.competitionLogoDark : rules.competitionLogoLight) || rules.competitionLogo;
-          if (!logo) { console.warn('Branding: the competition setup has no competition logo'); return; }
-          $('comp').src = logo;
-          $('right').hidden = false;
-        } catch (err) { console.warn('Branding: competition logo unavailable:', err.message); }
-      }
-      load();
-    })();
-  </script>
+  <script type="module" src="branding.js"></script>
 </body>
 </html>
