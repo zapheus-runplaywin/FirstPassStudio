@@ -3,7 +3,7 @@
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const rows = $<HTMLTableSectionElement>('rows');
 // What Studio answers (devices.ts list() and asking(), securelink.ts status()).
-interface Device { id: string; name: string; kind: string; level: string; address?: string; created: string; lastSeen: string | null }
+interface Device { id: string; name: string; kind: string; level: string; address?: string; created: string; lastSeen: string | null; secure?: boolean }
 interface Asking { id: string; name: string; address: string; browser: boolean; at: number; expires: string }
 interface DevicesAnswer { devices: Device[]; asking: Asking | null; error?: string }
 interface SecureLink {
@@ -21,7 +21,7 @@ function draw(list: Device[]) {
     const tr = document.createElement('tr');
     const name = document.createElement('td');
     const b = document.createElement('b'); b.textContent = d.name;
-    const what = document.createElement('div'); what.className = 'what'; what.textContent = (KINDS[d.kind] || d.kind) + (d.address ? `, at ${d.address}` : '');
+    const what = document.createElement('div'); what.className = 'what'; what.textContent = (KINDS[d.kind] || d.kind) + (d.address ? `, at ${d.address}` : '') + (d.secure ? '; paired over the secure link, so it can see FirstPass stats' : '');
     name.append(b, what);
     const cells = [LEVELS[d.level] || d.level, when(d.created), when(d.lastSeen)].map(t => { const td = document.createElement('td'); td.textContent = t; return td; });
     // A paired browser's level can be changed here.
