@@ -136,6 +136,21 @@ test('with no game on, the fixtures and ladders are read every 5 minutes; Refres
   assert.equal(asked('discoverFixtureByRound'), 1, 'once: then kept again');
 });
 
+test('Refresh list reads each once, even when the read lands in the same millisecond as the press', async t => {
+  const c = client();
+  for (const d of playhq.world.divisions) for (const g of d.rounds[2].games) { g.time = timeIn(5 * 60); g.status = 'UPCOMING'; delete playhq.world.live[g.id]; }
+  const round = playhq.world.divisions[0].rounds[2].id;
+  await c.getRoundGames(round, 60 * 1000);
+  // The clock stands still, so the press and the fresh read share one millisecond.
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() + 1000 });
+  playhq.world.calls.length = 0;
+  c.askAgain();
+  await c.getRoundGames(round, 60 * 1000);
+  await c.getRoundGames(round, 60 * 1000);
+  await c.getRoundGames(round, 60 * 1000);
+  assert.equal(asked('discoverFixtureByRound'), 1, 'read afresh once, then kept');
+});
+
 test('with a game on, the fixtures are read as often as asked', async () => {
   const c = client();
   const game = playhq.world.gameNow(0);

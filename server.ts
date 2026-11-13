@@ -43,11 +43,15 @@ import * as uploads from './uploads';
 import * as zip from './zip';
 import * as storiesLib from './stories';
 import * as firstpassLib from './firstpass';
+import * as hqauthLib from './hqauth';
+import * as keychainLib from './keychain';
+import { execFile } from 'node:child_process';
 import { create as createPlayhq } from './playhq';
 import { create as createBoard } from './board';
 import { create as createGames } from './games';
 import { create as createPlanner } from './planner';
 import { create as createSocials } from './socials';
+import { create as createCaptions } from './captions';
 import { create as createTeams } from './teams';
 import { create as createAthletes } from './athletes';
 import { create as createLowerThird } from './lowerthird';
@@ -212,6 +216,13 @@ process.on('exit', () => stories.stop()); // Bonjour's dns-sd stops announcing t
 
 // ─── FirstPass stats (firstpass.ts): private, kept on this Mac only, deleted 30 days after the game ──
 const firstpass = firstpassLib.create({ log, dir: datadir.local('firstpass') });
+// Signing in to each club's FirstPass HQ (hqauth.ts), from the clubs in hqclubs.json (HQ_CLUBS_FILE for tests); each
+// club's refresh token in the Keychain (keychain.ts; hq-tokens.json outside the Mac app).
+const hq = hqauthLib.create({
+  log, store: firstpass, metaFile: datadir.local('hq-signins.json'),
+  clubs: hqauthLib.readClubs(process.env.HQ_CLUBS_FILE || path.join(APP_DIR, 'hqclubs.json'), log),
+  tokens: keychainLib.create('FirstPass Studio HQ sign-in', datadir.local('hq-tokens.json')),
+});
 
 // ─── The board (board.ts): scores, clock, goals, streaks, stats and the worm ──
 const theBoard = createBoard({
@@ -305,6 +316,13 @@ const socials = createSocials({
   hasFinals: division => !!finalsFor(division), finalsOf: division => getFinals({ division }),
   // The competition's colours, for the colour sets.
   theme: () => ({ colours: CONFIG.colours, panelOpacity: CONFIG.panelOpacity }),
+});
+// AI captions for the Socials pictures (captions.ts): written from the same facts as the picture, by the provider and
+// with the key picked on the Captions card, on this Mac only.
+const captions = createCaptions({
+  log, night: q => socials.night(q),
+  kindOf: kind => socials.KIND_NAMES.find(k => k.kind === kind) || null,
+  hashtags: () => socials.settings().hashtags,
 });
 
 // Studio reads the live score itself, every second through the cache (so PlayHQ is asked once
@@ -996,6 +1014,19 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
       const done = await securelink.set(await readBody(req));
       return send(res, 'error' in done && done.error ? 400 : 200, done);
     }
+    // FirstPass HQ sign-in per club (hqauth.ts), the FirstPass HQ card on the Devices tab, on this Mac only
+    // (access.notThisMac()): the clubs and who is signed in to each, signing in (the club's Google sign-in page opens in
+    // the system browser on this Mac; its link is answered too, in case it didn't) and signing out.
+    if (url.pathname === '/api/firstpass/clubs' && method === 'GET') return send(res, 200, { clubs: hq.list() });
+    const hqClub = /^\/api\/firstpass\/clubs\/([A-Z0-9]{1,20})\/(signin|signout)$/.exec(url.pathname);
+    if (hqClub && method === 'POST') {
+      if (!hq.club(hqClub[1])) return send(res, 404, { error: `There's no club ${hqClub[1]} in Studio's FirstPass HQ list.` });
+      if (hqClub[2] === 'signout') { await hq.signOut(hqClub[1]); return send(res, 200, { clubs: hq.list() }); }
+      const started = await hq.signIn(hqClub[1]);
+      if ('error' in started) return send(res, 400, started);
+      if (process.platform === 'darwin' && !process.env.STUDIO_NO_BROWSER) execFile('/usr/bin/open', [started.url], () => {});
+      return send(res, 200, { url: started.url, clubs: hq.list() });
+    }
     // The Devices list at the top of the Devices tab (api.html), on this Mac only (access.notThisMac()).
     if (url.pathname === '/api/devices' && method === 'GET') return send(res, 200, { devices: devices.list(), asking: devices.pending() });
     // Named link sets (Output page and Stream Deck page, on this Mac): make one, read its key for copying links, give it a new key.
@@ -1085,6 +1116,8 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     // A saved plan can change tonight's court, so automatic game selection looks again straight away.
     if (url.pathname.startsWith('/api/planner') && await planner.route(req, res, url, { send, readBody, readRaw, changed: () => autoPick() })) return;
     if (stories.route(req, res, url, { send })) return;
+    if ((url.pathname === '/api/captions' || url.pathname.startsWith('/api/captions/') || url.pathname === '/api/socials/caption')
+      && await captions.route(req, res, url, { send, readBody })) return;
     if (url.pathname.startsWith('/api/socials') || url.pathname.startsWith('/socials/')) {
       if (await socials.route(req, res, url, { send, readBody, readRaw, port: PORT })) return;
     }
@@ -1250,6 +1283,7 @@ http.createServer(handle).on('upgrade', handleUpgrade).on('error', (err: NodeJS.
   securelink.start({ log, port: SECURE_PORT, handler: handle, upgrade: handleUpgrade });
   stories.start(); // announce this Studio and copy the other Studios' game stories (stories.ts)
   firstpass.start(); // delete FirstPass stats more than 30 days old (firstpass.ts)
+  hq.start(); // refresh each club's FirstPass HQ sign-in and check its Studio role (hqauth.ts)
   console.log(`FirstPass Studio is running. Open ${LINK_BASE}/ for the Output page.`);
   console.log(`Competition: ${CONFIG.name} (change it at ${LINK_BASE}/setup.html). Leave this window open while streaming.`);
 });

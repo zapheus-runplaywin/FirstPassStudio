@@ -54,6 +54,10 @@
   .secure .fields input { font: inherit; padding: 7px 10px; border: 1px solid var(--fp-line-strong); border-radius: 8px; background: var(--fp-white); color: var(--fp-navy); min-width: 0; }
   .secure .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   @media (max-width: 640px) { .secure .fields { grid-template-columns: 1fr; } }
+  /* The FirstPass HQ card (hqclubs.js): one row per club. */
+  .hq .club { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 0; border-top: 1px solid var(--fp-line); }
+  .hq .club .state { flex: 1 1 260px; margin: 0; }
+  .hq .club .problem { flex-basis: 100%; font-size: 13px; color: var(--fp-muted); margin: 0; }
   #linkSet { font: inherit; padding: 6px 9px; border: 1px solid var(--fp-line-strong); border-radius: 8px; color: var(--fp-navy); background: var(--fp-white); }
 </style>
 <script src="log.js"></script>
@@ -105,6 +109,14 @@
         The graphics, the Stream Deck and the http links work the same whether this is on or not.</p>
     </section>
 
+    <section class="secure hq" id="hqSection" hidden>
+      <h2>FirstPass HQ</h2>
+      <p class="sub">Sign in to each club whose FirstPass stats this Mac shows, with your own Google account; a club admin gives you the Studio role in HQ.
+        The sign-in page opens in your browser, and nothing is typed here. FirstPass stats stay on this Mac and the devices paired over the secure link,
+        and are deleted 30 days after each game, or straight away when you sign out. <a href="/guide/#s10-6">How it works</a></p>
+      <div id="hqClubs"></div>
+    </section>
+
     <h2 id="streamdeck" style="margin-top:28px">Stream Deck</h2>
     <p class="sub">Run the scene and the scoreboard from a Stream Deck; Studio has to be on air, so keep a Studio window open.</p>
 
@@ -129,6 +141,7 @@
       <div id="linkGroups"></div>
     </section>
   </main>
+  <script src="hqclubs.js"></script>
   <script src="pageoptions.js"></script>
   <script src="graphiclinks.js"></script>
   <script src="links.js"></script>

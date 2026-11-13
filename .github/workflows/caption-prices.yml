@@ -1,0 +1,44 @@
+# Keeps the AI captions' prices up to date (captionprices.json, read by captions.ts). Every Monday (or from the Actions
+# tab: Caption prices > Run workflow) it rebuilds the file from LiteLLM's public price list and, when a price for a
+# Claude, ChatGPT or Gemini model has changed or a model was added, opens a pull request. Merging it ships the new
+# prices in the next app release.
+# Needs Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests".
+name: Caption prices
+
+on:
+  schedule:
+    - cron: '0 21 * * 1' # Monday 21:00 UTC, early Tuesday in Perth
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Rebuild the price list
+        id: prices
+        run: |
+          node .github/scripts/caption-prices.mjs
+          if git diff --quiet; then echo "Prices unchanged"; exit 0; fi
+          git diff --stat
+          echo "branch=caption-prices/$(sha256sum captionprices.json | cut -c1-12)" >> "$GITHUB_OUTPUT"
+
+      - name: Open a pull request
+        if: steps.prices.outputs.branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.prices.outputs.branch }}
+        run: |
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then echo "$BRANCH is already open"; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898+github-actions[bot]@users.noreply.github.com'
+          git switch -c "$BRANCH"
+          git commit -am "Caption prices updated"
+          git push origin "$BRANCH"
+          body="An AI model's price changed, or a model was added, in LiteLLM's public price list. Merging this updates what Studio shows each AI caption costing, in the next app release."
+          gh pr create --base main --head "$BRANCH" --title "Caption prices updated" --body "$body"
