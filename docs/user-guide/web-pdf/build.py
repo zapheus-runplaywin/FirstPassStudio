@@ -68,7 +68,7 @@ intro = f'''<div class="page intro" data-title="About this guide">
     <div><p>This guide starts with the way most nights run, one operator and Studio doing the rest, then covers running it by hand, setting up a competition, sponsors, athletes and the Stream Deck.</p></div>
   </div>
   <div class="stats">
-    <div class="stat"><b>5 s</b><span>The live score, quarter and clock read from PlayHQ every 5 seconds while the game is scored.</span></div>
+    <div class="stat"><b>1 s</b><span>The live score, quarter and clock read from PlayHQ as often as every second while the game is on (every 5 seconds unless you set it faster).</span></div>
     <div class="stat"><b>31</b><span>Broadcast graphics, from the scoreboard and ladder to the sponsor wall, plus a test pattern.</span></div>
     <div class="stat"><b>17</b><span>Competition logo animations, and six intro and outro styles.</span></div>
     <div class="stat"><b>1</b><span>Operator on a followed night. Sequences run the run-up, the breaks and full time.</span></div>
