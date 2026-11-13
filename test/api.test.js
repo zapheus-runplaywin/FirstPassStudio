@@ -208,7 +208,9 @@ test('countdown: the picked game\'s start from the board alone', async () => {
 test('ticker: the round\'s live and finished games except the one on the scoreboard, with live scores', async () => {
   const other = studio.world.games['game-d1-r3-2'];
   studio.world.live[other.id].home = 7;
-  const t = await get('/api/ticker');
+  // Studio follows the night's other games in the background, so it may have read this game's score just before the
+  // change; a reading is kept for up to 20 s (games.ts TICKER_LIVE_MS), so the ticker shows the 7 within that.
+  const t = await studio.until(async () => { const x = await get('/api/ticker'); return x.games[0]?.home.score === 7 && x; }, 25000, 500);
   assert.equal(t.speed, 120);
   assert.deepEqual(t.games.map(g => g.id), [other.id]);
   assert.equal(t.games[0].live, true);
