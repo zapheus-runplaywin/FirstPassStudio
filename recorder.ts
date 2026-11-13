@@ -42,6 +42,25 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { errorMessage } from './errors';
+import { arr, isObj, obj, str } from './check';
+import type { IncomingMessage, IncomingHttpHeaders, ServerResponse } from 'node:http';
+import type { Body, Log, ReadBody, Send } from './types';
+
+// The board as scene.ts sends it to the pages (board.ts scoreboardJson): what a recording reads of it.
+interface RecBoard {
+  gameId?: string | null; home?: { name?: string }; away?: { name?: string }; date?: string; time?: string; playhqStatus?: string;
+  division?: string; round?: string; court?: string; competition?: string;
+}
+// A followed game, as board.ts followedGames lists it.
+interface FollowedGame { gameId: string; home?: string; away?: string; division?: string; round?: string; court?: string; date?: string; time?: string; started?: boolean; done?: boolean }
+// A line of a recording: t (ms since 1970), k (its kind) and what happened.
+type Line = { t: number; k: string; [key: string]: unknown };
+// A game line's game, as summary() lists it.
+type RecGame = { at: number; followed?: boolean; [key: string]: unknown };
+interface Summary { started: number; ended: number; competition: string; games: RecGame[]; lines: number }
+// A followed game's recording being made.
+interface Other { gameId: string; file: string; name: string; pending: string[]; last: Map<string, string>; finishedAt: number; label: string; flushedAt: number }
+type StartLine = { version?: string; competition?: string };
 
 const KEEP_DAYS = 60;
 const FLUSH_MS = 5000;
@@ -53,36 +72,36 @@ const LATEST_MAX = 2000;        // the last of everything kept for a new recordi
 const NAME = /^\d{4}-\d{2}-\d{2} \d{4}(?: [^/\\]{1,80}?)?(?:-\d+)?\.jsonl\.gz$/;
 const FINISHED = /COMPLETE|FINAL|RESULT|FORFEIT|CLOSED|FINISH|ENDED/i;
 
-let log = () => {};
+let log: Log = () => {};
 let dir = '', settingsFile = '', file = '', name = '';
 let record = true;
 let afterMinutes = AFTER_MIN;
-let pending = [];
-let timer = null, checker = null;
-let startLine = () => ({});
-let leadMs = () => 10 * 60000;
-const last = new Map();   // what was last recorded for a key, so only a change is
-const latest = new Map(); // key -> { k, data, same }: the last of everything, recorded or not, for a recording's start
-let gameId = null;        // the game being recorded
-let onBoard = null;       // the board as last sent: its game, scheduled time and PlayHQ status
+let pending: string[] = [];
+let timer: NodeJS.Timeout | undefined, checker: NodeJS.Timeout | undefined;
+let startLine = (): StartLine => ({});
+let leadMs = (): number => 10 * 60000;
+const last = new Map<string, string>();   // what was last recorded for a key, so only a change is
+const latest = new Map<string, { k: string; data: Body; same: string }>(); // key -> { k, data, same }: the last of everything, recorded or not, for a recording's start
+let gameId: string | null = null;        // the game being recorded
+let onBoard: RecBoard | null = null;       // the board as last sent: its game, scheduled time and PlayHQ status
 let finishedAt = 0;       // when PlayHQ first said the game being recorded was finished
-const done = new Set();   // games whose recording has stopped (full time, too long), not started again
+const done = new Set<string>();   // games whose recording has stopped (full time, too long), not started again
 let paused = false; // a practice game is running (practice.js): only its start and end are recorded
-const listed = new Map(); // name -> { mtimeMs, size, summary }
+const listed = new Map<string, { mtimeMs: number; size: number; summary: Summary }>(); // name -> { mtimeMs, size, summary }
 
-const two = n => String(n).padStart(2, '0');
-const stamp = d => `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} ${two(d.getHours())}${two(d.getMinutes())}`;
+const two = (n: number) => String(n).padStart(2, '0');
+const stamp = (d: Date) => `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} ${two(d.getHours())}${two(d.getMinutes())}`;
 
 // dir: the Recordings folder; settings: recordings.json; start: what the start line says ({ version, competition }),
 // or a function giving it; lead: how long before a game's scheduled start it's due (games.js leadMs).
-function init(logger, { dir: recordingsDir, settings, start = {}, lead } = {}) {
+function init(logger: Log | null | undefined, { dir: recordingsDir, settings, start = {}, lead }: { dir: string; settings: string; start?: StartLine | (() => StartLine); lead?: () => number }) {
   log = logger || log;
   dir = recordingsDir;
   settingsFile = settings;
   startLine = typeof start === 'function' ? start : () => start;
   if (lead) leadMs = lead;
-  let saved = {};
-  try { saved = JSON.parse(fs.readFileSync(settingsFile, 'utf8')) || {}; } catch { /* none yet */ }
+  let saved: Body = {};
+  try { saved = obj(JSON.parse(fs.readFileSync(settingsFile, 'utf8'))); } catch { /* none yet */ }
   record = saved.record !== false;
   afterMinutes = minutes(saved.afterMinutes);
   fs.mkdirSync(dir, { recursive: true });
@@ -93,19 +112,19 @@ function init(logger, { dir: recordingsDir, settings, start = {}, lead } = {}) {
 }
 
 const lead = () => { try { return Number(leadMs()) || 0; } catch { return 10 * 60000; } };
-const minutes = v => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Math.min(60, Math.max(0, Math.round(Number(v)))) : AFTER_MIN);
+const minutes = (v: unknown) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Math.min(60, Math.max(0, Math.round(Number(v)))) : AFTER_MIN);
 // The game's scheduled start ("2026-10-30" and "19:05"), in ms, or null when the board doesn't say.
-function startOf(b) {
+function startOf(b: RecBoard) {
   const m = String(b.time || '').match(/^(\d{1,2}):(\d{2})/);
   if (!b.date || !m) return null;
   const ms = new Date(`${b.date}T${m[1].padStart(2, '0')}:${m[2]}:00`).getTime();
   return Number.isFinite(ms) ? ms : null;
 }
-const teams = b => `${(b.home || {}).name || 'Home'} v ${(b.away || {}).name || 'Away'}`;
-const fileLabel = b => teams(b).replace(/[^\p{L}\p{N} '&().,-]+/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 60).trim();
+const teams = (b: RecBoard) => `${(b.home || {}).name || 'Home'} v ${(b.away || {}).name || 'Away'}`;
+const fileLabel = (b: RecBoard) => teams(b).replace(/[^\p{L}\p{N} '&().,-]+/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 60).trim();
 
 // Whether the board's game should be recording now, else why not: { due, from, why }.
-function dueOf(b, now = Date.now()) {
+function dueOf(b: RecBoard | null, now = Date.now()): { due: boolean; from?: number | null; why?: string } {
   if (!b || !b.gameId) return { due: false, why: 'no PlayHQ game on the scoreboard' };
   if (done.has(b.gameId)) return { due: false, why: 'its recording has stopped' };
   const start = startOf(b);
@@ -121,22 +140,22 @@ function check(now = Date.now()) {
   if (!record || paused) return;
   const b = onBoard;
   if (file && (!b || b.gameId !== gameId)) close('next game');
-  if (file && b) {
+  if (file && b && gameId) {
     if (!finishedAt && FINISHED.test(b.playhqStatus || '')) finishedAt = now;
     const start = startOf(b);
     if (finishedAt && now >= finishedAt + afterMinutes * 60000) { done.add(gameId); close('full time'); }
     else if (start !== null && now > start + LONGEST_MS) { done.add(gameId); close('too long'); }
   }
-  if (!file && dueOf(b, now).due) begin(b);
+  if (!file && b && dueOf(b, now).due) begin(b);
 }
 
-function begin(b) {
+function begin(b: RecBoard) {
   const base = `${stamp(new Date())} ${fileLabel(b)}`.trim();
   name = `${base}.jsonl.gz`;
   for (let i = 2; fs.existsSync(path.join(dir, name)); i++) name = `${base}-${i}.jsonl.gz`;
   file = path.join(dir, name);
   last.clear();
-  gameId = b.gameId;
+  gameId = b.gameId || null;
   finishedAt = 0;
   const start = startLine() || {};
   note('start', { version: start.version || '', competition: start.competition || '', zone: Intl.DateTimeFormat().resolvedOptions().timeZone });
@@ -151,20 +170,22 @@ function begin(b) {
   timer.unref();
 }
 
-function note(k, data) {
+function note(k: string, data: Body) {
   if (!file || (paused && k !== 'practice' && k !== 'end')) return;
   pending.push(JSON.stringify({ t: Date.now(), k, ...data }));
 }
 
 // Records data under key only when it isn't what was last recorded there, and keeps it for the next recording's start.
-function changed(k, key, data, same = JSON.stringify(data)) {
+function changed(k: string, key: string, data: Body, same = JSON.stringify(data)) {
   if (paused) return;
   latest.delete(key);
   latest.set(key, { k, data, same });
-  if (latest.size > LATEST_MAX) latest.delete(latest.keys().next().value);
+  const oldest = latest.keys().next();
+  if (latest.size > LATEST_MAX && !oldest.done) latest.delete(oldest.value);
   // The followed games' recordings: every PlayHQ answer, and each one's own live scoring.
   if (k === 'playhq') for (const o of others.values()) noteOther(o, key, k, data, same);
-  if (k === 'live' && others.has(data.id)) noteOther(others.get(data.id), key, k, data, same);
+  const other = k === 'live' ? others.get(str(data.id)) : undefined;
+  if (other) noteOther(other, key, k, data, same);
   if (!file || last.get(key) === same) return;
   last.set(key, same);
   note(k, data);
@@ -179,13 +200,13 @@ function flush() {
 }
 
 // ─── The night's other games ────────────────────────────────────────────────
-const others = new Map();     // game id -> { gameId, file, name, pending, last, finishedAt, label, flushedAt }
-const othersDone = new Set(); // followed games whose recording has stopped (full time, too long), not started again
-function noteOther(o, key, k, data, same) {
-  if (key !== null) { if (o.last.get(key) === same) return; o.last.set(key, same); }
+const others = new Map<string, Other>();     // game id -> { gameId, file, name, pending, last, finishedAt, label, flushedAt }
+const othersDone = new Set<string>(); // followed games whose recording has stopped (full time, too long), not started again
+function noteOther(o: Other, key: string | null, k: string, data: Body, same?: string) {
+  if (key !== null && same !== undefined) { if (o.last.get(key) === same) return; o.last.set(key, same); }
   o.pending.push(JSON.stringify({ t: Date.now(), k, ...data }));
 }
-function flushOther(o) {
+function flushOther(o: Other) {
   o.flushedAt = Date.now();
   if (!o.pending.length) return;
   const lines = o.pending.join('\n') + '\n';
@@ -193,12 +214,12 @@ function flushOther(o) {
   try { fs.appendFileSync(o.file, zlib.gzipSync(lines)); }
   catch (err) { log('warn', 'recorder', `Could not write the recording of ${o.label}: ${errorMessage(err)}`); }
 }
-function beginOther(g) {
+function beginOther(g: FollowedGame) {
   const label = `${g.home || 'Home'} v ${g.away || 'Away'}`;
   const base = `${stamp(new Date())} ${fileLabel({ home: { name: g.home }, away: { name: g.away } })} (followed)`.trim();
   let n = `${base}.jsonl.gz`;
   for (let i = 2; fs.existsSync(path.join(dir, n)); i++) n = `${base}-${i}.jsonl.gz`;
-  const o = { gameId: g.gameId, file: path.join(dir, n), name: n, pending: [], last: new Map(), finishedAt: 0, label, flushedAt: Date.now() };
+  const o: Other = { gameId: g.gameId, file: path.join(dir, n), name: n, pending: [], last: new Map(), finishedAt: 0, label, flushedAt: Date.now() };
   others.set(g.gameId, o);
   const start = startLine() || {};
   noteOther(o, null, 'start', { version: start.version || '', competition: start.competition || '', zone: Intl.DateTimeFormat().resolvedOptions().timeZone, followed: true });
@@ -209,7 +230,7 @@ function beginOther(g) {
   flushOther(o);
   log('info', 'recorder', `Recording ${label}, followed in the background, to Recordings/${n}`);
 }
-function closeOther(o, why) {
+function closeOther(o: Other, why: string) {
   noteOther(o, null, 'end', { why });
   flushOther(o);
   others.delete(o.gameId);
@@ -217,7 +238,7 @@ function closeOther(o, why) {
 }
 // The night's followed games, each second (board.js followedGames): a recording starts once Studio has read a game,
 // and stops afterMinutes after it's done, or when it's no longer followed.
-function followGames(list, now = Date.now()) {
+function followGames(list: FollowedGame[] | null | undefined, now = Date.now()) {
   const by = new Map((list || []).map(g => [g.gameId, g]));
   for (const o of [...others.values()]) {
     const g = by.get(o.gameId);
@@ -234,7 +255,7 @@ function closeFollowed(why = 'off air') { for (const o of [...others.values()]) 
 const openFiles = () => new Set([file, ...[...others.values()].map(o => o.file)].filter(Boolean));
 
 // A practice game started (on) or stopped: nothing it does is recorded, and after it everything is recorded afresh.
-function pause(on) {
+function pause(on: unknown) {
   note('practice', { on: !!on });
   paused = !!on;
   last.clear();
@@ -253,11 +274,14 @@ function close(why = 'off air') {
 }
 
 // ─── What's recorded ────────────────────────────────────────────────────────
-function playhq(op, vars, tenant, data) { changed('playhq', `playhq ${op} ${tenant} ${JSON.stringify(vars)}`, { op, vars, tenant, data }); }
-function live(id, json) { changed('live', `live ${id}`, { id, ...(json.errors && json.errors.length ? { errors: json.errors } : { data: json.data }) }); }
-function action(a) { if (a && typeof a === 'object') note('action', { action: a }); }
-function scene(state, text) { changed('scene', 'scene', { scene: state }, text); }
-function board(json) {
+function playhq(op: string, vars: unknown, tenant: string, data: unknown) { changed('playhq', `playhq ${op} ${tenant} ${JSON.stringify(vars)}`, { op, vars, tenant, data }); }
+function live(id: string, json: unknown) {
+  const j = obj(json), errors = arr(j.errors);
+  changed('live', `live ${id}`, { id, ...(errors.length ? { errors } : { data: j.data }) });
+}
+function action(a: unknown) { if (a && typeof a === 'object') note('action', { action: a }); }
+function scene(state: unknown, text: string) { changed('scene', 'scene', { scene: state }, text); }
+function board(json: RecBoard | null | undefined) {
   if (!json || paused) return;
   onBoard = json;
   if (file && json.gameId !== gameId) close('next game'); // before the next game's board is recorded
@@ -265,41 +289,42 @@ function board(json) {
   check();
 }
 // An answer Studio sent (server.js send): kept when it's a graphic's GET /api/... read (isGraphic) that worked.
-function answer(req, status, body, type, isGraphic) {
+function answer(req: IncomingMessage | null | undefined, status: number, body: unknown, type: string | undefined, isGraphic: (pathname: string, headers: IncomingHttpHeaders) => boolean) {
   if (!file || !req || req.method !== 'GET' || status !== 200 || (type && !/json/.test(type))) return;
-  const u = new URL(req.url, 'http://localhost');
+  const u = new URL(req.url || '/', 'http://localhost');
   if (!u.pathname.startsWith('/api/') || !isGraphic(u.pathname, req.headers)) return;
   const text = typeof body === 'string' ? body : Buffer.isBuffer(body) ? body.toString('utf8') : JSON.stringify(body);
-  let parsed;
+  let parsed: unknown;
   try { parsed = JSON.parse(text); } catch { return; }
   const p = u.pathname + u.search;
   changed('api', `api ${p}`, { p, body: parsed }, sameness(parsed, text));
 }
 // What says whether an answer changed: not the clock reading (serverNow, clockElapsedMs), which changes every time
 // and is worked out again from the clock's start on replay.
-function sameness(json, text) {
-  if (!json || typeof json !== 'object' || Array.isArray(json) || !('serverNow' in json || 'clockElapsedMs' in json)) return text ?? JSON.stringify(json);
+function sameness(json: unknown, text?: string): string {
+  if (!isObj(json) || !('serverNow' in json || 'clockElapsedMs' in json)) return text ?? JSON.stringify(json);
   const { serverNow, clockElapsedMs, ...rest } = json;
   return JSON.stringify(rest);
 }
 
 // ─── Reading recordings ─────────────────────────────────────────────────────
 // Every line of a recording (read up to its last whole write).
-function read(recording) {
+// Studio's own file: each line is read as the line it wrote.
+function read(recording: string): Line[] {
   const f = path.join(dir, recording);
   if (f === file) flush();
   for (const o of others.values()) if (o.file === f) flushOther(o);
   const text = zlib.gunzipSync(fs.readFileSync(f), { finishFlush: zlib.constants.Z_SYNC_FLUSH }).toString('utf8');
-  const out = [];
+  const out: Line[] = [];
   for (const line of text.split('\n')) {
     if (!line) continue;
-    try { out.push(JSON.parse(line)); } catch { /* a line cut off */ }
+    try { const l = JSON.parse(line); if (isObj(l)) out.push({ ...l, t: Number(l.t) || 0, k: str(l.k) }); } catch { /* a line cut off */ }
   }
   return out;
 }
 
 // { name, started, ended, size, recording (this one is being written), games: [{ id, home, away, division, round, court, at }] }
-function summary(recording) {
+function summary(recording: string) {
   const f = path.join(dir, recording);
   if (f === file) flush();
   for (const o of others.values()) if (o.file === f) flushOther(o);
@@ -308,8 +333,8 @@ function summary(recording) {
   let s = k && k.mtimeMs === st.mtimeMs && k.size === st.size ? k.summary : null;
   if (!s) {
     const lines = read(recording);
-    const start = lines.find(l => l.k === 'start') || lines[0] || {};
-    s = { started: start.t || st.mtimeMs, ended: lines.length ? lines[lines.length - 1].t : st.mtimeMs, competition: start.competition || '',
+    const start: Partial<Line> = lines.find(l => l.k === 'start') || lines[0] || {};
+    s = { started: start.t || st.mtimeMs, ended: lines.length ? lines[lines.length - 1].t : st.mtimeMs, competition: str(start.competition),
       games: lines.filter(l => l.k === 'game').map(({ t, k: kind, ...g }) => ({ ...g, at: t })), lines: lines.length };
     listed.set(recording, { mtimeMs: st.mtimeMs, size: st.size, summary: s });
   }
@@ -321,7 +346,7 @@ function names() {
 }
 
 function list() {
-  const out = [];
+  const out: ReturnType<typeof summary>[] = [];
   for (const n of names()) {
     try { out.push(summary(n)); } catch (err) { log('warn', 'recorder', `Could not read Recordings/${n}: ${errorMessage(err)}`); }
   }
@@ -340,7 +365,7 @@ function tidy(now = Date.now()) {
   }
 }
 
-function remove(recording) {
+function remove(recording: string) {
   if (!NAME.test(recording) || !names().includes(recording)) return `There's no recording ${recording}.`;
   if (openFiles().has(path.join(dir, recording))) return 'That recording is still being made. It can be removed once it stops, after the game.';
   fs.unlinkSync(path.join(dir, recording));
@@ -354,7 +379,7 @@ function save() {
 }
 
 // Turning recording off stops the one being made; on again starts one when a game is due.
-function setRecord(on) {
+function setRecord(on: unknown) {
   record = !!on;
   save();
   if (!record && file) { close('recording off'); log('info', 'recorder', 'Recording turned off'); }
@@ -363,7 +388,7 @@ function setRecord(on) {
 }
 
 // The minutes recorded after full time (0 to 60).
-function setAfter(m) {
+function setAfter(m: unknown) {
   afterMinutes = minutes(m);
   save();
   check();
@@ -374,15 +399,15 @@ function setAfter(m) {
 function state() {
   const w = !file && record && onBoard && onBoard.gameId ? dueOf(onBoard) : null;
   return { record, recording: file ? name : '', followed: [...others.values()].map(o => o.name), keepDays: KEEP_DAYS, afterMinutes, leadMinutes: Math.round(lead() / 60000),
-    waiting: w && !w.due ? { game: teams(onBoard), from: w.from || null, why: w.why } : null, recordings: list() };
+    waiting: w && !w.due && onBoard ? { game: teams(onBoard), from: w.from || null, why: w.why } : null, recordings: list() };
 }
 
-const fileOf = recording => (NAME.test(recording) && names().includes(recording) ? path.join(dir, recording) : null);
+const fileOf = (recording: string) => (NAME.test(recording) && names().includes(recording) ? path.join(dir, recording) : null);
 
 // /api/recordings: GET the list and whether Studio records, POST { record } to turn it on or off and
 // { afterMinutes } to set the minutes after full time; DELETE /api/recordings/<name> removes one;
 // GET /api/recordings/<name>/file downloads it (to keep, or to send in as test data).
-async function route(req, res, url, { send: reply, readBody }) {
+async function route(req: IncomingMessage, res: ServerResponse, url: URL, { send: reply, readBody }: { send: Send; readBody: ReadBody }) {
   if (url.pathname === '/api/recordings') {
     if (req.method === 'POST') {
       const body = await readBody(req);
@@ -416,4 +441,6 @@ async function route(req, res, url, { send: reply, readBody }) {
   return false;
 }
 
-export { route, init, close, flush, followGames, closeFollowed, pause, playhq, live, action, scene, board, answer, read, list, tidy, remove, setRecord, setAfter, state, check, fileOf, KEEP_DAYS };
+export type { Line, RecBoard, FollowedGame };
+export { route,
+ init, close, flush, followGames, closeFollowed, pause, playhq, live, action, scene, board, answer, read, list, tidy, remove, setRecord, setAfter, state, check, fileOf, KEEP_DAYS };
