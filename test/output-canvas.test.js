@@ -1,7 +1,7 @@
 // An output's canvas (scene.html?canvas=1, the canvas links on the Devices tab): another program's copy of what the
 // Output page's preview of that output shows. It follows that output's sources, plays no sound unless ?sound=1, never
 // opens the Mac's mics. In a 3840 x 2160 window (a 4K source) it's drawn at 2x, the pages inside at twice the density.
-// The browser: as in pages.test.js (Playwright's own, or STUDIO_TEST_CHROMIUM).
+// The browser: as in pages.test.mts (Playwright's own, or STUDIO_TEST_CHROMIUM).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { startStudio } = require('./support/studio.mts');

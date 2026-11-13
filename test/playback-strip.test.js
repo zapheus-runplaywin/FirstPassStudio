@@ -1,6 +1,6 @@
 // The strip under every Studio page's tab bar (studiobar.js) says when a practice game or a 4K replay runs. It reads
 // /api/playback, which answers both at once, and takes its look from studio.css rather than inline styles (review
-// finding 9, 30 Oct 2026). In Chromium through Playwright, as pages.test.js does.
+// finding 9, 30 Oct 2026). In Chromium through Playwright, as pages.test.mts does.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

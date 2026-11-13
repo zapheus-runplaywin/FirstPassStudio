@@ -85,7 +85,7 @@ async function startStudio(t: TestContext | null, opts: StudioOptions = {}) {
 
   const base = `http://127.0.0.1:${port}`;
   // Stream Deck links are pressed the way the Studio plugin presses them (its x-studio-deck header), since Studio
-  // refuses one without its key; access.test.js tests the key itself.
+  // refuses one without its key; access.test.mts tests the key itself.
   const request = async (method: string, p: string, body?: unknown, headers: Record<string, string> = {}): Promise<{ status: number; type: string; text: string; json: Json }> => {
     if (/^\/deck(\/|\?|$)/.test(p)) headers = { 'x-studio-deck': '1', ...headers };
     const isRaw = Buffer.isBuffer(body) || typeof body === 'string';

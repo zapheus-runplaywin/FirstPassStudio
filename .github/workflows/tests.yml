@@ -50,7 +50,7 @@ jobs:
       # Known vulnerabilities in the packages Studio ships (electron-updater, qrcode-generator and what they
       # pull in). Build-time packages are left out: they never run on anyone's Mac.
       - run: npm audit --omit=dev --audit-level=high
-      # Chromium for the page test (test/pages.test.js), which fails here rather than skipping without it.
+      # Chromium for the page test (test/pages.test.mts), which fails here rather than skipping without it.
       - run: npx playwright install --with-deps chromium
       # Electron's own binary, for the Mac app's test (test/app.test.js), which runs the app on a virtual display.
       # From GitHub releases, which sometimes answer 504 for a while: a copy is kept under its version (a newer
