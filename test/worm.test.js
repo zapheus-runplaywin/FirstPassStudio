@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { runServer } = require('./support/studio');
+const { runServer } = require('./support/studio.mts');
 
 async function start(t) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-test-'));
@@ -64,7 +64,7 @@ test('a score typed in is a gap, and the line carries on from the new score', as
 });
 
 test('super shot divisions mark the super shot period and count the points scored in it', async t => {
-  const { startStudio } = require('./support/studio');
+  const { startStudio } = require('./support/studio.mts');
   const studio = await startStudio(t, { competition: 'Thunder League' });
   await studio.until(async () => (await studio.get('/api/scoreboard')).gameId);
   const post = body => studio.post('/api/scoreboard', body);

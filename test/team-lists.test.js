@@ -1,15 +1,15 @@
 // The team lists (teamlist.html, positions, the lower thirds) follow the scoreboard's home and away even when
 // PlayHQ's game page disagrees with the fixture: its teams listed the other way round, or its line-ups filed
 // under the other team (told apart by the players' goals against the live feed's team totals). Against the
-// stand-in PlayHQ; the team list graphic is checked in a browser too (see test/support/browser.js).
+// stand-in PlayHQ; the team list graphic is checked in a browser too (see test/support/browser.mts).
 
 'use strict';
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { discoverGame } = require('./support/playhq');
-const { openPage } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { discoverGame } = require('./support/playhq.mts');
+const { openPage } = require('./support/browser.mts');
 
 let studio, game;
 test.before(async () => {

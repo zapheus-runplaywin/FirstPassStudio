@@ -2,8 +2,8 @@
 // too says so on its row, with what each other output does after it (its own run order, else its own Then).
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { openPage } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { openPage } = require('./support/browser.mts');
 
 test('Run order: a row says which other outputs also play the sequence and what each does after it', async t => {
   const studio = await startStudio(t, { competition: 'Thunder League' });

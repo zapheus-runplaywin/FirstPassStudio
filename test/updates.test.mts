@@ -1,0 +1,176 @@
+// The Mac app's updates (desktop/updates.ts) always install the newest version: an update that
+// came out after another had downloaded installs in one restart, not two.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
+import { createUpdates, type Updater } from '../out/desktop/updates.js';
+
+// Stands in for electron-updater's autoUpdater. publish() puts a version on GitHub; a check
+// finds the newest and downloads it, firing update-downloaded when finished.
+class FakeUpdater extends EventEmitter implements Updater {
+  // What createUpdates sets.
+  autoDownload!: boolean;
+  autoInstallOnAppQuit!: boolean;
+  autoRunAppAfterInstall!: boolean;
+  latest: string | null = null;
+  current = '0.3.10';
+  installs: { version: string | null; relaunch: boolean; autoInstallOnAppQuit: boolean }[] = [];
+  checks = 0;
+  offline = false;
+  slow = false;
+  // What Squirrel would install: the newest download at the moment it's handed over.
+  downloaded: string | null = null;
+
+  constructor() {
+    super();
+    this.on('update-downloaded', (info: { version: string }) => { this.downloaded = info.version; });
+  }
+  publish(v: string) { this.latest = v; }
+  async checkForUpdates() {
+    this.checks++;
+    if (this.offline) throw new Error('getaddrinfo ENOTFOUND github.com');
+    if (!this.latest || this.latest === this.current) return { isUpdateAvailable: false, updateInfo: { version: this.current } };
+    const version = this.latest;
+    if (!this.autoDownload) return { isUpdateAvailable: true, updateInfo: { version }, downloadPromise: null };
+    const downloadPromise = new Promise(resolve => setTimeout(() => {
+      this.emit('update-downloaded', { version });
+      resolve([`/cache/FirstPass-Studio-${version}-arm64-mac.zip`]);
+    }, this.slow ? 20 : 0));
+    return { isUpdateAvailable: true, updateInfo: { version }, downloadPromise };
+  }
+  downloadUpdate() {
+    return new Promise(resolve => setTimeout(() => {
+      this.emit('update-downloaded', { version: this.latest });
+      resolve([`/cache/FirstPass-Studio-${this.latest}-arm64-mac.zip`]);
+    }, this.slow ? 20 : 0));
+  }
+  quitAndInstall() { this.installs.push({ version: this.downloaded, relaunch: this.autoRunAppAfterInstall, autoInstallOnAppQuit: this.autoInstallOnAppQuit }); }
+}
+const fakeUpdater = () => new FakeUpdater();
+
+const settle = () => new Promise(r => setTimeout(r, 30));
+// Waits for something that takes a few timers to happen, such as a download then an install.
+async function until(check: () => unknown) {
+  for (let i = 0; i < 100 && !check(); i++) await new Promise(r => setTimeout(r, 10));
+}
+
+test('downloads are not handed to Squirrel as they arrive, so a newer one can replace them', async () => {
+  const u = fakeUpdater();
+  const updates = createUpdates({ updater: u });
+  assert.equal(u.autoInstallOnAppQuit, false);
+  assert.equal(u.autoDownload, true);
+  u.publish('0.3.11');
+  await (await updates.check())!.downloadPromise;
+  u.publish('0.3.12');
+  await (await updates.check())!.downloadPromise;
+  assert.equal(u.installs.length, 0);
+  assert.deepEqual(updates.state(), { ready: '0.3.12', fetching: null, installing: false });
+});
+
+test('Restart to update asks first, and gets a version that came out after the last download if told to, in one restart', async () => {
+  const u = fakeUpdater();
+  u.slow = true;
+  const changes: ReturnType<ReturnType<typeof createUpdates>['state']>[] = [], asked: [string | null, string][] = [];
+  const updates = createUpdates({ updater: u, onChange: () => changes.push(updates.state()) });
+  u.publish('0.3.11');
+  await (await updates.check())!.downloadPromise;
+  u.publish('0.3.12'); // out since, not downloaded yet
+  updates.restartToUpdate({ askNewer: async (ready, newer) => { asked.push([ready, newer]); return true; } });
+  await until(() => u.installs.length); // asks, downloads 0.3.12 (20 ms), then installs
+  assert.equal(u.installs.length, 1);
+  assert.deepEqual(u.installs[0], { version: '0.3.12', relaunch: true, autoInstallOnAppQuit: false });
+  assert.ok(changes.some(s => s.fetching === '0.3.12'), 'the menu shows the newer version downloading');
+  assert.deepEqual(updates.state(), { ready: '0.3.12', fetching: null, installing: true });
+  assert.deepEqual(asked, [['0.3.11', '0.3.12']]);
+  assert.equal(u.autoDownload, true, 'background downloads carry on as before');
+});
+
+test('Restart to update installs the version the menu named when told to, without downloading the newer one', async () => {
+  const u = fakeUpdater();
+  const logs: string[] = [];
+  const updates = createUpdates({ updater: u, log: m => logs.push(m) });
+  u.publish('0.3.11');
+  await (await updates.check())!.downloadPromise;
+  u.publish('0.3.12');
+  updates.restartToUpdate({ askNewer: async () => false });
+  await settle();
+  assert.deepEqual(u.installs.map(i => i.version), ['0.3.11']);
+  assert.ok(logs.includes('[update] 0.3.12 is out, installing 0.3.11 as chosen'));
+  assert.equal(u.autoDownload, true);
+});
+
+test('Restart to update with nothing newer installs the downloaded version straight away', async () => {
+  const u = fakeUpdater();
+  const updates = createUpdates({ updater: u });
+  u.publish('0.3.11');
+  await (await updates.check())!.downloadPromise;
+  updates.restartToUpdate();
+  await settle();
+  assert.deepEqual(u.installs.map(i => i.version), ['0.3.11']);
+});
+
+test('Restart to update offline still installs what has downloaded', async () => {
+  const logs: string[] = [];
+  const u = fakeUpdater();
+  const updates = createUpdates({ updater: u, log: m => logs.push(m) });
+  u.publish('0.3.11');
+  await (await updates.check())!.downloadPromise;
+  u.offline = true;
+  updates.restartToUpdate();
+  await settle();
+  assert.deepEqual(u.installs.map(i => i.version), ['0.3.11']);
+  assert.ok(logs.some(m => /Couldn't check for a newer version, installing 0\.3\.11: getaddrinfo ENOTFOUND/.test(m)));
+});
+
+test('quitting installs the newest download without checking again and without reopening', async () => {
+  const u = fakeUpdater();
+  let installed = false;
+  const updates = createUpdates({ updater: u, onInstall: () => { installed = true; } });
+  u.publish('0.3.11');
+  await (await updates.check())!.downloadPromise;
+  u.publish('0.3.12');
+  await (await updates.check())!.downloadPromise;
+  const checks = u.checks;
+  assert.equal(updates.pending(), true);
+  updates.installOnQuit();
+  await settle();
+  assert.equal(u.checks, checks);
+  assert.deepEqual(u.installs, [{ version: '0.3.12', relaunch: false, autoInstallOnAppQuit: false }]);
+  assert.equal(installed, true);
+  assert.equal(updates.pending(), false, 'a second quit does not hand it over again');
+});
+
+test('nothing downloaded: quitting and restarting install nothing', async () => {
+  const u = fakeUpdater();
+  const updates = createUpdates({ updater: u });
+  assert.equal(updates.pending(), false);
+  assert.equal(await updates.installOnQuit(), false);
+  assert.equal(await updates.restartToUpdate(), false);
+  assert.equal(u.installs.length, 0);
+});
+
+test('an install that fails reports false and leaves the update ready to try again', async () => {
+  const u = fakeUpdater();
+  const logs: string[] = [];
+  const updates = createUpdates({ updater: u, log: m => logs.push(m) });
+  u.publish('0.3.11');
+  await (await updates.check())!.downloadPromise;
+  u.quitAndInstall = () => setTimeout(() => u.emit('error', new Error('Code signature did not match\nmore detail')), 0);
+  assert.equal(await updates.installOnQuit(), false);
+  assert.ok(logs.includes("[update] Couldn't install 0.3.11: Code signature did not match"));
+  assert.deepEqual(updates.state(), { ready: '0.3.11', fetching: null, installing: false });
+  assert.equal(updates.pending(), true);
+  assert.equal(u.listenerCount('error'), 0, 'its error listener is removed');
+});
+
+test('an install that never finishes gives up after the timeout', async () => {
+  const u = fakeUpdater();
+  const updates = createUpdates({ updater: u, installTimeout: 10 });
+  u.publish('0.3.11');
+  await (await updates.check())!.downloadPromise;
+  u.quitAndInstall = () => {};
+  const keepAlive = setTimeout(() => {}, 1000);
+  assert.equal(await updates.installOnQuit(), false);
+  clearTimeout(keepAlive);
+  assert.equal(updates.pending(), true);
+});

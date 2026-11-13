@@ -6,7 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { startStudio, ROOT } = require('./support/studio');
+const { startStudio, ROOT } = require('./support/studio.mts');
 
 // The links and their path parameters' listed values, read from openapi.yaml.
 function documentedLinks() {

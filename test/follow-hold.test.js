@@ -5,7 +5,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio, wait } = require('./support/studio');
+const { startStudio, wait } = require('./support/studio.mts');
 
 let studio, live;
 test.before(async () => {

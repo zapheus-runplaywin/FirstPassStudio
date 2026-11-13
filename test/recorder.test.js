@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const zlib = require('node:zlib');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 
 const read = f => zlib.gunzipSync(fs.readFileSync(f), { finishFlush: zlib.constants.Z_SYNC_FLUSH }).toString('utf8').split('\n').filter(Boolean).map(l => JSON.parse(l));
 

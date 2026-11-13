@@ -3,8 +3,8 @@
 // STUDIO_TEST_CHROMIUM; skipped without one (except in the Tests check).
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { createWorld, discoverGame } = require('./support/playhq');
+const { startStudio } = require('./support/studio.mts');
+const { createWorld, discoverGame } = require('./support/playhq.mts');
 const stats = require('../out/socialstats');
 
 let chromium = null;

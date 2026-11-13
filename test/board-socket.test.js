@@ -2,7 +2,7 @@
 // and again whenever it changes, so the scoreboard, the control page, the goals and the countdown don't poll.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio, wait } = require('./support/studio');
+const { startStudio, wait } = require('./support/studio.mts');
 
 let studio;
 test.before(async () => { studio = await startStudio(null, { keepDataDir: true }); });

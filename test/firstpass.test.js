@@ -12,7 +12,7 @@ const access = require('../out/access');
 const firstpass = require('../out/firstpass');
 const location = require('../out/datalocation');
 const devices = require('../out/devices');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 
 const own = new Set(['127.0.0.1', '::1', '192.168.1.20']);
 const GAME = '0b6c8f8e-3f7a-4d1e-9a51-2a7c1d9e4b10';

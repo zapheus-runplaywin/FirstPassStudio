@@ -327,7 +327,7 @@ The app is built hardened: its code is one signed archive (`asar`, checked again
 Electron's fuses set so the app can't be run as a plain Node or handed code by an environment variable, and with only the
 three entitlements it needs (`build/entitlements.mac.plist`). ffmpeg, the native modules and the Stream Deck plugin are
 unpacked beside the archive (`asarUnpack`) and the code reaches them through `unpacked.ts`. A new file the app runs,
-loads as a native module or hands to another program goes in `asarUnpack` too (`test/app-hardening.test.js` checks).
+loads as a native module or hands to another program goes in `asarUnpack` too (`test/app-hardening.test.mts` checks).
 The fuses leave `file://` as a browser has it, which can't read inside the archive, so the app's own pages (the splash,
 What's new, Back up settings, off air) are served as `studio://app/desktop/...` by `desktop/windows.ts`, from `desktop/`
 and `public/` only.
@@ -342,7 +342,7 @@ is what runs (`npm start`, `npm run app` and `npm test` build first; `npm run wa
 outside data comes in as `unknown` and is checked, and an `any` needs a comment starting `any:` saying why (a test checks).
 The pages' and graphics' scripts are TypeScript too (`public/*.ts` and the Output page's `public/output/*.ts`), compiled into `out/public/`.
 `npm test` runs the tests (they also run on every pull request, as the Tests check). The ones that need PlayHQ run
-Studio against a stand-in for it (`test/support/playhq.js`, a made-up Thunder League season around today's date), in a
+Studio against a stand-in for it (`test/support/playhq.mts`, a made-up Thunder League season around today's date), in a
 data folder of their own, so they never touch PlayHQ or your settings.
 
 ## Each stream

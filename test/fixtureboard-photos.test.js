@@ -3,8 +3,8 @@
 // room; on a crowded board they fall back to name pills. The board's data is stood in for, so the layout is known.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { openBrowser } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { openBrowser } = require('./support/browser.mts');
 
 let studio;
 test.before(async () => { studio = await startStudio(null, { competition: 'Thunder League' }); });

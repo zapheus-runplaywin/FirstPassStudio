@@ -2,8 +2,8 @@
 // night (one on Round 3 while another plays Finals Round 1), and the night lists every division's games.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { createWorld } = require('./support/playhq');
+const { startStudio } = require('./support/studio.mts');
+const { createWorld } = require('./support/playhq.mts');
 
 let studio;
 test.before(async () => {

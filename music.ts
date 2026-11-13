@@ -42,13 +42,13 @@ import { arr, isObj, obj, str } from './check';
 import type { Act, Body, Log, Query } from './types';
 
 // A playlist (music.json).
-interface Playlist { id: string; name: string; tracks: string[]; shuffle: boolean; loop: boolean }
+export interface Playlist { id: string; name: string; tracks: string[]; shuffle: boolean; loop: boolean }
 type UnderVideo = 'pause' | 'leave';
-interface Settings {
+export interface Settings {
   fadeInSec: number; fadeOutSec: number; quickSec: number; volume: number; underVideo: UnderVideo; duckTo: number; superShotSong: string; superShotVolume: number;
 }
 // A fade or duck the pages follow: from, to (0 to 1), starting at (ms) over ms.
-interface Ease { from: number; to: number; at: number; ms: number }
+export interface Ease { from: number; to: number; at: number; ms: number }
 type After = 'stop' | 'pause' | 'video' | null;
 // The player: what's queued and where it is.
 interface Player {

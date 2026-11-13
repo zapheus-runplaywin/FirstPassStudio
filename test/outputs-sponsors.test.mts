@@ -1,0 +1,102 @@
+// Sponsor ads and exposure with more than one output (scene.ts sponsorAd and showing, outputs.ts sponsors): an
+// ads step plays on any output, in that output's own ad sources; what's on another output counts for sponsors
+// only with Counts for sponsors ticked; an output's ad sources go with it.
+import test from 'node:test';
+import { mock } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
+process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-outputs-sponsors-'));
+mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
+const competitions: typeof import('../out/competitions.js') = require('../out/competitions.js');
+const sponsors: typeof import('../out/sponsors.js') = require('../out/sponsors.js');
+const exposure: typeof import('../out/exposure.js') = require('../out/exposure.js');
+const outputs: typeof import('../out/outputs.js') = require('../out/outputs.js');
+const scene: typeof import('../out/scene.js') = require('../out/scene.js');
+competitions.init(() => {});
+const comp = competitions.create('Thunder League');
+competitions.setActive(comp);
+outputs.init(() => {}, { removed: id => scene.dropOutput(id) });
+scene.init(() => {}, { outputs: { find: outputs.find, summary: outputs.summary } });
+exposure.init(() => {}, { every: 0 });
+outputs.apply({ add: true });
+outputs.apply({ output: outputs.state().outputs[1].id, name: 'Wide camera' });
+const two = () => outputs.find('wide-camera')!.id;
+
+const ok = (a: unknown) => assert.equal(scene.apply(a), null, JSON.stringify(a));
+const st = () => scene.state();
+const wait = (sec: number) => mock.timers.tick(sec * 1000);
+fs.mkdirSync(scene.MEDIA_DIR, { recursive: true });
+fs.writeFileSync(path.join(scene.MEDIA_DIR, 'golds.png'), 'x');
+sponsors.save({ name: 'Golds Bakery', ads: [{ file: 'golds.png', seconds: 5 }], competitions: { [comp]: { tier: 'major' } } });
+ok({ type: 'add', sources: [{ type: 'browser', name: 'Scoreboard', url: 'scoreboard.html' }] });
+ok({ type: 'seqAdd', changes: { name: 'Ads', steps: [{ kind: 'ads' }] } });
+
+test('an ads step on another output plays in that output\'s own ad source, there only', () => {
+  ok({ type: 'seqPlay', sequence: 'Ads', output: two() });
+  assert.equal(st().playingOut[two()]!.ad, 'Golds Bakery');
+  const src = st().sources.find(s => s.name === 'Sponsor ad (still), Wide camera');
+  assert.ok(src, st().sources.map(s => s.name).join());
+  assert.equal(src.out[two()], true);
+  assert.equal(src.visible, false, 'not on Output 1');
+  assert.equal(st().sources.find(s => s.name === 'Sponsor ad (still)'), undefined, 'Output 1\'s ad source isn\'t touched');
+  wait(5);
+  assert.equal(st().playingOut[two()], undefined);
+  assert.ok(!st().sources.find(s => s.name === 'Sponsor ad (still), Wide camera')!.out[two()]);
+});
+
+test('another output counts for sponsors only when ticked; Output 1 always does', () => {
+  ok({ type: 'show', name: 'Scoreboard', output: two() });
+  assert.deepEqual(scene.showing().map(s => s.name), [], 'nothing on Output 1, and Wide camera doesn\'t count');
+  assert.equal(outputs.summary().find(o => o.id === two())!.sponsors, false);
+  assert.equal(outputs.summary()[0].sponsors, true);
+  assert.equal(outputs.apply({ output: two(), sponsors: true }), null);
+  assert.deepEqual(scene.showing().map(s => s.name), ['Scoreboard (Wide camera)']);
+  ok({ type: 'show', name: 'Scoreboard' });
+  assert.deepEqual(scene.showing().map(s => s.name).sort(), ['Scoreboard', 'Scoreboard (Wide camera)']);
+  assert.equal(outputs.apply({ output: two(), sponsors: false }), null);
+  assert.deepEqual(scene.showing().map(s => s.name), ['Scoreboard']);
+});
+
+test('an ad on an output that doesn\'t count isn\'t a play in the report; on one that counts it is', () => {
+  const plays = () => (exposure.report({ competition: comp, offAir: true }).sponsors.find(s => s.name === 'Golds Bakery') || { plays: 0 }).plays;
+  const before = plays();
+  ok({ type: 'seqPlay', sequence: 'Ads', output: two() });
+  wait(5);
+  assert.equal(plays(), before);
+  assert.equal(outputs.apply({ output: two(), sponsors: true }), null);
+  ok({ type: 'seqPlay', sequence: 'Ads', output: two() });
+  wait(5);
+  assert.equal(plays(), before + 1);
+});
+
+test('an ads step on an output that doesn\'t count leaves the rotation where it was', () => {
+  fs.writeFileSync(path.join(scene.MEDIA_DIR, 'corner.png'), 'x');
+  fs.writeFileSync(path.join(scene.MEDIA_DIR, 'golds2.png'), 'x');
+  sponsors.save({ name: 'Corner Cafe', ads: [{ file: 'corner.png', seconds: 5 }], competitions: { [comp]: { tier: 'major' } } });
+  const golds = sponsors.all().find(s => s.name === 'Golds Bakery');
+  sponsors.save({ ...golds, ads: [{ file: 'golds.png', seconds: 5 }, { file: 'golds2.png', seconds: 5 }] });
+  assert.equal(outputs.apply({ output: two(), sponsors: false }), null);
+  const peek = () => sponsors.nextAd(comp, { count: false });
+  const upNext = () => `${peek()!.sponsor.name} ${peek()!.file}`;
+  const before = upNext(), whose = peek()!.sponsor.name;
+  for (let i = 0; i < 3; i++) {
+    ok({ type: 'seqPlay', sequence: 'Ads', output: two() });
+    assert.equal(st().playingOut[two()]!.ad, whose, 'the monitor shows whose turn it is');
+    wait(5);
+  }
+  assert.equal(upNext(), before, 'Output 1 plays the same ad next as it would have');
+  ok({ type: 'seqPlay', sequence: 'Ads' });
+  wait(5);
+  assert.notEqual(upNext(), before, 'an ad on Output 1 takes its turn');
+});
+
+test('a removed output\'s ad sources go with it', () => {
+  outputs.apply({ remove: two() });
+  assert.deepEqual(st().sources.filter(s => /Sponsor ad|House ad/.test(s.name) && s.name.includes('Wide camera')).map(s => s.name), []);
+});

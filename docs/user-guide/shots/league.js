@@ -1,5 +1,5 @@
 // The Elite Netball League: the made-up competition the user guide's screenshots show. It is a season for
-// the tests' stand-in PlayHQ (test/support/playhq.js), in the same shape as its own Thunder League one, with
+// the tests' stand-in PlayHQ (test/support/playhq.mts), in the same shape as its own Thunder League one, with
 // the answers that name the competition, venue and players replaced, and the competition's template
 // (settings, team logos and its own logo) for Studio to import.
 //   Rounds 1 to 8 were played on the last eight Saturdays; Round 9 is tonight: Panthers v Falcons
@@ -9,7 +9,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { localZone, POSITIONS, discoverGame } = require('../../../test/support/playhq');
+const { localZone, POSITIONS, discoverGame } = require('../../../test/support/playhq.mts');
 
 const ASSETS = path.join(__dirname, 'assets');
 const ORG_ID = 'e7a1b2c3';

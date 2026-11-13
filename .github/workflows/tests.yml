@@ -1,6 +1,6 @@
 # Runs the tests on every pull request (and on main after a merge), so a change that breaks
 # something shows as a red check on the pull request before it's merged.
-#   Studio: npm test (test/*.test.js), the helper, scenes, sequences, music, packing, every page in a browser, and the
+#   Studio: npm test (test/*.test.js and test/*.test.mts, type checked first), the helper, scenes, sequences, music, packing, every page in a browser, and the
 #   Mac app itself (Electron, on a virtual display); and FirstPass's own packages in packages/ (@firstpass/playhq):
 #   built, their tests, type check, and the built files loaded as Studio loads them.
 #   Stream Deck plugin: plugins/studio-deck's type check and tests.
@@ -9,7 +9,7 @@
 #   one turns the pull request red the day it is published rather than waiting for Dependabot's month.
 # PlayHQ is never called: the tests that need it run against recorded answers.
 # Each run's summary page has a results table and every failure with its message
-# (test/support/github-report.mjs), and failures are marked on the test in the pull request's Files tab.
+# (test/support/github-report.mts), and failures are marked on the test in the pull request's Files tab.
 name: Tests
 
 on:

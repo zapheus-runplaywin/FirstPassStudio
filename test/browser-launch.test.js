@@ -1,5 +1,5 @@
 // Every test that opens a browser does it so that it is skipped where there is no browser, as on the Mac app
-// build: through support/browser.js's openBrowser/openPage, or a launch of its own inside a try. A bare
+// build: through support/browser.mts's openBrowser/openPage, or a launch of its own inside a try. A bare
 // chromium.launch() throws there instead and fails the build (commentatorstats.test.js did, 2026-11-01).
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -23,5 +23,5 @@ test('no test opens a browser that throws where there is none', () => {
       if (!/\btry\s*\{/.test(line) && !/\btry\s*\{\s*$/.test(lines[i - 1] || '')) bare.push(`${path.relative(__dirname, file)}:${i + 1}`);
     });
   }
-  assert.deepEqual(bare, [], 'open the browser with openBrowser or openPage from support/browser.js');
+  assert.deepEqual(bare, [], 'open the browser with openBrowser or openPage from support/browser.mts');
 });

@@ -1,11 +1,11 @@
 // A Studio Mac turned on part way through a game another Studio Mac is following (board.ts fillFromPeers, stories.ts
 // liveFrom): it picks the game up at the score then, with a gap, asks the other Mac for its story of the game so far,
 // fills the gap with its goals there and then, and carries on following the game by itself. Against the stand-in
-// PlayHQ (test/support/playhq.js), both Studios reading the same game.
+// PlayHQ (test/support/playhq.mts), both Studios reading the same game.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { createWorld } = require('./support/playhq');
+const { startStudio } = require('./support/studio.mts');
+const { createWorld } = require('./support/playhq.mts');
 
 test('a Mac that picks a game up part way fills the start of it from the other Mac\'s story, and carries on', { timeout: 120000 }, async t => {
   const world = createWorld();

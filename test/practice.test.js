@@ -7,9 +7,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 const practice = require('../out/practice');
-const { localZone } = require('./support/playhq');
+const { localZone } = require('./support/playhq.mts');
 
 // Dates and times here are read in the time zone Studio runs in for the tests.
 process.env.TZ = localZone().tz;

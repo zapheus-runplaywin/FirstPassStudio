@@ -3,7 +3,7 @@
 // STUDIO_TEST_CHROMIUM; skipped without one (except in the Tests check). Saving itself needs the Mac app (app.test.js).
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 
 let chromium = null;
 try { ({ chromium } = require('playwright')); } catch { /* not installed */ }

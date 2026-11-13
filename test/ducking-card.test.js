@@ -4,8 +4,8 @@
 // longer has the video and duck rows, and Mics has no Settings of its own.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { openPage } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { openPage } = require('./support/browser.mts');
 
 test('the Ducking card sets the music\'s and the mics\' ducking, and its line says what it does', async t => {
   const studio = await startStudio(t);

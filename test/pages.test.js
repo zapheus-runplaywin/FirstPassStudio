@@ -1,6 +1,6 @@
 // Every page in public/ opens in a real browser (Chromium, through Playwright) without a script
 // error, a console error or a failed request, with Studio running against the stand-in PlayHQ
-// (test/support/playhq.js) and the Thunder League template in use, a game being played.
+// (test/support/playhq.mts) and the Thunder League template in use, a game being played.
 // Requests off this computer (Google Fonts) are answered empty, so nothing leaves it.
 // The browser: Playwright's own (npx playwright install chromium), or STUDIO_TEST_CHROMIUM.
 // Without one the test is skipped, saying so (except in the Tests check, see below).
@@ -8,7 +8,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { startStudio, ROOT } = require('./support/studio');
+const { startStudio, ROOT } = require('./support/studio.mts');
 
 let chromium = null;
 try { ({ chromium } = require('playwright')); } catch { /* not installed */ }

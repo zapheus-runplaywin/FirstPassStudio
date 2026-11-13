@@ -1,13 +1,13 @@
 // Operator journeys on the Output page: building the night's look (adding pages, turning them on and off,
 // layers, scenes) and checking what the output itself (scene.html, what goes to the stream) shows after each
-// click. The browser: see test/support/browser.js.
+// click. The browser: see test/support/browser.mts.
 
 'use strict';
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio, wait } = require('./support/studio');
-const { openBrowser, openPage } = require('./support/browser');
+const { startStudio, wait } = require('./support/studio.mts');
+const { openBrowser, openPage } = require('./support/browser.mts');
 
 // The output as it is drawn: each layer's page and whether it's showing, bottom to top.
 const layers = page => page.$$eval('.layer', els => els

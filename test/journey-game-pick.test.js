@@ -1,15 +1,15 @@
 // Operator journeys for picking tonight's game, on Scoreboard control and the scoreboard graphic, against the
-// stand-in PlayHQ (test/support/playhq.js): Studio starts with the game on the court, moves to the next one by
+// stand-in PlayHQ (test/support/playhq.mts): Studio starts with the game on the court, moves to the next one by
 // itself when its scoring opens, keeps a final on until it's finished, and says what it's doing when there's
-// nothing on the court. The browser: see test/support/browser.js.
+// nothing on the court. The browser: see test/support/browser.mts.
 
 'use strict';
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { createWorld } = require('./support/playhq');
-const { openBrowser, openPage } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { createWorld } = require('./support/playhq.mts');
+const { openBrowser, openPage } = require('./support/browser.mts');
 
 // Waits until the page's element's text matches (and fails with what it says instead).
 async function says(page, sel, re, timeout = 30000) {

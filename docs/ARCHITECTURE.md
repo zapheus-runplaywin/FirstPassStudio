@@ -33,7 +33,7 @@ kept current: a new module, timer or data flow gets its line here in the same pu
   finds the app folder (`public/`, `vendor/`, `native/`, `config.json`) one above `out/`. `playhq.js` stays JavaScript for now,
   typed by `playhq.d.ts`. What comes from outside (a request's body, a saved file, PlayHQ's answers, the messages between the Mac app and the helper) is
   `unknown` until it is checked with `check.ts` (`obj`, `arr`, `str`, `num`); the types the modules share are in `types.ts`. An
-  `any` needs a comment starting `any:` saying why, and `test/typescript-any.test.js` fails on one without it. The pages' scripts are
+  `any` needs a comment starting `any:` saying why, and `test/typescript-any.test.mts` fails on one without it. The pages' scripts are
   TypeScript too: `public/tsconfig.json` compiles `public/*.ts` and `public/output/tsconfig.json` the Output page's parts into `out/public/`,
   which Studio serves before `public/`, so a page's script tags name `.js` as before. The shared scripts (`studio.ts`, `asktext.ts`…)
   are plain scripts that share the page's scope; a page's own script (`planner.ts` for `planner.html`, `worm.ts` for the score worm graphic) is a module, loaded with
@@ -48,7 +48,7 @@ kept current: a new module, timer or data flow gets its line here in the same pu
   Socials, Remote and Commentator, with no chips, and `/` opens Socials) share `studio.css` and `studiobar.js`: the page kit in `studio.css`
   (section, headings, buttons, segmented controls `.fp-seg`, switches `.fp-switch`, help text, dialogs, scoped with `:where(body.fp)` so a page's own classes win) is what each is built from, its `--fp-*` tokens carry the
   brand kit's light and dark values (`prefers-color-scheme`; the app pins the theme with `nativeTheme.themeSource` from the menu bar icon's Appearance),
-  and a page's own `<style>` carries only what is really its own (`test/studio-kit.test.js` keeps it so). `studiobar.js` also gives any name cut short (an ellipsis or a line clamp) its full text as a tooltip on hover (`data-full` when the element holds more than the name). Each page has one line under its title and a **More in the guide** link to its part of the user guide (`/guide/#s3-3` and so on), where the longer explanations live; the Docs tab is the guide itself, served by `sendGuide` with Studio's bar on top. The graphics only talk to the helper
+  and a page's own `<style>` carries only what is really its own (`test/studio-kit.test.mts` keeps it so). `studiobar.js` also gives any name cut short (an ellipsis or a line clamp) its full text as a tooltip on hover (`data-full` when the element holds more than the name). Each page has one line under its title and a **More in the guide** link to its part of the user guide (`/guide/#s3-3` and so on), where the longer explanations live; the Docs tab is the guide itself, served by `sendGuide` with Studio's bar on top. The graphics only talk to the helper
   on this computer and keep the competition's own look.
 
 Two more pieces live in the repository: the Stream Deck plugin (`plugins/studio-deck`, TypeScript, talks to the helper's
@@ -160,9 +160,12 @@ through `/api/log`. The log file keeps its old name on purpose.
 
 ## Tests
 
-`npm test` runs the `node:test` suites in `test/`. `test/support/studio.js` starts a real Studio (`out/server.js`) on a free port
-with its own data folder; `test/support/playhq.js` is a stand-in PlayHQ with a made-up season around today's date
-(`world.fail` and `world.answers` make one request fail or answer oddly, for the PlayHQ outage tests). A
+`npm test` runs the `node:test` suites in `test/`. `test/support/studio.mts` starts a real Studio (`out/server.js`) on a free port
+with its own data folder; `test/support/playhq.mts` is a stand-in PlayHQ with a made-up season around today's date
+(`world.fail` and `world.answers` make one request fail or answer oddly, for the PlayHQ outage tests). The tests are
+moving to TypeScript: a `.test.mts` file and the helpers in `test/support/` run in Node as they are (Node strips the types),
+and `tsc -p test` (`test/tsconfig.json`, strict, run by `npm test`'s `pretest`) checks them against the compiled modules'
+own types (`out/*.d.ts`, which `npm run build` writes beside them and the app doesn't pack); the `.test.js` files move next. A
 Chromium page-load test runs when a browser is available, and `test/app.test.js` runs the Mac app itself (Electron, on
 Linux under `xvfb-run`, with Electron's binary from `node node_modules/electron/install.js`). The Tests workflow runs
-them on every pull request and before each Mac app build; `test/packaging.test.js` checks that every module `out/server.js` and the app load is in the app's file list. `npm test` builds first (`pretest`), and the tests load the compiled modules from `out/`. Both workflows keep Electron's download (and the Mac build electron-builder's tools) in the Actions cache under their version, so a newer version is downloaded fresh, and try the download again for a few minutes when GitHub answers 504.
+them on every pull request and before each Mac app build; `test/packaging.test.mts` checks that every module `out/server.js` and the app load is in the app's file list. `npm test` builds first (`pretest`), and the tests load the compiled modules from `out/`. Both workflows keep Electron's download (and the Mac build electron-builder's tools) in the Actions cache under their version, so a newer version is downloaded fresh, and try the download again for a few minutes when GitHub answers 504.

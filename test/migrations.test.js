@@ -9,7 +9,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { VERSION } = require('../out/migrations');
-const { startStudio } = require('./support/studio');
+const { startStudio } = require('./support/studio.mts');
 
 const ROOT = path.join(__dirname, '..');
 const tmp = name => fs.mkdtempSync(path.join(os.tmpdir(), `studio-migrate-${name}-`));

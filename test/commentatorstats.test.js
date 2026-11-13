@@ -3,9 +3,9 @@
 // its box's width, so the names get that room instead of being cut short (Matt, 2026-11-01).
 const test = require('node:test');
 const assert = require('node:assert/strict');
-// The browser comes from support/browser.js, so the test is skipped where there is none (the Mac app build).
-const { startStudio } = require('./support/studio');
-const { openBrowser } = require('./support/browser');
+// The browser comes from support/browser.mts, so the test is skipped where there is none (the Mac app build).
+const { startStudio } = require('./support/studio.mts');
+const { openBrowser } = require('./support/browser.mts');
 
 test('team lists match the moments column and fill their width when scaled down', async t => {
   const browser = await openBrowser(t);

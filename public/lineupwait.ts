@@ -1,4 +1,4 @@
-// Used by positions.html (and test/lineupwait.test.js): what the position match ups show while
+// Used by positions.html (and test/lineupwait.test.mts): what the position match ups show while
 // neither team has a line up with positions. PlayHQ only has line ups once a game is being
 // scored, so before live scoring starts the page says so instead of staying blank.
 // Returns null once either team has a line up, else { title, detail }.

@@ -1,0 +1,21 @@
+{
+  // The tests (test/*.test.mts and the helpers in support/), checked by tsc -p test before they run (npm test's
+  // pretest) and run by Node as they are (it strips the types), so they need no build of their own. They load
+  // Studio's modules from out/ (npm run build), whose types are beside them there (out/*.d.ts). A test's page code
+  // (page.evaluate) runs in the browser, so the DOM's types are here too, and pages.d.ts names what the pages give it.
+  "compilerOptions": {
+    "target": "es2024",
+    "lib": ["es2024", "dom", "dom.iterable"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "erasableSyntaxOnly": true,
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true
+  },
+  "include": ["*.mts", "support/*.mts", "*.d.ts"]
+}

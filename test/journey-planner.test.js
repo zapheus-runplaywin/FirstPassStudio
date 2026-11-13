@@ -1,15 +1,15 @@
-// Operator journey for the Production Planner, against the stand-in PlayHQ (test/support/playhq.js): add the
+// Operator journey for the Production Planner, against the stand-in PlayHQ (test/support/playhq.mts): add the
 // commentators, plan tonight on a court, put people on the game being played, and see Scoreboard control follow the
 // planned court and the Commentators graphic name them (as a line, and as lower thirds with a headshot); then change the court by hand and see the Planner flag it.
-// The browser: see test/support/browser.js.
+// The browser: see test/support/browser.mts.
 
 'use strict';
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { createWorld } = require('./support/playhq');
-const { openBrowser, openPage } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { createWorld } = require('./support/playhq.mts');
+const { openBrowser, openPage } = require('./support/browser.mts');
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 

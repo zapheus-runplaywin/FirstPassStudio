@@ -3,8 +3,8 @@
 // status board says why the music is ducked in the same words. Nothing says "quiet the music" any more.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { openPage } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { openPage } = require('./support/browser.mts');
 
 test('the Output page says Duck for every way the music gets out of the way', async t => {
   const studio = await startStudio(t);

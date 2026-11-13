@@ -3,8 +3,8 @@
 // "Saved" line. Review findings 4 and 5 (30 Oct 2026).
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { openBrowser, openPage } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { openBrowser, openPage } = require('./support/browser.mts');
 
 const REFUSED = 'Studio is set to change things only from this computer, so POST /api/planner from 10.0.0.9 was refused. To let this device in, open Studio\'s /pair.html on it and press Allow on the Mac.';
 

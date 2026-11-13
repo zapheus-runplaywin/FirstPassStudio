@@ -3,8 +3,8 @@
 // option mixed the two layouts, so most of its choices did nothing (Matt, 2026-11-03).
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio');
-const { openPage } = require('./support/browser');
+const { startStudio } = require('./support/studio.mts');
+const { openPage } = require('./support/browser.mts');
 
 const TOP = 244, BOTTOM = 894, MARGIN = 60, NEAR = 2;
 
