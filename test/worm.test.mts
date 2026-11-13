@@ -1,0 +1,126 @@
+// The score worm for worm.html: the margin over game time from the goal order, with a gap
+// where Studio didn't see the goals. Runs server.ts and presses the scores like the control page.
+import { createRequire } from 'node:module';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { runServer, type Json } from './support/studio.mts';
+import type { TestContext } from 'node:test';
+
+const require = createRequire(import.meta.url);
+
+async function start(t: TestContext) {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-test-'));
+  const server = await runServer({ FIRSTPASS_DATA_DIR: dataDir, PLAYHQ_API_URL: 'http://127.0.0.1:1/graphql', PLAYHQ_SPECTATOR_URL: 'http://127.0.0.1:1/spectator' });
+  t.after(async () => { server.child.kill(); await server.exit; fs.rmSync(dataDir, { recursive: true, force: true }); });
+  const base = `http://127.0.0.1:${server.port}`;
+  const post = async (body: Json) => (await fetch(`${base}/api/scoreboard`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json();
+  const goals = async (side: Json, ...deltas: number[]) => { for (const delta of deltas) await post({ type: 'score', side, delta }); };
+  const worm = async () => (await fetch(`${base}/api/worm`)).json();
+  return { post, goals, worm };
+}
+
+test('margins in goal order, quarter by quarter, with the biggest leads and lead changes', async t => {
+  const { post, goals, worm } = await start(t);
+  await post({ type: 'setTeams', home: 'Thunder', away: 'Warriors' });
+  await post({ type: 'resetScores' });
+  await post({ type: 'period', value: 1 });
+  await goals('home', 1, 2, 1); // home +4
+  await goals('away', 1);       // +3
+  await post({ type: 'period', value: 2 });
+  await goals('away', 1, 1, 1, 1, 1); // away +2
+  await goals('home', 1);             // away +1
+
+  const w = await worm();
+  assert.equal(w.segments.length, 1);
+  const line = w.segments[0];
+  assert.deepEqual(line.map((p: Json) => p.margin), [0, 1, 3, 4, 3, 2, 1, 0, -1, -2, -1]);
+  // The clock wasn't run, so each quarter's goals are spread evenly across it.
+  assert.ok(line.slice(1, 5).every((p: Json) => p.t > 0 && p.t < 1));
+  assert.ok(line.slice(5).every((p: Json) => p.t > 1 && p.t < 2));
+  assert.ok(line.every((p: Json, i: Json) => !i || p.t >= line[i - 1].t));
+  assert.deepEqual(w.gaps, []);
+  assert.equal(w.biggestLead.home.margin, 4);
+  assert.equal(w.biggestLead.away.margin, 2);
+  assert.equal(w.leadChanges, 1);
+  assert.equal(w.periods, 4);
+  assert.equal(w.periodLabel, 'Q');
+});
+
+test('a score typed in is a gap, and the line carries on from the new score', async t => {
+  const { post, goals, worm } = await start(t);
+  await post({ type: 'setTeams', home: 'Thunder', away: 'Warriors' });
+  await post({ type: 'resetScores' });
+  await post({ type: 'period', value: 1 });
+  await goals('home', 1);
+  await post({ type: 'period', value: 3 });
+  await post({ type: 'setScore', side: 'away', value: 9 });
+  await goals('home', 1);
+
+  const w = await worm();
+  assert.equal(w.segments.length, 2);
+  assert.deepEqual(w.segments[0].map((p: Json) => p.margin), [0, 1]);
+  assert.deepEqual(w.segments[1].map((p: Json) => [p.home, p.away]), [[1, 9], [2, 9]]);
+  assert.equal(w.gaps.length, 1);
+  assert.ok(w.gaps[0].to >= 2 && w.gaps[0].from < 1); // from Q1's last goal to when the score was typed in Q3
+});
+
+test('super shot divisions mark the super shot period and count the points scored in it', async t => {
+  const { startStudio } = require('./support/studio.mts');
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  await studio.until(async () => (await studio.get('/api/scoreboard')).gameId);
+  const post = (body: Json) => studio.post('/api/scoreboard', body);
+  await post({ type: 'autoSelect', value: false });
+  await post({ type: 'source', value: 'manual' });
+  await post({ type: 'resetScores' });
+  await post({ type: 'clockLength', value: 600 });
+  await post({ type: 'period', value: 1 });
+  const goal = async (left: Json, side: Json, delta: Json) => { await post({ type: 'clockSet', secondsLeft: left }); await post({ type: 'score', side, delta }); };
+  await goal(400, 'home', 1); // before the super shot period
+  await goal(150, 'away', 2); // in it (last 3 minutes)
+  await goal(100, 'home', 1);
+  await goal(30, 'away', 2);
+
+  const w = await studio.get('/api/worm');
+  assert.ok(w.superShot, 'Thunder League plays super shots');
+  assert.equal(w.superShot.minutes, 3);
+  assert.deepEqual(w.superShot.windows.map((x: Json) => [x.n, x.from, x.to]), [[1, 0.7, 1], [2, 1.7, 2], [3, 2.7, 3], [4, 3.7, 4]]);
+  assert.deepEqual(w.superShot.points, { home: 1, away: 4 });
+  assert.equal(w.superShot.timed, true);
+});
+
+test('a goal after "next quarter" at the end of a game that wasn\'t level goes on the last quarter\'s siren, not extra time', async t => {
+  const { post, goals, worm } = await start(t);
+  await post({ type: 'setTeams', home: 'Thunder', away: 'Warriors' });
+  await post({ type: 'resetScores' });
+  await post({ type: 'period', value: 4 });
+  await goals('home', 1, 1);
+  await goals('away', 1);
+  await post({ type: 'period', value: 'next' }); // pressed at the siren: the board is on extra time
+  await goals('away', 1); // the shot after the siren levels it, but it was 2-1 at the end of the fourth
+
+  const w = await worm();
+  assert.equal(w.periods, 4);
+  const line = w.segments[0];
+  assert.deepEqual(line.map((p: Json) => p.margin), [0, 1, 2, 1, 0]);
+  assert.equal(line[line.length - 1].t, 4);
+  assert.ok(w.end <= 4);
+
+});
+
+test('extra time from a level score is kept', async t => {
+  const { post, goals, worm } = await start(t);
+  await post({ type: 'setTeams', home: 'Thunder', away: 'Warriors' });
+  await post({ type: 'resetScores' });
+  await post({ type: 'period', value: 4 });
+  await goals('home', 1);
+  await goals('away', 1);
+  await post({ type: 'period', value: 'next' });
+  await goals('home', 1);
+  const w = await worm();
+  assert.equal(w.periods, 5);
+  assert.deepEqual(w.segments[0].map((p: Json) => p.margin), [0, 1, 0, 1]);
+  assert.ok(w.segments[0].at(-1).t >= 4); // in extra time
+});

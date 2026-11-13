@@ -56,7 +56,7 @@ async function setUp(t: TestContext) {
   if (!browser) return {};
   const control = await openPage(t, studio, '/output.html', { browser });
   // The output on air never reloads as the operator works (a reload is a flash on the stream).
-  const output = Object.assign((await openPage(t, studio, '/scene.html', { browser }))!, { reloads: 0 });
+  const output = Object.assign((await openPage(t, studio, '/scene.html', { browser }))!, { reloads: 0 })!;
   output.on('load', () => { output.reloads++; });
   return { studio, control, output };
 }
@@ -69,19 +69,19 @@ test('building the night\'s look: pages added hidden, turned on and off, and the
   await addPage(control, 'ladder.html');
   // Each goes in hidden, above the one selected (the one just added).
   await listShows(control, ['Ladder Off', 'Scoreboard Off']);
-  await outputShows(output!, ['Scoreboard', 'Ladder']);
+  await outputShows(output, ['Scoreboard', 'Ladder']);
   await source(control, 'Scoreboard').locator('.eye').click();
   await listShows(control, ['Ladder Off', 'Scoreboard On']);
-  await outputShows(output!, ['Scoreboard on', 'Ladder']);
-  assert.match((await output!.getAttribute('.layer.on iframe', 'src'))!, /scoreboard\.html/);
+  await outputShows(output, ['Scoreboard on', 'Ladder']);
+  assert.match((await output.getAttribute('.layer.on iframe', 'src'))!, /scoreboard\.html/);
   await source(control, 'Ladder').locator('.eye').click();
-  await outputShows(output!, ['Scoreboard on', 'Ladder on']);
+  await outputShows(output, ['Scoreboard on', 'Ladder on']);
   // Hide all: nothing on the stream.
   await control.click('#hideAll');
-  await outputShows(output!, ['Scoreboard', 'Ladder']);
+  await outputShows(output, ['Scoreboard', 'Ladder']);
   await listShows(control, ['Ladder Off', 'Scoreboard Off']);
   assert.deepEqual(control.errors, []);
-  assert.deepEqual(output!.errors, []);
+  assert.deepEqual(output.errors, []);
 });
 
 test('layers: moving a source up or down changes what covers what on the output, and it stays after a reload', async t => {
@@ -97,11 +97,11 @@ test('layers: moving a source up or down changes what covers what on the output,
   assert.equal(await control.locator('#fDown').isDisabled(), true);
   await control.click('#fUp');
   await listShows(control, ['Round fixture Off', 'Scoreboard Off', 'Ladder Off']);
-  await outputShows(output!, ['Ladder', 'Scoreboard', 'Round fixture']);
+  await outputShows(output, ['Ladder', 'Scoreboard', 'Round fixture']);
   await source(control, 'Round fixture').locator('.name').click();
   await control.click('#fDown');
   await listShows(control, ['Scoreboard Off', 'Round fixture Off', 'Ladder Off']);
-  await outputShows(output!, ['Ladder', 'Round fixture', 'Scoreboard']);
+  await outputShows(output, ['Ladder', 'Round fixture', 'Scoreboard']);
   await control.reload({ waitUntil: 'load' });
   await listShows(control, ['Scoreboard Off', 'Round fixture Off', 'Ladder Off']);
   assert.deepEqual(control.errors, []);
@@ -125,30 +125,30 @@ test('scenes: save the looks, go between them, see what changed by hand, and go 
   await control.fill('dialog.fp-ask input', 'Quarter time');
   await control.click('dialog.fp-ask button[type=submit]');
   await control.waitForSelector('#scenes button.scene.cur:has-text("Quarter time")');
-  await outputShows(output!, ['Scoreboard', 'Ladder on']);
+  await outputShows(output, ['Scoreboard', 'Ladder on']);
   // Going to a scene puts the output back to its look.
   await control.click('#scenes button.scene:has-text("Live")');
-  await outputShows(output!, ['Scoreboard on', 'Ladder']);
+  await outputShows(output, ['Scoreboard on', 'Ladder']);
   await control.waitForSelector('#scenes button.scene.cur:has-text("Live")');
   assert.equal(await control.isVisible('#drift'), false);
   // A change by hand shows as changed; Back to saved undoes it.
   await source(control, 'Ladder').locator('.eye').click();
-  await outputShows(output!, ['Scoreboard on', 'Ladder on']);
+  await outputShows(output, ['Scoreboard on', 'Ladder on']);
   await control.waitForSelector('#scenes button.scene.cur.changed:has-text("Live")');
   await driftSays(control, /1 change from saved Live: Ladder on\./);
   await control.click('#drift .back');
-  await outputShows(output!, ['Scoreboard on', 'Ladder']);
+  await outputShows(output, ['Scoreboard on', 'Ladder']);
   // Save over: Live now has both on.
   await source(control, 'Ladder').locator('.eye').click();
   await control.waitForSelector('#drift:not(.hidden)');
   await control.click('#drift .over');
   await control.waitForSelector('#drift.hidden', { state: 'attached' });
   await control.click('#scenes button.scene:has-text("Quarter time")');
-  await outputShows(output!, ['Scoreboard', 'Ladder on']);
+  await outputShows(output, ['Scoreboard', 'Ladder on']);
   await control.click('#scenes button.scene:has-text("Live")');
-  await outputShows(output!, ['Scoreboard on', 'Ladder on']);
+  await outputShows(output, ['Scoreboard on', 'Ladder on']);
   assert.deepEqual(control.errors, []);
-  assert.deepEqual(output!.errors, []);
+  assert.deepEqual(output.errors, []);
 });
 
 test('a scene tile\'s own buttons: the pencil renames and recolours it, copy makes a copy, and the bin asks first', async t => {
@@ -213,22 +213,22 @@ test('a quarter-break sequence built in the editor: Save and play runs its steps
   await control.click('#sqTry');
   // Step 1: the ladder over the scoreboard.
   await control.waitForSelector('#seqs .seq.run');
-  await outputShows(output!, ['Scoreboard on', 'Ladder on', 'Round fixture']);
+  await outputShows(output, ['Scoreboard on', 'Ladder on', 'Round fixture']);
   assert.match((await control.textContent('#seqs .seq.run .nowLine'))!, /^1 of 2 · Ladder/);
   // Step 2 after 2 seconds: the fixture, and it waits for Next.
-  await outputShows(output!, ['Scoreboard on', 'Ladder', 'Round fixture on'], 6000);
+  await outputShows(output, ['Scoreboard on', 'Ladder', 'Round fixture on'], 6000);
   await wait(1500);
-  await outputShows(output!, ['Scoreboard on', 'Ladder', 'Round fixture on']);
+  await outputShows(output, ['Scoreboard on', 'Ladder', 'Round fixture on']);
   await control.click('#seqs .seq.run .next');
   // Then: back to Live, and the card is ready to play again.
-  await outputShows(output!, ['Scoreboard on', 'Ladder', 'Round fixture']);
+  await outputShows(output, ['Scoreboard on', 'Ladder', 'Round fixture']);
   await control.waitForSelector('#seqs .seq:not(.run) .play');
   assert.match((await control.textContent('#seqs .seq:not(.addSeq) small'))!, /2 steps · runs at least 0:02 · .* · then Live$/);
   // Stop part way: the step's sources go off as its Then says.
   await control.click('#seqs .seq .play');
-  await outputShows(output!, ['Scoreboard on', 'Ladder on', 'Round fixture']);
+  await outputShows(output, ['Scoreboard on', 'Ladder on', 'Round fixture']);
   await control.click('#seqs .seq.run .stop');
-  await outputShows(output!, ['Scoreboard on', 'Ladder', 'Round fixture']);
+  await outputShows(output, ['Scoreboard on', 'Ladder', 'Round fixture']);
   // Copy from the editor, then delete the copy (it asks first).
   await control.click('#seqs .seq .edit');
   await control.click('#sqCopy');
@@ -240,9 +240,9 @@ test('a quarter-break sequence built in the editor: Save and play runs its steps
   await control.waitForFunction(() => document.querySelectorAll('#seqs .seq:not(.addSeq)').length === 1);
   assert.deepEqual((await studio.get('/api/scene')).sequences.map((s: Json) => s.name), ['Quarter break']);
   await wait(5500); // the pages check for a new version every 5 seconds
-  assert.equal(output!.reloads, 0, 'saving sequences didn\'t reload the output');
+  assert.equal(output.reloads, 0, 'saving sequences didn\'t reload the output');
   assert.deepEqual(control.errors, []);
-  assert.deepEqual(output!.errors, []);
+  assert.deepEqual(output.errors, []);
 });
 
 test('the sequence editor saves Music ends Crossfades into the next music, with its time', async t => {
