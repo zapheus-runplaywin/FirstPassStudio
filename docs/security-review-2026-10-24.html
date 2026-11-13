@@ -1,7 +1,7 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Studio Security Review</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<!-- Application security review of FirstPass Studio, 24 October 2026, also published at https://claude.ai/artifact/HgVV2otcziiYah2vG77F9C. Companion to architecture-review-2026-10-24.html. -->
+<!-- Application security review of FirstPass Studio, 24 October 2026, also published at https://claude.ai/artifact/HgVV2otcziiYah2vG77F9C. Companion to architecture-review-2026-10-24.html. Re-checked 13 November 2026 before FirstPass stats arrive (section recheck-2026-11-13). -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,700;0,800;1,800;1,900&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
 /* Layout: one reading column, same shape as the architecture review. A two-rating decision list (today / later) up top, then the findings as cards with a priority stripe for today's risk, then what changes if Studio becomes a product. */
@@ -237,6 +237,49 @@ td a:hover { color: var(--blue); }
     <dl>
       <dt>Recommend</dt><dd>No work now. When licensing becomes concrete, a one-page design decision record on the fork above (Mac renders, cloud holds settings; or cloud renders) before any code, and then a second security review of that design. Everything in S1 to S8 is needed under either branch and is worth doing in the meantime.</dd>
     </dl>
+  </article>
+</section>
+
+<section id="recheck-2026-11-13">
+  <h2>Re-check, 13 November 2026: before FirstPass stats arrive</h2>
+  <p>Studio is about to sign in to each club's FirstPass HQ and read its stats: private figures about athletes, many under 18, that PlayHQ never publishes (the architecture doc's "Studio access" tab). This re-check looked again at every finding above, on main after the move to TypeScript, and at what has been added since 24 October (device pairing, the secure phone link, the phone mic, the Remote page, game stories shared between Macs, following every game of the night), asking one question: could another device or a web page read data Studio holds?</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Still holds?</th><th>Where</th></tr></thead>
+    <tbody>
+      <tr><td class="n">S1</td><td>Yes, for changes and for the scene WebSocket, and now for the secure link's https name too</td><td><code>access.ts</code> <code>crossSite()</code>, <code>server.ts</code> <code>handleUpgrade()</code>; <code>test/access.test.js</code></td></tr>
+      <tr><td class="n">S2</td><td>Yes, and stronger: Studio now opens with "Only this Mac can change things" ticked every time, and the private reads cover the planner, the competition setup, recordings and Socials pictures too</td><td><code>access.ts</code> <code>PRIVATE</code>, <code>desktop/main.ts</code> <code>start()</code>; this re-check adds a test that the app re-ticks it at launch</td></tr>
+      <tr><td class="n">S3</td><td>Yes: uploads are sandboxed with <code>nosniff</code>, images are checked by signature, the static server's prefix check includes the separator</td><td><code>uploads.ts</code>, <code>server.ts</code>; <code>test/uploads.test.js</code></td></tr>
+      <tr><td class="n">S4</td><td>Yes: asar, fuses and entitlements unchanged by the move</td><td><code>package.json</code> <code>build</code>; <code>test/app-hardening.test.js</code></td></tr>
+      <tr><td class="n">S5</td><td>Yes: every Action is pinned to a full commit, installs run with <code>--ignore-scripts</code>. This re-check adds a test so a new workflow can't slip in an unpinned one</td><td><code>.github/workflows/</code></td></tr>
+      <tr><td class="n">S6</td><td>Yes: <code>npm audit --omit=dev</code> finds 0 vulnerabilities today</td><td><code>tests.yml</code></td></tr>
+      <tr><td class="n">S7</td><td>Yes</td><td><code>desktop/signed.ts</code>; <code>test/ndi-signed.test.js</code></td></tr>
+      <tr><td class="n">S8</td><td>Still parked: stream keys are in <code>stream-keys.json</code>, which never leaves the Mac and is never sent to a page. HQ sign-in tokens must not copy that pattern (R4)</td><td><code>datalocation.ts</code> <code>LOCAL_ONLY</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>Nothing found lets another device or web page read Studio's private data today. Four things matter once FirstPass stats arrive. Each belongs to the pull request that brings that part in, and none is a change to today's behaviour.</p>
+
+  <article class="card med" id="r1">
+    <div class="head"><span class="id">R1</span><h3>A device cookie from plain http can be copied off the Wi-Fi</h3><span class="pill med">Medium for stats</span></div>
+    <p><strong>Finding.</strong> A phone or browser paired at the <code>.local</code> address gets its device cookie over plain http, and sends it in the clear with every request. Anyone on the same venue Wi-Fi who captures it can act as that device, at its level. Today that reaches what an approved device can already do; with stats it would reach the stats.</p>
+    <dl><dt>Do</dt><dd>FirstPass stats answer only this Mac, and approved devices whose request arrives over the secure link (https) with a cookie that was given out over it (<code>Secure</code>). A device paired over http has to pair again over the secure link to see stats. Built with the private data class.</dd></dl>
+  </article>
+
+  <article class="card med" id="r2">
+    <div class="head"><span class="id">R2</span><h3>Some open reads carry whole state</h3><span class="pill med">Medium for stats</span></div>
+    <p><strong>Finding.</strong> The scene WebSocket, <code>/api/scoreboard</code>, the board and the game stories (<code>/api/stories</code>, copied to every other Studio on the network and to iCloud Drive) are open reads by design, so graphics work from OBS, phones and Stream Decks, and the Macs can share. They hold only PlayHQ data today. Anything put into them reaches every device on the network.</p>
+    <dl><dt>Do</dt><dd>FirstPass figures never go into the board, the scene state, a game story, the game cache or the Socials night data. A graphic on air gets only the figures it shows, through their own private routes. A test plants a marker stat and checks none of those carry it.</dd></dl>
+  </article>
+
+  <article class="card low" id="r3">
+    <div class="head"><span class="id">R3</span><h3>The debug log records each request with its query string</h3><span class="pill low">Low for stats</span></div>
+    <p><strong>Finding.</strong> Every request that isn't polled is logged with its path and query string, and errors with their message. Stream Deck keys are already stripped from the path. HQ tokens, sign-in codes and event contents must never reach that line or an error message.</p>
+    <dl><dt>Do</dt><dd>A scrubber for anything logged from FirstPass routes and the HQ client: counts and ids only, with a test that logs a fake token and event and checks neither appears.</dd></dl>
+  </article>
+
+  <article class="card low" id="r4">
+    <div class="head"><span class="id">R4</span><h3>Sign-in tokens belong in the Keychain</h3><span class="pill low">Low for stats</span></div>
+    <p><strong>Finding.</strong> Stream keys sit in a local file (S8, parked). A club's HQ refresh token reads that club's stats, so it goes in the Mac's Keychain with the <code>security</code> command, as the secure link's Route 53 key already does, never in <code>config.json</code>, iCloud Drive or a backup.</p>
+    <dl><dt>Do</dt><dd>One shared Keychain helper (from <code>securelink.ts</code>) used by HQ sign-in, and later by AI captions' keys.</dd></dl>
   </article>
 </section>
 
