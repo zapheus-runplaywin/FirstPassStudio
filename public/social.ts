@@ -4,7 +4,7 @@ declare global {
   interface Window { socialReady: Promise<string | true> }
 }
 
-// The parts of /api/socials/night that &with= asks for (socials.ts night()), each for its picture. A part that can't be
+// The parts of /api/socials/night that each picture's kind needs (socials.ts night() and NEEDS). A part that can't be
 // made says why in error (the rest of it is then left out).
 type Result = 'W' | 'L' | 'D';
 // A shooter or athlete on a list: their name, team and logo, their photo when they approved its use, and their numbers.
@@ -1224,22 +1224,9 @@ const imagesLoaded = () => Promise.all([...document.images].filter(i => !i.hidde
 window.socialReady = (async () => {
   try {
     if (document.fonts) await document.fonts.ready;
-    const q = new URLSearchParams();
-    { const v = params.get('date'); if (v) q.set('date', v); }
-    { const v = params.get('colours'); if (v) q.set('colours', v); }
-    { const v = params.get('template'); if (v) q.set('template', v); }
-    for (const k of ['home', 'away', 'athlete']) { const v = params.get(k); if (v) q.set(k, v); }
-    // Only the Results pictures that need them ask for the ladders or the night's shooting.
-    if (kind === 'ladder') q.set('with', 'ladders');
-    if (kind === 'review') q.set('with', 'review');
-    // The Upcoming pictures worked out from the season, each with what it's for.
-    const needs = ({ accuracy: ['accuracy', 'division'], supershots: ['supershots', 'division'], teamsupers: ['teamsupers', 'division'], onfire: ['onfire', 'division'], numbers: ['numbers'],
-      season: ['season', 'division', 'team'], wrap: ['wrap', 'division'],
-      potm: ['potm', 'game', 'athlete', 'medal'], story: ['story', 'game'], worm: ['story', 'game'], moments: ['story', 'game'], gamestats: ['gamestats', 'game'], shooting: ['gamestats', 'game'], h2h: ['form', 'game'], teamsheet: ['teamsheet', 'game'], watch: ['watch', 'link'], teamround: ['teamround', 'division', 'GS', 'GA', 'WA', 'C', 'WD', 'GD', 'GK'], spotlight: ['spotlight', 'athlete'], sponsorspot: ['sponsorspot', 'sponsor'], form: ['form', 'game'], preview: ['preview', 'division'], race: ['race', 'division'], draw: ['draw', 'division', 'team'], milestones: ['milestones'] } as Partial<Record<string, string[]>>)[kind];
-    if (needs) { q.set('with', needs[0]); for (const k of needs.slice(1)) { const v = params.get(k); if (v) q.set(k, v); } }
-    if (kind === 'topshooters') { q.set('with', 'shooters'); { const v = params.get('division'); if (v) q.set('division', v); } }
-    if (['finalsbound', 'finalsdraw', 'champions'].includes(kind)) { q.set('with', 'finals'); { const v = params.get('division'); if (v) q.set('division', v); } }
-    if (kind === 'tournament') { q.set('with', 'tournament'); for (const k of ['division', 'after']) { const v = params.get(k); if (v) q.set(k, v); } }
+    // The night as this kind of picture needs it: the server picks what to read from the link (socials.ts NEEDS).
+    const q = new URLSearchParams(params);
+    q.set('kind', kind);
     const d = await (await fetch(`/api/socials/night?${q}`, { cache: 'no-store' })).json();
     if (d.error) throw new Error(d.error);
     // The colour set: theme.css's colours worked out for it (none for the competition's own). A pale ground takes
