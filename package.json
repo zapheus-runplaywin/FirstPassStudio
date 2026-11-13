@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@firstpass/playhq": "0.2.0",
+    "@supabase/realtime-js": "^2.119.0",
     "atem-connection": "3.10.3",
     "electron-updater": "6.8.11",
     "qrcode-generator": "2.0.4",
@@ -42,7 +43,7 @@
   "build": {
     "appId": "com.runplaywin.firstpassstudio",
     "productName": "FirstPass Studio",
-    "copyright": "\u00a9 PIVT",
+    "copyright": "© PIVT",
     "asar": true,
     "asarUnpack": [
       "vendor/ffmpeg/**",

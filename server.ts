@@ -45,6 +45,7 @@ import * as storiesLib from './stories';
 import * as firstpassLib from './firstpass';
 import * as hqauthLib from './hqauth';
 import * as keychainLib from './keychain';
+import * as hqstatsLib from './hqstats';
 import { execFile } from 'node:child_process';
 import { create as createPlayhq } from './playhq';
 import { create as createBoard } from './board';
@@ -222,6 +223,9 @@ const hq = hqauthLib.create({
   clubs: hqauthLib.readClubs(process.env.HQ_CLUBS_FILE || path.join(APP_DIR, 'hqclubs.json'), log),
   tokens: keychainLib.create('FirstPass Studio HQ sign-in', datadir.local('hq-tokens.json')),
 });
+// The FirstPass stats of the game on the scoreboard, from its club's HQ (hqstats.ts): caught up, then followed live.
+const hqstats = hqstatsLib.create({ log, store: firstpass, hq });
+hq.onSignOut(code => hqstats.signedOut(code));
 
 // ─── The board (board.ts): scores, clock, goals, streaks, stats and the worm ──
 const theBoard = createBoard({
@@ -1010,6 +1014,9 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     // (access.notThisMac()): the clubs and who is signed in to each, signing in (the club's Google sign-in page opens in
     // the system browser on this Mac; its link is answered too, in case it didn't) and signing out.
     if (url.pathname === '/api/firstpass/clubs' && method === 'GET') return send(res, 200, { clubs: hq.list() });
+    // Which game's FirstPass stats are followed, and how far: counts and ids only (hqstats.ts). Private like every
+    // /api/firstpass/ route (access.firstpassRefusal()).
+    if (url.pathname === '/api/firstpass/status' && method === 'GET') return send(res, 200, hqstats.status());
     const hqClub = /^\/api\/firstpass\/clubs\/([A-Z0-9]{1,20})\/(signin|signout)$/.exec(url.pathname);
     if (hqClub && method === 'POST') {
       if (!hq.club(hqClub[1])) return send(res, 404, { error: `There's no club ${hqClub[1]} in Studio's FirstPass HQ list.` });
@@ -1274,6 +1281,8 @@ http.createServer(handle).on('upgrade', handleUpgrade).on('error', (err: NodeJS.
   stories.start(); // announce this Studio and copy the other Studios' game stories (stories.ts)
   firstpass.start(); // delete FirstPass stats more than 30 days old (firstpass.ts)
   hq.start(); // refresh each club's FirstPass HQ sign-in and check its Studio role (hqauth.ts)
+  // Follow the FirstPass stats of whatever game the scoreboard is on, when a signed-in club recorded it (hqstats.ts).
+  setInterval(() => { hqstats.follow(theBoard.board().gameId || null).catch(err => log('error', 'hq', `Following FirstPass stats failed: ${errorMessage(err)}`)); }, 5000).unref();
   console.log(`FirstPass Studio is running. Open ${LINK_BASE}/ for the Output page.`);
   console.log(`Competition: ${CONFIG.name} (change it at ${LINK_BASE}/setup.html). Leave this window open while streaming.`);
 });
