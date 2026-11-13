@@ -46,11 +46,29 @@ import fs from 'node:fs';
 import * as datadir from './datadir';
 import * as savefile from './savefile';
 import { errorCode, errorMessage } from './errors';
+import { arr, isObj, obj } from './check';
+import type { Act, Body, Log, Query } from './types';
+
+type Channel = 'both' | 'left' | 'right';
+type Route = 'mac' | 'atem' | 'phone';
+interface Mic { id: string; name: string; on: Route; device: string; input: number; phone: string; channel: Channel; level: number; muted: boolean; lowCut: boolean; follow: boolean }
+interface Settings {
+  v: number; level: number; muted: boolean; dipTo: number; dipMusic: boolean; dipVideo: boolean; dipQuiet: boolean; dipDownSec: number; dipUpSec: number; mics: Mic[];
+}
+// What a window mixing mics last said (report()).
+interface Seen { at: number; devices: string[]; levels: Record<string, number>; problems: Record<string, string>; status: string }
+// A switcher audio input as switcher.ts gives it, and the switcher's end (switcher.ts micInputs, setMicFader, micLevel).
+interface SwitcherInput { id: number; name: string; sources: { id: number | string; fader: number; off?: boolean }[] }
+interface Switcher { inputs(): SwitcherInput[]; set(input: number, source: number | string, dB: number): void; level?(input: number, source: number | string): number | undefined }
+// The music as mics.ts follows it (music.ts state().music).
+interface MusicNow { status: string; muted: boolean; gain: { to: number }; video: string | null }
 
 const FILE = datadir.file('mics.json');
 const MAX_MICS = 8;
-const CHANNELS = ['both', 'left', 'right'];
-const ROUTES = ['mac', 'atem', 'phone'];
+const CHANNELS: readonly Channel[] = ['both', 'left', 'right'];
+const ROUTES: readonly Route[] = ['mac', 'atem', 'phone'];
+const isChannel = (v: unknown): v is Channel => (CHANNELS as readonly unknown[]).includes(v);
+const isRoute = (v: unknown): v is Route => (ROUTES as readonly unknown[]).includes(v);
 // The switcher's fader: Studio's level as dB, from all the way down to +6 (200 % is about +6 dB).
 const FLOOR_DB = -100, LOW_DB = -60, TOP_DB = 6;
 const STEP_MS = 50;            // fades on the switcher's faders move in steps this often
@@ -61,44 +79,45 @@ const REPORT_STALE_MS = 3000;
 // receiver turned off, a pulled cable), for its card and the board. A muted mic is never silent.
 const SILENT_DB = -55;
 const SILENT_MS = 10000;
-const heardAt = new Map(); // mic id -> { since: first reading of this run, loud: last reading above SILENT_DB, last: last reading }
+const heardAt = new Map<string, { since: number; loud: number; last: number }>(); // mic id -> { since: first reading of this run, loud: last reading above SILENT_DB, last: last reading }
 
-let log = () => {};
+let log: Log = () => {};
 let settings = defaults();
 let hand = false; // the Dip by hand
-let why = { music: false, video: false, quiet: false };
+const why = { music: false, video: false, quiet: false };
 let down = false;
 let dip = { from: 0, to: 0, at: 0, ms: 0 };
-const seen = new Map(); // output id -> { at, devices, levels, problems, status }: what that output's window last said
-let listed = { at: 0, devices: [] }; // the devices the Output page in the Mac app listed
+const seen = new Map<string, Seen>(); // output id -> { at, devices, levels, problems, status }: what that output's window last said
+let listed: { at: number; devices: string[] } = { at: 0, devices: [] }; // the devices the Output page in the Mac app listed
 let changedHook = () => {};    // scene.js: publish the scene (a fader moved on the switcher changed a mic's level)
-let sw = null;                 // switcher.js: { inputs(), set(input, source, dB) }
-const sent = new Map();        // mic id -> { dB, at }: where Studio last put (or first found) its fader
-let stepTimer = null;
+let sw: Switcher | null = null;                 // switcher.js: { inputs(), set(input, source, dB) }
+const sent = new Map<string, { dB: number; at: number }>();        // mic id -> { dB, at }: where Studio last put (or first found) its fader
+let stepTimer: NodeJS.Timeout | undefined;
 
-function defaults() {
+function defaults(): Settings {
   return { v: 2, level: 100, muted: false, dipTo: 30, dipMusic: false, dipVideo: true, dipQuiet: true, dipDownSec: 1, dipUpSec: 2, mics: [] };
 }
 
-const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
-const slug = s => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+const clamp = (v: unknown, lo: number, hi: number, d: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+const slug = (s: unknown) => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const newId = () => Math.random().toString(36).slice(2, 10);
 const now = () => Date.now();
-const outputId = v => String(v || '').replace(/[^a-z0-9]/gi, '').slice(0, 20) || 'main';
-const text = (v, max) => String(v ?? '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, max);
-const flag = (v, d) => v === undefined ? d : !!v;
+const outputId = (v: unknown) => String(v || '').replace(/[^a-z0-9]/gi, '').slice(0, 20) || 'main';
+const text = (v: unknown, max: number) => String(v ?? '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, max);
+const flag = (v: unknown, d: boolean) => v === undefined ? d : !!v;
 
 // ─── Saving ──────────────────────────────────────────────────────────────
-function cleanMic(m, existing = {}) {
-  const s = { ...existing, ...(m && typeof m === 'object' ? m : {}) };
-  const out = {
+// A mic as given (a save from the Output page, or mics.json), made safe.
+function cleanMic(m: unknown, existing: Partial<Mic> = {}): Mic {
+  const s: Body = { ...existing, ...obj(m) };
+  const out: Mic = {
     id: String(existing.id || s.id || newId()).replace(/[^a-z0-9]/gi, '').slice(0, 20) || newId(),
     name: '',
-    on: ROUTES.includes(s.on) ? s.on : 'mac', // plugged into the Mac or the switcher, or a phone
+    on: isRoute(s.on) ? s.on : 'mac', // plugged into the Mac or the switcher, or a phone
     device: text(s.device, 200), // the device's name as macOS gives it; '' is the Mac's default input
     input: Math.round(clamp(s.input, 0, 65535, 0)), // the switcher's audio input (on 'atem')
     phone: s.on === 'phone' ? text(s.phone, 40) : '', // the paired phone's device id (on 'phone')
-    channel: s.on !== 'phone' && CHANNELS.includes(s.channel) ? s.channel : 'both', // a phone sends one channel
+    channel: s.on !== 'phone' && isChannel(s.channel) ? s.channel : 'both', // a phone sends one channel
     level: Math.round(clamp(s.level, 0, 200, 100)),
     muted: flag(s.muted, false),
     lowCut: flag(s.lowCut, true),
@@ -111,8 +130,8 @@ function cleanMic(m, existing = {}) {
   for (let i = 2; taken.has(slug(out.name)) || !slug(out.name); i++) out.name = `${base} ${i}`;
   return out;
 }
-function cleanSettings(v) {
-  const s = { ...settings, ...(v && typeof v === 'object' ? v : {}) };
+function cleanSettings(v: unknown): Settings {
+  const s: Body = { ...settings, ...obj(v) };
   return {
     level: Math.round(clamp(s.level, 0, 100, 100)),
     muted: flag(s.muted, false),
@@ -129,11 +148,11 @@ function cleanSettings(v) {
 function load() {
   settings = defaults();
   try {
-    const saved = JSON.parse(fs.readFileSync(FILE, 'utf8'));
+    const saved = obj(JSON.parse(fs.readFileSync(FILE, 'utf8')));
     settings = cleanSettings(saved);
     // Ducking under music was on by default before v2; such a file is unticked once, then saved with v: 2.
-    if (!(saved.v >= 2)) { settings.dipMusic = false; save(); }
-    for (const m of Array.isArray(saved.mics) ? saved.mics.slice(0, MAX_MICS) : []) if (m && typeof m === 'object') settings.mics.push(cleanMic(m));
+    if (!(Number(saved.v) >= 2)) { settings.dipMusic = false; save(); }
+    for (const m of arr(saved.mics).slice(0, MAX_MICS)) if (isObj(m)) settings.mics.push(cleanMic(m));
   } catch (err) {
     if (errorCode(err) !== 'ENOENT') log('warn', 'mics', `Could not read mics.json, starting with no mics: ${errorMessage(err)}`);
   }
@@ -144,17 +163,17 @@ function save() {
 }
 
 // The mic of a paired phone (its device id), or null.
-const phoneMic = id => (id && settings.mics.find(m => m.on === 'phone' && m.phone === id)) || null;
+const phoneMic = (id: string | null | undefined) => (id && settings.mics.find(m => m.on === 'phone' && m.phone === id)) || null;
 
-function find(ref) {
+function find(ref: unknown) {
   const r = String(ref || '');
   if (/^\d+$/.test(r) && settings.mics[Number(r) - 1]) return settings.mics[Number(r) - 1]; // /deck/mic/1/...
   return settings.mics.find(m => m.id === r) || settings.mics.find(m => slug(m.name) === slug(r)) || null;
 }
 
 // ─── Dips ────────────────────────────────────────────────────────────────
-const ease = x => x * x * (3 - 2 * x);
-function along(e) {
+const ease = (x: number) => x * x * (3 - 2 * x);
+function along(e: { from: number; to: number; at: number; ms: number }) {
   if (!e.ms || now() >= e.at + e.ms) return e.to;
   return e.from + (e.to - e.from) * ease(Math.max(0, (now() - e.at) / e.ms));
 }
@@ -178,18 +197,18 @@ function settle() {
   return true;
 }
 // How much of a mic is heard now, 0 to 2: its level, the master level, the mutes and the dip (as scene.html works it out).
-function dipNow(m) {
+function dipNow(m: Mic) {
   if (!m.follow) return 1;
   const d = along(dip), low = Math.max(settings.dipTo / 100, 0.01);
   return d >= 1 ? settings.dipTo / 100 : Math.pow(low, d);
 }
-const gainOf = m => settings.muted || m.muted ? 0 : (m.level / 100) * (settings.level / 100) * dipNow(m);
+const gainOf = (m: Mic) => settings.muted || m.muted ? 0 : (m.level / 100) * (settings.level / 100) * dipNow(m);
 
 // ─── Mics on the switcher ────────────────────────────────────────────────
-const toDb = g => g <= 0.001 ? FLOOR_DB : Math.round(Math.max(LOW_DB, Math.min(TOP_DB, 20 * Math.log10(g))) * 10) / 10;
+const toDb = (g: number) => g <= 0.001 ? FLOOR_DB : Math.round(Math.max(LOW_DB, Math.min(TOP_DB, 20 * Math.log10(g))) * 10) / 10;
 const onSwitcher = () => settings.mics.filter(m => m.on === 'atem');
 // The sources of the switcher's input a mic moves: both channels, or the left or right of an input split in two.
-function sourcesOf(m, inputs) {
+function sourcesOf(m: Mic, inputs: SwitcherInput[]) {
   const inp = inputs.find(i => i.id === m.input);
   if (!inp) return [];
   if (m.channel === 'left') return inp.sources.slice(0, 1);
@@ -212,7 +231,7 @@ function drive() {
   }
   const fading = dip.ms && now() < dip.at + dip.ms && onSwitcher().length;
   if (fading && !stepTimer) { stepTimer = setInterval(drive, STEP_MS); stepTimer.unref?.(); }
-  if (!fading && stepTimer) { clearInterval(stepTimer); stepTimer = null; drive(); }
+  if (!fading && stepTimer) { clearInterval(stepTimer); stepTimer = undefined; drive(); }
 }
 // The switcher's state changed (switcher.js): a mic's fader Studio hasn't seen yet is taken as it is, and one moved
 // by hand on the switcher (not Studio's own move coming back) becomes that mic's level.
@@ -241,7 +260,7 @@ function switcherChanged() {
 // What the Output page shows about the mics on the switcher: each one's fader and any trouble.
 function onSwitcherLive() {
   const inputs = sw ? sw.inputs() : [];
-  const faders = {}, levels = {}, problems = {};
+  const faders: Record<string, number> = {}, levels: Record<string, number> = {}, problems: Record<string, string> = {};
   for (const m of onSwitcher()) {
     const inp = inputs.find(i => i.id === m.input), srcs = sourcesOf(m, inputs);
     if (!inputs.length) problems[m.id] = 'The switcher isn\'t connected (or has no mic inputs)';
@@ -250,7 +269,7 @@ function onSwitcherLive() {
     else if (srcs.some(x => x.off)) problems[m.id] = `${inp.name} is Off on the switcher: turn it On in ATEM Software Control`;
     if (srcs.length) faders[m.id] = srcs[0].fader;
     // What comes into it (before its fader), when the switcher sends its levels: the louder of its sources.
-    const heard = srcs.map(x => sw && sw.level ? sw.level(m.input, x.id) : undefined).filter(v => v !== undefined);
+    const heard = srcs.map(x => sw && sw.level ? sw.level(m.input, x.id) : undefined).filter((v): v is number => v !== undefined);
     if (heard.length) levels[m.id] = Math.round(Math.max(...heard));
   }
   return { inputs: inputs.map(i => ({ id: i.id, name: i.name, split: i.sources.length > 1 })), connected: inputs.length > 0, faders, levels, problems };
@@ -258,29 +277,29 @@ function onSwitcherLive() {
 
 // scene.js, each time the scene changes: whether music is being heard and whether a video plays its sound.
 // m is music.js's state().music.
-function follow(m, videoOn) {
+function follow(m: MusicNow | null | undefined, videoOn: unknown) {
   why.music = !!m && m.status === 'playing' && !m.muted && m.gain.to > 0 && m.video !== 'pause';
   why.video = !!videoOn;
   return settle();
 }
 // A scene or sequence with "Ducks the music" ticked started (true), or one without it (false).
-function quiet(on) {
+function quiet(on: unknown) {
   why.quiet = !!on;
   return settle();
 }
 
 // ─── Changes ─────────────────────────────────────────────────────────────
-const onOff = (v, was) => v === 'toggle' ? !was : !!v && v !== 'off';
-function apply(a) {
+const onOff = (v: unknown, was: boolean) => v === 'toggle' ? !was : !!v && v !== 'off';
+function apply(a: Act) {
   const r = change(a);
   if (r === null) drive();
   return r;
 }
-function change(a) {
+function change(a: Act): string | null | undefined {
   switch (a.type) {
     case 'micAdd': {
       if (settings.mics.length >= MAX_MICS) return `Studio mixes up to ${MAX_MICS} mics.`;
-      const m = cleanMic({ ...(a.changes || {}), id: undefined }, { id: newId() });
+      const m = cleanMic({ ...obj(a.changes), id: undefined }, { id: newId() });
       settings.mics.push(m);
       save();
       log('info', 'mics', `Added the mic "${m.name}" (${m.on === 'atem' ? `the switcher's input ${m.input}` : m.on === 'phone' ? 'a phone on the Commentator page' : m.device || 'the Mac\'s default input'}, ${m.channel})`);
@@ -290,7 +309,7 @@ function change(a) {
     case 'micUpdate': {
       const m = find(a.mic);
       if (!m) return `No mic "${a.mic || ''}".`;
-      const { id, ...changes } = a.changes || {};
+      const { id, ...changes } = obj(a.changes);
       const next = cleanMic(changes, m);
       // Moved to another input: its fader there is taken as it is first.
       if (next.on !== m.on || next.input !== m.input || next.channel !== m.channel) sent.delete(m.id);
@@ -336,7 +355,7 @@ function change(a) {
       settle();
       return null;
     case 'micsSettings': {
-      const { mics, ...rest } = a.settings || {};
+      const { mics, ...rest } = obj(a.settings);
       settings = cleanSettings(rest);
       settle();
       save();
@@ -350,10 +369,10 @@ function change(a) {
 // /deck/mics/mute/on|off|toggle, /deck/mics/dip/on|off|toggle, /deck/mics/up, /deck/mics/down (?by=N, 10 by
 // default), /deck/mics/level/<0-100>, and one mic by name or number: /deck/mic/<name>/mute/on|off|toggle,
 // /deck/mic/<name>/up and /down.
-function deck(parts, q = {}) {
+function deck(parts: string[], q: Query = {}) {
   const [what, a1, a2, a3] = parts;
   const by = q.by !== undefined && q.by !== '' ? Math.abs(Number(q.by)) || 10 : 10;
-  let action = null;
+  let action: Act | null = null;
   if (what === 'mics' && a1) {
     if ((a1 === 'mute' || a1 === 'duck' || a1 === 'dip') && ['on', 'off', 'toggle'].includes(a2 || 'toggle') && !a3) action = { type: a1 === 'mute' ? 'micsMute' : 'micsDip', value: a2 || 'toggle' };
     else if ((a1 === 'up' || a1 === 'down') && !a2) action = { type: 'micsLevel', by: a1 === 'up' ? by : -by };
@@ -370,25 +389,26 @@ function deck(parts, q = {}) {
 }
 
 // ─── What the windows hear ───────────────────────────────────────────────
-const cleanDevices = list => (Array.isArray(list) ? list : []).map(d => text(d, 200)).filter(Boolean).slice(0, 40);
+const cleanDevices = (list: unknown) => arr(list).map(d => text(d, 200)).filter(Boolean).slice(0, 40);
 // A window mixing mics (Output 1's, or a sound copy's): { output, devices: [name], levels: { micId: dBFS }, problems: { micId: words }, status }.
-function report(r) {
-  const out = outputId(r?.output);
+function report(given: unknown) {
+  const r = obj(given), heard = obj(r.levels), trouble = obj(r.problems);
+  const out = outputId(r.output);
   const was = seen.get(out)?.status;
-  const levels = {}, problems = {};
+  const levels: Record<string, number> = {}, problems: Record<string, string> = {};
   for (const m of settings.mics) {
-    const v = Number(r?.levels?.[m.id]);
+    const v = Number(heard[m.id]);
     if (Number.isFinite(v)) levels[m.id] = Math.max(-100, Math.min(0, Math.round(v)));
-    if (r?.problems?.[m.id]) problems[m.id] = text(r.problems[m.id], 200);
+    if (trouble[m.id]) problems[m.id] = text(trouble[m.id], 200);
   }
   for (const [id, db] of Object.entries(levels)) noteLevel(id, db);
-  const s = { at: now(), devices: cleanDevices(r?.devices), levels, problems, status: text(r?.status, 200) };
+  const s: Seen = { at: now(), devices: cleanDevices(r.devices), levels, problems, status: text(r.status, 200) };
   seen.set(out, s);
   if (s.status !== was && s.status) log('warn', 'mics', s.status);
 }
 // A reading of what comes into a mic (dBFS): when it was last loud enough to count as heard. Readings that stopped
 // for a while start a new run, so a mic isn't called silent for the time nobody was listening.
-function noteLevel(id, db, t = now()) {
+function noteLevel(id: string, db: number, t = now()) {
   let h = heardAt.get(id);
   if (!h || t - h.last > REPORT_STALE_MS) h = { since: t, loud: 0, last: t };
   h.last = t;
@@ -397,7 +417,7 @@ function noteLevel(id, db, t = now()) {
 }
 // { micId: seconds } for each mic that's been silent SILENT_MS or more, while its readings keep coming.
 function silences(t = now()) {
-  const out = {};
+  const out: Record<string, number> = {};
   for (const m of settings.mics) {
     const h = heardAt.get(m.id);
     if (!h || t - h.last > REPORT_STALE_MS || m.muted || settings.muted) continue;
@@ -407,14 +427,14 @@ function silences(t = now()) {
   return out;
 }
 // The Output page in the Mac app listing the Mac's audio inputs.
-function devicesListed(list) { listed = { at: now(), devices: cleanDevices(list) }; }
+function devicesListed(list: unknown) { listed = { at: now(), devices: cleanDevices(list) }; }
 function live() {
   // Every window still reporting, together: a mic heard in two windows shows its louder reading.
   const fresh = [...seen.values()].filter(s => now() - s.at < REPORT_STALE_MS);
   const devices = [...new Set([...fresh.flatMap(s => s.devices), ...listed.devices])];
   const atem = onSwitcherLive();
   const mac = new Set(settings.mics.filter(m => m.on !== 'atem').map(m => m.id));
-  const levels = {}, problems = {};
+  const levels: Record<string, number> = {}, problems: Record<string, string> = {};
   for (const s of fresh) {
     for (const [id, v] of Object.entries(s.levels)) if (mac.has(id)) levels[id] = Math.max(levels[id] ?? -100, v);
     for (const [id, v] of Object.entries(s.problems)) if (mac.has(id)) problems[id] = v;
@@ -430,10 +450,10 @@ function state() {
 }
 
 // switcher: switcher.js's { inputs: micInputs, set: setMicFader }, from server.js.
-function useSwitcher(api) { sw = api; switcherChanged(); }
+function useSwitcher(api: Switcher) { sw = api; switcherChanged(); }
 
 // changed(): publish the scene (scene.js).
-function init(logger, { changed } = {}) {
+function init(logger: Log | null | undefined, { changed }: { changed?: () => void } = {}) {
   log = logger || log;
   if (changed) changedHook = changed;
   sent.clear();
@@ -441,4 +461,6 @@ function init(logger, { changed } = {}) {
   load();
 }
 
-export { init, apply, phoneMic, deck, state, follow, quiet, report, devicesListed, live, useSwitcher, switcherChanged, MAX_MICS };
+export type { Switcher as MicSwitcher, SwitcherInput as MicInput };
+export { init,
+ apply, phoneMic, deck, state, follow, quiet, report, devicesListed, live, useSwitcher, switcherChanged, MAX_MICS };
