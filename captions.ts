@@ -1,5 +1,5 @@
 // FirstPass Studio - AI captions: the text of a social media post for a Socials picture, written by an AI from the
-// same facts the picture is drawn from (socials.ts night()), in a style picked on the Socials tab.
+// same facts the picture is drawn from (socials.ts pictureNight()), in a style picked on a picture on the Socials tab.
 //
 // Three providers, each through its own official library, picked on the Captions card along with the model:
 // Claude (Anthropic), ChatGPT (OpenAI) and Gemini (Google). The club pays the provider for what it uses, with its own
@@ -24,7 +24,8 @@
 //                                      { key, provider } saves a key (checked with the provider first); { removeKey: provider }
 //   GET  /api/captions/models?provider= that provider's models for the key saved, each { id, name, price|null }
 //   POST /api/socials/caption          { kind, query, style, short } writes a caption for the picture: kind is its kind
-//                                      (socials.ts KIND_NAMES), query its link's query (date, division, with, game..);
+//                                      (socials.ts KIND_NAMES), query its social.html link's query (date, division, game..),
+//                                      read as that picture reads it (socials.ts pictureNight());
 //                                      style one of STYLES. Answers { text, provider, model, cost: { usd|null,
 //                                      tokensIn, tokensOut }, warning }. The competition's hashtags (Socials settings)
 //                                      go on the end, as typed.
@@ -122,6 +123,7 @@ const masked = (key: string) => (key ? `••••${key.slice(-4)}` : '');
 
 function create({ log, night, kindOf, hashtags }: {
   log: Log;
+  // A picture's link (its kind and settings) to the night as that picture is drawn from (socials.ts pictureNight()).
   night: (q: Record<string, string>) => Promise<Body>;
   kindOf: (kind: string) => { name: string; when: string } | null;
   hashtags: () => string;
@@ -232,14 +234,17 @@ function create({ log, night, kindOf, hashtags }: {
     }
     return v;
   }
-  function prompt(kind: { name: string; when: string }, data: unknown, style: string, short: boolean) {
+  // What a picture is about, from its link: one game, division, team, athlete or sponsor of the night rather than all of it.
+  const FOCUS = ['division', 'game', 'team', 'athlete', 'sponsor', 'medal'];
+  function prompt(kind: { name: string; when: string }, data: unknown, style: string, short: boolean, query: Record<string, string>) {
+    const focus = FOCUS.filter(k => query[k]).map(k => `${k} ${JSON.stringify(query[k])}`);
     const when = kind.when === 'upcoming' ? 'before the games are played (an upcoming post)' : kind.when === 'results' ? 'after the games (a results post)' : 'for the night';
     const json = JSON.stringify(facts(data));
     if (json.length > MAX_DATA) throw new CaptionError('This picture has more facts than a caption can be written from. Write this one by hand.');
     return `Write the caption for our "${kind.name}" picture, posted ${when}.
 Style: ${STYLES[style]}
 Length: ${short ? 'short, one or two sentences.' : 'two to four short paragraphs at most.'}
-
+${focus.length ? `The picture is only about ${focus.join(', ')}: write about that, not the rest of the night.\n` : ''}
 <data>
 ${json}
 </data>`;
@@ -329,12 +334,13 @@ ${json}
     if (busy) throw new CaptionError('Already writing a caption: wait for it to finish.', 429);
     const query: Record<string, string> = {};
     for (const [k, v] of Object.entries(obj(body.query))) if (typeof v === 'string' && /^\w{1,20}$/.test(k)) query[k] = v.slice(0, 200);
+    query.kind = kindId;
     busy = true;
     recent.push(now);
     const model = modelOf(p);
     try {
       const data = await night(query);
-      const asked = prompt(kind, { picture: kind.name, ...data }, style, body.short === true);
+      const asked = prompt(kind, { picture: kind.name, ...data }, style, body.short === true, query);
       let w: Written;
       try { w = await write(p, key, model, asked); } catch (err) { throw explain(p, err); }
       let text = w.text.trim().replace(/^["“]([\s\S]*)["”]$/, '$1').trim().slice(0, MAX_CAPTION);

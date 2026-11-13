@@ -256,15 +256,19 @@ test('the Socials tab\'s pictures are drawn by the app and saved as PNGs at thei
     { name: 'Ladder Division 1', link: `/social.html?kind=ladder&size=story&date=${played}&division=Division%201`, size: 'story' }] });
   assert.ok(!results.error, results.error);
   assert.deepEqual(size(fs.readFileSync(path.join(pictures, 'FirstPass Studio', `Thunder League ${played} Results`, results.files[0]))), [1080, 1920]);
-  // As a zip: one .zip beside the folder holding the folder's pictures, shown in Finder.
+  assert.ok(!fs.existsSync(path.join(pictures, 'FirstPass Studio', `Thunder League ${played} Results`, 'Captions.txt')), 'no captions, no Captions.txt');
+  // As a zip: one .zip beside the folder holding the folder's pictures (and their captions), shown in Finder.
   const zipped = await studio.post('/api/socials/export', { date: played, set: 'results', zip: true, items: [
-    { name: 'Results', link: `/social.html?kind=results&size=square&date=${played}`, size: 'square' }] });
+    { name: 'Results', link: `/social.html?kind=results&size=square&date=${played}`, size: 'square' }],
+  captions: [{ name: 'Results', text: 'What a night! 🏐\n\n#ThunderLeague' }, { name: 'Nothing typed', text: '  ' }] });
   assert.ok(!zipped.error, zipped.error);
+  assert.equal(fs.readFileSync(path.join(pictures, 'FirstPass Studio', `Thunder League ${played} Results`, 'Captions.txt'), 'utf8'),
+    'Results\n\nWhat a night! 🏐\n\n#ThunderLeague\n', 'each caption under its picture\'s name');
   assert.equal(zipped.zip, path.join('Pictures', 'FirstPass Studio', `Thunder League ${played} Results.zip`));
   const zipFile = path.join(pictures, 'FirstPass Studio', `Thunder League ${played} Results.zip`);
   assert.equal(await studio.app.evaluate(() => globalThis.shown), zipFile, 'Finder shows the zip');
   const list = await require('../out/zip').entries(zipFile);
-  assert.deepEqual(list.map(e => e.name), [`Thunder League ${played} Results/01 Results (square).png`]);
+  assert.deepEqual(list.map(e => e.name), [`Thunder League ${played} Results/01 Results (square).png`, `Thunder League ${played} Results/Captions.txt`]);
   // As a carousel: numbered in the order sent, in a folder of its own.
   const carousel = await studio.post('/api/socials/export', { date: played, set: 'results', carousel: true, items: [
     { name: 'Results', link: `/social.html?kind=results&size=portrait&date=${played}`, size: 'portrait' },

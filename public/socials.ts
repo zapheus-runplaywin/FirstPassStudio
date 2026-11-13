@@ -15,6 +15,16 @@ interface Athlete { name: string; teams: { team: string; division: string }[] }
 interface Made { pictures: { url: string; name: string }[]; zip?: { name: string; url: string } | null }
 interface Skipped { name: string; reason: string }
 type Size = 'square' | 'portrait' | 'story';
+// AI captions (captions.ts): what GET /api/captions answers on this Mac, a model a key can use, and a caption written.
+interface CaptionPrice { in: number; out: number }
+interface CaptionProvider { id: string; name: string; maker: string; key: string; model: string; price: CaptionPrice | null; billing: string; keys: string;
+  month: { usd: number; captions: number; unpriced: number } }
+interface CaptionsStatus { error?: string; provider: string; providers: CaptionProvider[]; styles: string[]; pricesFrom: string; warning: string }
+interface CaptionModel { id: string; name: string; price: CaptionPrice | null }
+interface Written { error?: string; text: string; provider: string; model: string; cost: { usd: number | null; tokensIn: number; tokensOut: number }; warning: string }
+// A picture's caption, by its key: the text (written or typed), the style ('' for the one last picked) and length asked
+// for, and the line under it.
+interface Caption { text: string; undo: string | null; style: string; short: boolean; open: boolean; busy: boolean; note: string; noteKind: '' | 'warn' | 'error' }
 // The dialog for the bigger view remembers the preview it came from.
 type BigView = HTMLDialogElement & { from?: Element };
 
@@ -540,6 +550,7 @@ function card(p: Picture) {
     if (g) left.append(athletePicker(p.key, 'home', g.home.name, { division: g.division, team: g.home.name }),
       athletePicker(p.key, 'away', g.away.name, { division: g.division, team: g.away.name }));
   }
+  if (!p.missing) left.append(captionBox(p));
   const previews = s.appendChild(el('div', 'previews'));
   for (const size of sizes()) previews.append(preview(p, size));
   if (!sizes().length) previews.append(el('p', 'help', 'Tick a size above.'));
@@ -696,6 +707,7 @@ async function loadNight(date: string) {
   try {
     const d = await (await fetch(`/api/socials/night?date=${encodeURIComponent(date)}&with=sponsorlist`, { cache: 'no-store' })).json() as SocialsNight;
     if (d.error) throw new Error(d.error);
+    if (night && night.date !== d.date) for (const k of Object.keys(captions)) delete captions[k];
     night = d;
     lineups = null;
     // A night with results opens on Results, one still to come on Upcoming; either can be picked.
@@ -732,6 +744,8 @@ async function load() {
       $('save').title = 'Then press and hold a picture to add it to Photos';
       $('share').hidden = !canShareFiles();
     }
+    $('captionsCard').hidden = d.here === false;
+    if (d.here !== false) loadCaptions();
     $<HTMLInputElement>('mark').checked = d.settings.mark;
     $<HTMLInputElement>('pivt').checked = d.settings.pivt;
     drawTemplates();
@@ -794,7 +808,7 @@ function canShareFiles() {
 }
 // The pictures the Mac made for this device: each as itself, to press and hold and Add to Photos, with a Download
 // link each (and the zip's).
-function showMade(made: Made, skipped: Skipped[]) {
+function showMade(made: Made, skipped: Skipped[], texts: { name: string; text: string }[] = []) {
   let d = $<HTMLDialogElement>('madeBox');
   if (!d) {
     const box = d = document.body.appendChild(el('dialog', 'made'));
@@ -816,10 +830,21 @@ function showMade(made: Made, skipped: Skipped[]) {
   const close = el('button', '', 'Done'); close.type = 'button'; close.onclick = () => box.close();
   row.append(close);
   const n = made.pictures.length;
+  // The captions to paste in with them, each with Copy.
+  const caps = texts.map(t => {
+    const f = el('figure'), cap = el('figcaption'), copy = el('button', 'alt small', 'Copy');
+    copy.type = 'button';
+    copy.onclick = () => copyText(t.text, copy);
+    cap.append(el('span', '', `Caption: ${t.name}`), copy);
+    f.append(cap, el('p', 'cap', t.text));
+    return f;
+  });
+  const capList = el('div', 'list');
+  capList.append(...caps);
   d.replaceChildren(el('h2', '', `${n} picture${n === 1 ? '' : 's'} ready`),
     el('p', 'help', 'Press and hold a picture, then Add to Photos.'),
     ...(skipped.length ? [el('p', 'help', `Skipped ${skipped.length}: ${skipped.map(x => `${x.name}: ${x.reason}`).join(' · ')}`)] : []),
-    list, row);
+    ...(caps.length ? [capList] : []), list, row);
   if (!d.open) d.showModal();
 }
 // Shares the made pictures through the phone's share sheet; false when it couldn't (the list shows them instead).
@@ -833,11 +858,15 @@ async function shareMade(made: Made) {
 async function save(share: boolean) {
   const night = theNight(), info = theInfo();
   const items: { name: string; link: string; size: Size }[] = [];
+  // Each saved picture's caption, written or typed: Captions.txt beside the pictures (and on a phone, with them).
+  const texts: { name: string; text: string }[] = [];
   const carousel = $<HTMLInputElement>('carousel').checked;
   if (carousel && sizes().length !== 1) return setStatus('A carousel is all one size: tick just one of Square, Portrait or Story.', true);
   for (const p of carousel ? carouselList() : pictures()) {
     if (off.has(p.key) || p.missing) continue;
     for (const size of sizes()) items.push({ name: p.name, link: link(p, size), size });
+    const text = (captions[p.key]?.text || '').trim();
+    if (text && sizes().length) texts.push({ name: p.name, text });
   }
   if (!items.length) return setStatus('Tick a picture and a size first.', true);
   if (carousel && items.length > CAROUSEL_MAX) return setStatus(`Instagram takes ${CAROUSEL_MAX} pictures at most in a carousel: untick ${items.length - CAROUSEL_MAX}.`, true);
@@ -845,7 +874,7 @@ async function save(share: boolean) {
   setStatus(`Saving ${items.length} picture${items.length === 1 ? '' : 's'}…`);
   try {
     const toDevice = info.here === false;
-    const res = await fetch('/api/socials/export', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ date: night.date, set: set(), share, zip: $<HTMLInputElement>('zip').checked, carousel, toDevice, items }) });
+    const res = await fetch('/api/socials/export', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ date: night.date, set: set(), share, zip: $<HTMLInputElement>('zip').checked, carousel, toDevice, items, captions: texts }) });
     const d = await res.json() as { error?: string; skipped?: Skipped[]; made?: Made; files: string[]; folder: string; zip?: string };
     if (d.error) throw new Error(d.error);
     // A picture that couldn't be made (Milestones on a night with none, say) is skipped, not a failed save.
@@ -853,13 +882,210 @@ async function save(share: boolean) {
     const why = skipped.length ? ` Skipped ${skipped.length}: ${skipped.map(x => `${x.name}: ${x.reason}`).join(' · ')}` : '';
     if (d.made) {
       setStatus(`Made ${d.files.length} picture${d.files.length === 1 ? '' : 's'}.${why}`, skipped.length ? 'warn' : false);
-      if (!(share && await shareMade(d.made))) showMade(d.made, skipped);
+      if (!(share && await shareMade(d.made))) showMade(d.made, skipped, texts);
+      else if (texts.length) showMade(d.made, skipped, texts);
       $<HTMLButtonElement>('save').disabled = $<HTMLButtonElement>('share').disabled = false;
       return;
     }
-    setStatus(`Saved ${d.files.length} picture${d.files.length === 1 ? '' : 's'} in ${d.folder}${d.zip ? `, and ${d.zip}` : ''}${share ? `. Pick where to share ${d.zip ? 'the zip' : 'them'} in the menu.` : '.'}${why}`, skipped.length ? 'warn' : false);
+    setStatus(`Saved ${d.files.length} picture${d.files.length === 1 ? '' : 's'}${texts.length ? ` and Captions.txt` : ''} in ${d.folder}${d.zip ? `, and ${d.zip}` : ''}${share ? `. Pick where to share ${d.zip ? 'the zip' : 'them'} in the menu.` : '.'}${why}`, skipped.length ? 'warn' : false);
   } catch (err) { setStatus(`Couldn't save the pictures: ${(err instanceof Error ? err.message : err)}`, true); }
   $<HTMLButtonElement>('save').disabled = $<HTMLButtonElement>('share').disabled = !info.app;
+}
+
+// ─── Captions ───────────────────────────────────────────────────────────────
+// Each picture's post text: written by AI (captions.ts, on this Mac with the club's own key) from the same facts the
+// picture shows, in a style picked, or typed by hand. Kept while the night is open; Save puts them in Captions.txt.
+const STYLES: [string, string][] = [['hype', 'Hype'], ['professional', 'Professional'], ['emotional', 'Emotional'], ['neutral', 'Neutral'], ['fun', 'Fun']];
+const STYLE_KEY = 'socials.captionStyle';
+const captions: Record<string, Caption> = {};
+// The style last picked is where every picture not given one of its own starts (style '').
+let lastStyle = (() => { try { return localStorage.getItem(STYLE_KEY) || 'neutral'; } catch { return 'neutral'; } })();
+const captionOf = (key: string) => (captions[key] = captions[key] || { text: '', undo: null, style: '', short: false, open: false, busy: false, note: '', noteKind: '' });
+const PROVIDER_NAMES: Record<string, string> = { anthropic: 'Claude', openai: 'ChatGPT', google: 'Gemini' };
+const usd = (n: number) => `US$${n < 0.01 && n > 0 ? n.toFixed(4) : n.toFixed(2)}`;
+async function copyText(text: string, button: HTMLButtonElement) {
+  try { await navigator.clipboard.writeText(text); button.textContent = 'Copied'; } catch { button.textContent = 'Select and copy it'; }
+  setTimeout(() => { button.textContent = 'Copy'; }, 2000);
+}
+function captionBox(p: Picture) {
+  const c = captionOf(p.key);
+  const d = el('details', 'caption');
+  d.open = c.open;
+  d.ontoggle = () => { c.open = d.open; };
+  const done = el('span', 'done', c.text ? ' ✓' : '');
+  const sum = el('summary', '', 'Caption');
+  sum.append(done);
+  const styles = el('div', 'styles');
+  styles.setAttribute('role', 'radiogroup'); styles.setAttribute('aria-label', 'Caption style');
+  for (const [id, name] of STYLES) {
+    const l = el('label'), r = el('input');
+    r.type = 'radio'; r.name = `style-${p.key}`; r.value = id; r.checked = (c.style || lastStyle) === id;
+    r.onchange = () => {
+      c.style = lastStyle = id;
+      try { localStorage.setItem(STYLE_KEY, id); } catch { /* not kept */ }
+      for (const other of document.querySelectorAll<HTMLInputElement>(`.pic[data-key] .caption input[value="${id}"]`)) {
+        const k = other.closest<HTMLElement>('.pic')?.dataset.key;
+        if (k && !captions[k]?.style) other.checked = true;
+      }
+    };
+    l.append(r, name);
+    styles.append(l);
+  }
+  const row = el('div', 'row');
+  const shortL = el('label'), short = el('input');
+  short.type = 'checkbox'; short.checked = c.short;
+  short.onchange = () => { c.short = short.checked; };
+  shortL.append(short, ' Short');
+  shortL.title = 'One or two sentences';
+  const write = el('button', 'small', c.busy ? 'Writing…' : c.text ? 'Again' : 'Write caption');
+  write.type = 'button'; write.disabled = c.busy;
+  write.title = 'Write this picture\'s post text with AI, in the style picked';
+  write.onclick = () => writeCaption(p);
+  const copy = el('button', 'alt small', 'Copy');
+  copy.type = 'button'; copy.disabled = !c.text;
+  const box = el('textarea');
+  box.value = c.text; box.maxLength = 2600; box.readOnly = c.busy;
+  box.placeholder = 'Write caption, or type your own.';
+  box.setAttribute('aria-label', `${p.name} caption`);
+  box.oninput = () => { c.text = box.value; c.undo = null; copy.disabled = !c.text; done.textContent = c.text ? ' ✓' : ''; undo.hidden = true; };
+  copy.onclick = () => copyText(box.value, copy);
+  const undo = el('button', 'alt small', 'Undo');
+  undo.type = 'button'; undo.hidden = c.undo === null || c.busy;
+  undo.title = 'Back to the text before this caption was written';
+  undo.onclick = () => { c.text = c.undo || ''; c.undo = null; c.note = ''; redrawCaption(p.key); };
+  row.append(shortL, write, copy, undo);
+  const note = el('p', `note ${c.noteKind}`, c.note);
+  note.hidden = !c.note;
+  d.append(sum, styles, row, box, note);
+  return d;
+}
+// Just the caption of a picture drawn again (its previews stay as they are).
+function redrawCaption(key: string) {
+  const card = [...document.querySelectorAll<HTMLElement>('.pic[data-key]')].find(x => x.dataset.key === key);
+  const p = pictures().find(x => x.key === key);
+  const old = card?.querySelector('.caption');
+  if (old && p) old.replaceWith(captionBox(p));
+}
+async function writeCaption(p: Picture) {
+  const c = captionOf(p.key);
+  if (c.busy) return;
+  c.busy = true; c.note = 'Writing the caption…'; c.noteKind = '';
+  redrawCaption(p.key);
+  try {
+    // The picture's own link, so the caption is written from what it shows.
+    const query = Object.fromEntries(new URL(link(p, sizes()[0] || 'square'), location.href).searchParams);
+    const res = await fetch('/api/socials/caption', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: p.kind, query, style: c.style || lastStyle, short: c.short }) });
+    const d = await res.json() as Written;
+    if (d.error) throw new Error(d.error);
+    c.undo = c.text || null;
+    c.text = d.text;
+    const tokens = `${d.cost.tokensIn} tokens in, ${d.cost.tokensOut} out`;
+    c.note = `${PROVIDER_NAMES[d.provider] || d.provider} ${d.model}: ${d.cost.usd === null ? `cost unknown (${tokens})` : `about ${usd(d.cost.usd)} (${tokens})`}.${d.warning ? ` ${d.warning}` : ''}`;
+    c.noteKind = d.warning ? 'warn' : '';
+  } catch (err) {
+    c.note = `Couldn't write the caption: ${err instanceof Error ? err.message : err}`;
+    c.noteKind = 'error';
+  }
+  c.busy = false;
+  redrawCaption(p.key);
+  if (info?.here !== false) loadCaptions();
+}
+
+// The Captions card, on this Mac only: who writes the captions, their API key (kept in the Mac's Keychain), the model,
+// what it costs and this month's spend, and the hashtags that go on the end of every caption.
+let capStatus: CaptionsStatus | null = null;
+const capModels: Record<string, CaptionModel[] | string> = {};
+let capError = '';
+async function captionsPost(body: object) {
+  try {
+    const d = await (await fetch('/api/captions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json() as CaptionsStatus;
+    if (d.error) throw new Error(d.error);
+    capStatus = d; capError = '';
+    return true;
+  } catch (err) { capError = err instanceof Error ? err.message : String(err); return false; } finally { drawCaptions(); }
+}
+async function loadCaptions() {
+  try {
+    const d = await (await fetch('/api/captions', { cache: 'no-store' })).json() as CaptionsStatus;
+    if (d.error) throw new Error(d.error);
+    capStatus = d;
+  } catch (err) { capError = `Couldn't read the captions settings: ${err instanceof Error ? err.message : err}`; }
+  drawCaptions();
+}
+async function loadModels(p: CaptionProvider) {
+  if (!p.key || capModels[p.id]) return;
+  capModels[p.id] = 'Reading the models…';
+  try {
+    const d = await (await fetch(`/api/captions/models?provider=${encodeURIComponent(p.id)}`, { cache: 'no-store' })).json() as { error?: string; models: CaptionModel[] };
+    if (d.error) throw new Error(d.error);
+    capModels[p.id] = d.models;
+  } catch (err) { capModels[p.id] = `Couldn't read the models: ${err instanceof Error ? err.message : err}`; }
+  drawCaptions();
+}
+const priceText = (price: CaptionPrice | null) => (price ? `US$${price.in} in, US$${price.out} out per million tokens` : 'cost unknown');
+function drawCaptions() {
+  const s = capStatus, i = info;
+  if (!s || !i) { $('capBody').replaceChildren(...(capError ? [el('p', 'error', capError)] : [])); return; }
+  const p = s.providers.find(x => x.id === s.provider) || s.providers[0];
+  $('capSummary').textContent = p.key ? `${p.name}, ${p.model}` : 'not set up yet';
+  const grid = el('div', 'grid');
+  const field = (label: string, ...parts: (Node | string)[]) => { const v = el('div', 'row'); v.append(...parts); grid.append(el('b', '', label), v); };
+  // Who writes them.
+  const pick = el('select');
+  pick.setAttribute('aria-label', 'AI that writes the captions');
+  for (const x of s.providers) { const o = el('option', '', `${x.name} (${x.maker})${x.key ? '' : ', no key yet'}`); o.value = x.id; pick.append(o); }
+  pick.value = p.id;
+  pick.onchange = () => captionsPost({ provider: pick.value });
+  field('Written by', pick);
+  // The key: only its last 4 characters ever come back.
+  const key = el('input');
+  key.type = 'password'; key.autocomplete = 'off'; key.placeholder = p.key ? 'Paste a new key to change it' : `Paste your ${p.name} API key`;
+  key.setAttribute('aria-label', `${p.name} API key`);
+  const saveKey = el('button', 'small', 'Save key');
+  saveKey.type = 'button';
+  saveKey.onclick = async () => {
+    if (!key.value.trim()) return;
+    saveKey.disabled = true; saveKey.textContent = 'Checking…';
+    if (await captionsPost({ provider: p.id, key: key.value })) delete capModels[p.id];
+  };
+  const get = el('a', '', `Get a key from ${p.maker}`);
+  get.href = p.keys; get.target = '_blank'; get.rel = 'noopener';
+  const parts: (Node | string)[] = [];
+  if (p.key) {
+    const rm = el('button', 'alt small', 'Remove key');
+    rm.type = 'button';
+    rm.onclick = () => { delete capModels[p.id]; captionsPost({ removeKey: p.id }); };
+    parts.push(el('code', '', p.key), rm);
+  }
+  field('API key', ...parts, key, saveKey, get);
+  // The model, from the key's own list, each with its price.
+  const models = capModels[p.id];
+  if (p.key && Array.isArray(models)) {
+    const m = el('select');
+    m.setAttribute('aria-label', 'Model');
+    const list = models.some(x => x.id === p.model) ? models : [{ id: p.model, name: p.model, price: p.price }, ...models];
+    for (const x of list) { const o = el('option', '', `${x.name}${x.name === x.id ? '' : ` (${x.id})`}: ${priceText(x.price)}`); o.value = x.id; m.append(o); }
+    m.value = p.model;
+    m.onchange = () => captionsPost({ provider: p.id, model: m.value });
+    field('Model', m);
+  } else {
+    field('Model', el('span', '', p.model), ...(typeof models === 'string' ? [el('span', 'help', models)] : p.key ? [] : [el('span', 'help', 'Save a key to pick from its models.')]));
+    loadModels(p);
+  }
+  field('Price', el('span', '', p.price ? priceText(p.price) : 'Not in Studio\'s price list'), ...(s.warning ? [el('span', 'warn', s.warning)] : []));
+  const bill = el('a', '', `${p.maker}'s billing`);
+  bill.href = p.billing; bill.target = '_blank'; bill.rel = 'noopener';
+  const mo = p.month;
+  field('This month', el('span', '', `${usd(mo.usd)} for ${mo.captions} caption${mo.captions === 1 ? '' : 's'}${mo.unpriced ? `, and ${mo.unpriced} with the cost unknown` : ''}`), bill);
+  // The hashtags and @handles: on the end of every caption, as typed.
+  const tags = el('input');
+  tags.type = 'text'; tags.maxLength = 300; tags.value = i.settings.hashtags || '';
+  tags.placeholder = '#ThunderLeague #netball @yourclub';
+  tags.setAttribute('aria-label', 'Hashtags and handles');
+  tags.onchange = () => saveSettings({ hashtags: tags.value });
+  field('Hashtags', tags);
+  $('capBody').replaceChildren(...(capError ? [el('p', 'error', capError)] : []), grid,
+    el('p', 'help', `Each caption is written by ${p.name} from the facts its picture shows, never negative stats, and paid for with your own key. Prices are US dollars from LiteLLM's public price list, checked weekly; your provider's bill is the real figure.`));
 }
 
 $('night').onchange = () => loadNight($<HTMLSelectElement>('night').value);

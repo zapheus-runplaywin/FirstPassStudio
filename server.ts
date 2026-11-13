@@ -324,7 +324,7 @@ const socials = createSocials({
 // AI captions for the Socials pictures (captions.ts): written from the same facts as the picture, by the provider and
 // with the key picked on the Captions card, on this Mac only.
 const captions = createCaptions({
-  log, night: q => socials.night(q),
+  log, night: q => socials.pictureNight(q),
   kindOf: kind => socials.KIND_NAMES.find(k => k.kind === kind) || null,
   hashtags: () => socials.settings().hashtags,
 });
