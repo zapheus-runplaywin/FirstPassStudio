@@ -18,7 +18,7 @@ import type { LadderRow } from './playhq';
 // A side of a season game: its score once PlayHQ has one.
 interface Side { name: string; score: number | null }
 // A game of the season (socials.js seasonOf). winner: 'home', 'away' or 'draw', on Round in review's games.
-interface Game { id: string; date: string; time?: string | null; court?: string; division: string; round?: string; finished: boolean; winner?: string; home: Side; away: Side }
+interface Game { id: string; date: string; time?: string | null; court?: string; division: string; round?: string; finished: boolean; winner?: string | null; home: Side; away: Side }
 // A finished game: both scores in.
 type Done = Game & { home: { name: string; score: number }; away: { name: string; score: number } };
 // A ladder row with the team's place before the night (Round in review), and a division's ladder with them.

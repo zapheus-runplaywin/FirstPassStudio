@@ -41,7 +41,7 @@ interface GamesRecord { division: string; games: number; club?: string; asOf?: s
 interface Appearance { gameId: string; date: string; team: string; position: string }
 type Apps = Record<string, Appearance[]>;
 // A player the register is told about (a line up's, or a name with ids).
-type Who = string | { name: string; playhqId?: string; playhqIds?: string[] };
+type Who = string | { name: string; team?: string; playhqId?: string; playhqIds?: string[] };
 // A team sheet answer withPhotos adds photos to: each side's players.
 interface SheetSide { name: string; players: Player[] }
 interface Sheets { division?: string; stale?: unknown; home?: SheetSide; away?: SheetSide }
