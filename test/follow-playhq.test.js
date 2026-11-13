@@ -1,4 +1,4 @@
-// Following PlayHQ (server.js): Studio starts with today's game on its court, the score and the
+// Following PlayHQ (server.ts): Studio starts with today's game on its court, the score and the
 // scorer's clock and quarter follow PlayHQ's live feed, a press by hand takes over, and PlayHQ
 // isn't asked about a game before its electronic scoring starts. Against the stand-in PlayHQ
 // (test/support/playhq.js), whose world.live is the scorer's tablet.

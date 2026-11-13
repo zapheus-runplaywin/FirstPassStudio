@@ -1,4 +1,4 @@
-// The helper's API (server.js) for every graphic, run against the stand-in PlayHQ
+// The helper's API (server.ts) for every graphic, run against the stand-in PlayHQ
 // (test/support/playhq.js) with the Thunder League template imported: a season of two
 // divisions, two rounds played, one being played today and one next week.
 const test = require('node:test');

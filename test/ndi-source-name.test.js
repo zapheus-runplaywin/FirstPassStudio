@@ -1,4 +1,4 @@
-// NDI source names (outputs.js ndiSource): an output's NDI sources take its name and follow it when it's
+// NDI source names (outputs.ts ndiSource): an output's NDI sources take its name and follow it when it's
 // renamed, unless "Use my own name" is ticked (ndiOwnName) with a name typed. An outputs.json saved before
 // then drops its source names, so every output follows its name; one saved since keeps its own.
 const test = require('node:test');
@@ -14,7 +14,7 @@ fs.writeFileSync(path.join(DIR, 'outputs.json'), JSON.stringify({ outputs: [
   { id: 'two', slot: 2, name: 'Wide', mode: 'ndi', on: false, ndiName: 'Typed (before)' },
 ] }));
 
-const outputs = require('../outputs');
+const outputs = require('../out/outputs');
 outputs.init(() => {});
 outputs.message({ type: 'ndi', ok: true, version: '6' });
 

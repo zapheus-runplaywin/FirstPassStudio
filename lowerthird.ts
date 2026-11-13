@@ -5,9 +5,9 @@
 //   log(level, source, message)   the debug log
 //   board()                       the scoreboard in use (the game's two teams)
 //   playhq                        the PlayHQ client (structureNow, for the season's divisions)
-//   competitionName(), rules()    from games.js (the competition's logos)
-//   athletes(), photoKey(name), athleteTeams(name), genderInfo(name), photoFor(name), silhouette(gender), logoFor(team)   from athletes.js
-//   norm(s), sameTeam(a, b)       name matching, as server.js does it
+//   competitionName(), rules()    from games.ts (the competition's logos)
+//   athletes(), photoKey(name), athleteTeams(name), genderInfo(name), photoFor(name), silhouette(gender), logoFor(team)   from athletes.ts
+//   norm(s), sameTeam(a, b)       name matching, as server.ts does it
 
 import type { Client as PlayhqClient } from './playhq';
 import type { AthletesApi } from './athletes';

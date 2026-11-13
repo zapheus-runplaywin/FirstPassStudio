@@ -1,4 +1,4 @@
-// Mics (mics.js, through scene.js): adding and changing mics, mutes and levels, the dips under music, a video's
+// Mics (mics.ts, through scene.ts): adding and changing mics, mutes and levels, the dips under music, a video's
 // sound and quiet scenes, the /deck/mics and /deck/mic links, saving, and what the output window reports.
 const test = require('node:test');
 const { mock } = require('node:test');
@@ -12,8 +12,8 @@ const MEDIA = path.join(process.env.FIRSTPASS_DATA_DIR, 'media');
 fs.mkdirSync(MEDIA, { recursive: true });
 for (const f of ['Break.mp3', 'Ad.mp4']) fs.writeFileSync(path.join(MEDIA, f), '');
 mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
-const scene = require('../scene');
-const mics = require('../mics');
+const scene = require('../out/scene');
+const mics = require('../out/mics');
 scene.init(() => {});
 
 const ok = a => assert.equal(scene.apply(a), null, JSON.stringify(a));

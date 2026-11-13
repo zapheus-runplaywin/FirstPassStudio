@@ -10,7 +10,7 @@ offline. The graphics don't use it: they keep the colours, font and logos of the
 ## Words used here
 
 - **Studio** is the whole thing: the Mac app, the pages you work in and the graphics it puts on screen.
-- **The helper** is the small Node server inside Studio (`server.js`) that serves the pages, talks to PlayHQ and saves settings.
+- **The helper** is the small Node server inside Studio (`server.ts`) that serves the pages, talks to PlayHQ and saves settings.
   The app calls it "on air" while it runs. Nothing in the app's menus says "helper"; the README and the code do.
 - **A source** is one graphic in the scene: a page such as the scoreboard or a lower third, with its own position and options.
 - **The scene** is Studio's own 1920 x 1080 frame on the Output page, built from sources switched on and off.
@@ -43,14 +43,14 @@ clubs when loaded.
 
 **Fonts.** The Font box lists the fonts bundled with Studio first, then fonts added to the competition, then every font
 installed on the Mac (`/api/setup-fonts`, from AppKit). Bundled fonts are open licence (OFL) fonts in
-`public/vendor/fonts/<id>/`, fetched from Fontsource by `npm run fonts` (add one to `BUNDLED` in `fonts.js` first), so the
+`public/vendor/fonts/<id>/`, fetched from Fontsource by `npm run fonts` (add one to `BUNDLED` in `fonts.ts` first), so the
 graphics load no fonts from the internet. The Socials tab's template sets have their own bundled faces (`TEMPLATE_FONTS`
-in `fonts.js`, fetched the same way), which are not offered in the Font box. A Mac font is used by name and shows only on that Mac; elsewhere the graphics fall
+in `fonts.ts`, fetched the same way), which are not offered in the Font box. A Mac font is used by name and shows only on that Mac; elsewhere the graphics fall
 back to Montserrat, as they do for any letter a font lacks. **Add a font file** saves TTF, OTF, WOFF or WOFF2 files in the
 competition's `fonts/` folder (served at `/fonts/`, and included in template files); the family, weight and style come from
 each file's name ("Gotham-BoldItalic.otf", "Club Sans Black.ttf", "Inter-VariableFont_wght.ttf").
 
-The graphics were drawn with Montserrat, so every other font is made to measure like it (`normalise` in `fonts.js`):
+The graphics were drawn with Montserrat, so every other font is made to measure like it (`normalise` in `fonts.ts`):
 theme.css gives each of its faces `size-adjust` so its capitals are as tall as Montserrat's, and ascent, descent and line
 gap overrides so its line box is as tall as Montserrat's with the capitals centred in it the same way. Text then fills its
 box and sits centred whatever the font. A narrow font (capitals narrower than Montserrat's, such as Oswald or Bebas Neue)
@@ -104,14 +104,14 @@ In it:
 ### Settings in iCloud Drive
 
 **Settings folder > Move to iCloud Drive…** in the Mac app's menu picks a folder in iCloud Drive and moves the settings
-into `<that folder>/<Local hostname>/`, so Macs on one Apple account each keep their own (`datalocation.js`). Where they
+into `<that folder>/<Local hostname>/`, so Macs on one Apple account each keep their own (`datalocation.ts`). Where they
 are is saved on the Mac only, in `data-location.json` in the local folder; `studio-computer.json` in the subfolder names
 the Mac using it, and a different Mac with the same name is refused. The move backs up to the local
 `backups/<date>-before-move`, copies, checks every file's size, then removes the originals. The debug logs,
 `scoreboard-state.json`, `game-cache.json`, `last-game-summary.json`, `app-settings.json`, `backups/` and the recordings stay local
 (`LOCAL_ONLY`). Before going on air the app downloads any file iCloud has evicted (`.<name>.icloud` placeholders, via
 `brctl download`); if the iCloud folder is missing, Studio won't start rather than start empty. `PROVIDERS` in
-`datalocation.js` is where other cloud drives (Dropbox, Google Drive, OneDrive in `~/Library/CloudStorage`) would go.
+`datalocation.ts` is where other cloud drives (Dropbox, Google Drive, OneDrive in `~/Library/CloudStorage`) would go.
 **Move back to this Mac…** reverses it. **Restore from another Mac…** copies another Mac's subfolder over this
 Mac's (`restore()`: back up to `backups/<date>-before-restore`, copy into a hidden `.restoring-<date>` folder, check
 sizes, then swap); the other Mac's folder is only read. This Mac's own `config.json` settings stay as they were
@@ -132,7 +132,7 @@ the graphics switch to the first one left, or to none.
 ### Updates and migrations
 
 The data folder has a version number in `data-version.json`. When a new version of Studio changes how settings are
-saved, it brings the folder up to date on its first start (`migrations.js`, one numbered step per change), after
+saved, it brings the folder up to date on its first start (`migrations.ts`, one numbered step per change), after
 copying the whole folder (except the log) to `backups/<date>-v<old version>`. The newest 5 backups are kept; to undo an
 update, quit Studio and copy a backup's contents back. A new setting needs no migration: a competition without it gets
 the default. If the folder was saved by a newer Studio than the one running, competitions open read-only rather than
@@ -187,7 +187,7 @@ level: a phone or another computer pairs from `/pair.html` (`POST /api/pair` wit
 offers **Allow scoring only**, **Allow everything** or Deny) and gets a device cookie (`studio_device`, HttpOnly,
 SameSite=Strict, set when it collects the answer); scoring only covers `POST /api/scoreboard`, `POST /api/rounds` and
 the score, clock, quarter and game `/deck` links (`access.scoring()`); link sets and plugins can do everything.
-Untick it to let every phone and computer change things until Studio quits. A plain `node server.js` with no `config.json` setting lets them. Ticked, Studio takes changes only from this Mac (by any of its own addresses, so the
+Untick it to let every phone and computer change things until Studio quits. A plain `npm start` with no `config.json` setting lets them. Ticked, Studio takes changes only from this Mac (by any of its own addresses, so the
 Stream Deck plugin on it and links by its `.local` name still work) and answers other devices' changes with a 403 that
 says so, while they can still open every graphic, the scoreboard and the scene. Private data follows the same switch:
 the settings and scene backups, the athlete register, the debug log, the sponsor reports and the competition setup
@@ -205,7 +205,7 @@ Stream Deck's global settings, so it survives restarts and plugin updates. Until
 old `x-studio-deck` header still counts, so plugins installed before pairing keep working; after that it doesn't. Studio's own pages are known by their `Referer`. A link without any of those is
 refused with a 403 saying to copy it again from the Output page (logged once per address). **Devices** in the menu bar icon
 lists what may change things from another device, starting with This Mac's links, with when each key was made and last used;
-**Make a new key** there gives up a set's old key, so every link copied with it stops working (`devices.js`; the list and
+**Make a new key** there gives up a set's old key, so every link copied with it stops working (`devices.ts`; the list and
 its buttons answer only the Mac itself, whether or not the lock is ticked). **New link set…** (there, or in the picker on
 the Output page and the Devices tab) makes a named set such as "Office Stream Deck" with its own key; on the Mac
 those pages copy links for the set picked (`public/linksets.js`, remembered in the browser), so one Stream Deck's
@@ -220,13 +220,13 @@ This Mac's key, so they too need the lock unticked from another device for now. 
 pointed its own name at this Mac (DNS rebinding) can't read them; graphics answer to any name. Studio also sends no
 CORS header, so another site can't read its answers.
 
-**Secure phone link** (Devices tab, off until set up; `securelink.js`): a phone's browser gives a page its microphone
+**Secure phone link** (Devices tab, off until set up; `securelink.ts`): a phone's browser gives a page its microphone
 or the share sheet only over https, so Studio can also answer on https (port 8443, `config.json` `securePort`) at a
 name of its own, `<6 random letters>.studio.firstpass.pivt.au`. The zone is a Route 53 hosted zone delegated from
 GoDaddy (pivt.au) by 4 NS records; each Mac is given the zone ID and one access key that may change only that zone (secret
 kept in the Keychain). Studio reads the zone's name from Route 53 (nothing is built in), points its name at the Mac's LAN address (an A record, updated when the address changes;
-`route53.js`, Signature Version 4 with Node's crypto), gets a Let's Encrypt certificate by the DNS-01 check and renews
-it with 30 days left (`acme.js`, no dependencies), and serves the same pages and rules on https; `/api/phone-link`
+`route53.ts`, Signature Version 4 with Node's crypto), gets a Let's Encrypt certificate by the DNS-01 check and renews
+it with 30 days left (`acme.ts`, no dependencies), and serves the same pages and rules on https; `/api/phone-link`
 then gives the https link, and changes from those https pages count as Studio's own. Settings, account and
 certificate live in `securelink.json` in the local data folder (never backed up); `/api/securelink` answers this Mac only.
 
@@ -326,7 +326,7 @@ One-time setup:
 The app is built hardened: its code is one signed archive (`asar`, checked against the signature at every start) with
 Electron's fuses set so the app can't be run as a plain Node or handed code by an environment variable, and with only the
 three entitlements it needs (`build/entitlements.mac.plist`). ffmpeg, the native modules and the Stream Deck plugin are
-unpacked beside the archive (`asarUnpack`) and the code reaches them through `unpacked.js`. A new file the app runs,
+unpacked beside the archive (`asarUnpack`) and the code reaches them through `unpacked.ts`. A new file the app runs,
 loads as a native module or hands to another program goes in `asarUnpack` too (`test/app-hardening.test.js` checks).
 The fuses leave `file://` as a browser has it, which can't read inside the archive, so the app's own pages (the splash,
 What's new, Back up settings, off air) are served as `studio://app/desktop/...` by `desktop/windows.js`, from `desktop/`
@@ -337,6 +337,9 @@ keychain; set `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` to n
 `npm run app` runs it from the repository without building (needs Node.js, the LTS version, from https://nodejs.org).
 `npm start` runs Studio on its own, without the app, for working on the pages; it uses the same data folder and port,
 so don't run it while the app is on air.
+The helper (`server.ts` and the modules beside it) is TypeScript: `npm run build` compiles it and the Mac app into `out/`, which
+is what runs (`npm start`, `npm run app` and `npm test` build first; `npm run watch` keeps compiling as you edit). It's strict,
+outside data comes in as `unknown` and is checked, and an `any` needs a comment starting `any:` saying why (a test checks).
 `npm test` runs the tests (they also run on every pull request, as the Tests check). The ones that need PlayHQ run
 Studio against a stand-in for it (`test/support/playhq.js`, a made-up Thunder League season around today's date), in a
 data folder of their own, so they never touch PlayHQ or your settings.
@@ -429,26 +432,26 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   at most the video's length plus 3 s, or a minute for a page), until the game moves on, or until Next. It plays once, repeats
   until stopped, or repeats until play resumes or N minutes before the start (finishing its step), then goes to a scene, turns off what it turned on, or leaves it all. It only turns off sources it turned on. Next, Pause
   and Stop on its card; going to a scene, another sequence or hiding everything stops it without its Then, and hiding the step's source
-  moves on. One at a time, run by Studio itself (sequences.js), not saved while playing. Saved per competition as `sequences.json` in its folder.
+  moves on. One at a time, run by Studio itself (sequences.ts), not saved while playing. Saved per competition as `sequences.json` in its folder.
   Game triggers: a sequence can start by itself N minutes before the picked game's start, at the breaks it ticks, or at full time, a few
-  seconds after the siren, from the scoreboard state server.js sends each second (`gameSnapshot()`, no extra PlayHQ calls). It waits as
+  seconds after the siren, from the scoreboard state server.ts sends each second (`gameSnapshot()`, no extra PlayHQ calls). It waits as
   pending (Start now, Cancel). A "before the start" moment that passed before Studio started (opened inside the window) is skipped, for the operator to start by hand. The Automatic sequences switch is kept in `sequence-settings.json` in the data folder.
   Break lengths (quarterBreakMinutes, halfTimeMinutes, threeQuarterBreakMinutes) are competition settings, for the editor's hint.
   The **run order** (Output page, above Scenes and Sequences) is Output 1's queue of sequences and scenes for the night (the other outputs have none; the panel shows it whatever tab is picked): Play next plays the head, a sequence that
-  ends plays what's queued after it, and its Then is the fallback when nothing is; a game trigger on Output 1 puts its sequence at the head (Cancel takes it out); on another output it just starts there. Play next starts a sequence on every output it plays on together (`joinOthers()` in `sequences.js`); when the queue moves on by itself, another of its outputs joins only if idle and it didn't just play the sequence that ended (that one does its own Then); the row says what each other output does after it (its own Then). What it has played tonight stays listed above what's on air (`runOrderPlayed`, in memory only; Clear empties it too). Kept with
+  ends plays what's queued after it, and its Then is the fallback when nothing is; a game trigger on Output 1 puts its sequence at the head (Cancel takes it out); on another output it just starts there. Play next starts a sequence on every output it plays on together (`joinOthers()` in `sequences.ts`); when the queue moves on by itself, another of its outputs joins only if idle and it didn't just play the sequence that ended (that one does its own Then); the row says what each other output does after it (its own Then). What it has played tonight stays listed above what's on air (`runOrderPlayed`, in memory only; Clear empties it too). Kept with
   the competition's sequences (`runOrder`, saved orders in `runOrders`); `/deck/runorder/next`, `skip`, `clear`, `add/<name>`, `load/<order>` (`/deck/output/<output>/runorder/…` answers 404); the plugin's
   Run order key (`plugins/studio-deck`, `runorder-key.ts`, no Output setting) names the head from the scene's `runOrder` and lists `runOrders` for its Load press. Saved orders can be renamed (`roRename`, keeps the id). A game in the
-  Production Planner can have a saved order (`runOrder` on its slot in `planner.json`): `server.js` `plannerRunOrder()` loads it once as
+  Production Planner can have a saved order (`runOrder` on its slot in `planner.json`): `server.ts` `plannerRunOrder()` loads it once as
   the scoreboard moves to that game, and when that drops queued items the scene's `runOrderNotice` shows above Play next until OK (`roNoticeClose`).
   Links: `/deck/sequence/<name>` (plays; `/toggle`, `/stop`), `/deck/sequence/next`, `/advance` (Next only for an Until I press Next step), `/pause`, `/resume`, `/stop`, `/now`, `/cancel`
   and `/deck/sequence/auto/on|off|toggle`.
-- **Music:** music.js keeps one player (song or playlist, position, its three fade times (fade in, fade out, quick), mute, duck) in Studio; Output 1's unmuted scene.html plays it
+- **Music:** music.ts keeps one player (song or playlist, position, its three fade times (fade in, fade out, quick), mute, duck) in Studio; Output 1's unmuted scene.html plays it
   with an `<audio>` element, so it follows Output 1's video sound. The music is Output 1's: the other outputs' windows play without it,
   a sequence's music plays, fades and stops with the sequence on Output 1 (`sequences.sound()`, silent on the other outputs' runners),
   and a sequence played on another output alone plays without its music. Cut to a sequence with music of its own, the old song fades out under the new one on a
   second `<audio>` element (`tail`, a crossfade). Playlists and the player's settings are in `music.json` in the data folder. Songs are audio
   files in media/; added with levelling on, ffmpeg's loudnorm writes an M4A and the original goes to media/originals. It fades out and
-  pauses under a visible video with sound on, on Output 1 (scene.js tells it). Sequences can carry music (`music`: song or playlist, startStep,
+  pauses under a visible video with sound on, on Output 1 (scene.ts tells it). Sequences can carry music (`music`: song or playlist, startStep,
   startAtSec, fadeInSec, underVideo: starts its fade in before a video with sound in the step before ends while that video's sound fades out (`soundOut` on the source, which scene.html follows); `musicEnd`: fade (planned to start early enough to last its whole time across short timed steps), cut, continue into a `then: { type: 'sequence' }`, or crossfade (plays to the end, then fades out as the tail under different music that starts on the next step or sequence; else a fade); with none, a sequence step's own
   music plays while that step's sequence does), and scenes and sequences can duck the music (`quiet`, its old name).
   Links: `/deck/music/play|stop|pause|resume|toggle|next|prev|fade`, `/load/<song>`, `/playlist/<name>`, `/mute|duck/on|off|toggle`, each `?fade=N`.
@@ -480,7 +483,7 @@ sources drawn as layers, top layer first, sent to a display, a Blackmagic device
   rate (`desktop/decklink.js`) and `native/decklink`, a small Node-API module built against the DeckLink SDK headers in
   `native/decklink/sdk` (Blackmagic's permissive licence), plays the latest picture out; when nothing changes the device repeats it. **Sound**
   goes in the SDI as 48 kHz stereo (with fill and key, on the fill), so turn on the sound of the switcher input the fill comes into (On, or AFV);
-  an SDI to HDMI converter passes it on. **Sound goes to** (every output's settings; `outputs.js` `sound`) lists where the output's sound plays: the first destination is where
+  an SDI to HDMI converter passes it on. **Sound goes to** (every output's settings; `outputs.ts` `sound`) lists where the output's sound plays: the first destination is where
   the output itself carries it (the SDI of a Blackmagic output, else the Mac's sound output; on Output 1 every Mac mic goes with it), a Blackmagic output can add the Mac's
   sound output too, and any of the Mac's sound outputs by name (the commentators' mixer) is a hidden `scene.html?copy=1` window of its own (`desktop/soundcopy.js`, `?mics=`
   the mics ticked for it, none to start) that plays only once it has found the device; with no destination of its own the output's window is muted (`?mute=1`). **No sound**, last in
@@ -527,7 +530,7 @@ The graphics are listed once, in `public/pages.js` (link, name, Links group, exa
 `pageoptions.js` and `public/graphiclinks.js` (what each graphic's link does, for the Devices tab's Links) against it. A new
 graphic goes there first.
 
-From a copy of the repository, double-click `Make Examples (Mac).command` (or run `node examples.js`) to save a
+From a copy of the repository, double-click `Make Examples (Mac).command` (or run `npm run examples`, after `npm install`) to save a
 1920 x 1080 picture of every graphic with PlayHQ's current data in `Examples/<date and time>/`, with an `index.html`
 to look through them. Pictures keep the transparent background. They follow the game, round and court picked on the
 control page. It uses Studio if it is on air (keep a Studio window open), or starts it on its own for the run, and needs Node 22+ and Google Chrome, Edge, Brave
@@ -963,7 +966,7 @@ three commentators for each game on it. Studio streams one court a night; anothe
   is the night's whole fixture for a screen in the competition room or backstage (or to share before the night): a
   card per court (side by side up to three, then two rows: 2 × 2 for four, 3 × 2 for six) with its games by time, headed *Tonight's Fixtures* or the day (*Tuesday Night's Fixtures*). The
   planned court has a camera and its games name who is on the mic. Live games show their score and quarter (the
-  streamed one from the scoreboard, the rest through the ticker's reader and cache, `games.js` `withLiveScores`, so
+  streamed one from the scoreboard, the rest through the ticker's reader and cache, `games.ts` `withLiveScores`, so
   no extra PlayHQ requests while the ticker reads, at most one a minute per live game otherwise); finished games grey
   out with the winner in yellow (on the streamed court, the score the scoreboard had when it moved on, `lastGame` in
   the board, until PlayHQ has the result), and only the last finished time slot stays (`/api/planner/fixtureboard`;
@@ -1010,7 +1013,7 @@ Upcoming or Results (a night with results opens on Results) and the sizes; untic
   thick sole), *Stadium* (floodlights over the stands) and *Locker room* (locker doors with name labels). Hero and Final stand a picked athlete's photo (best as a
   cut-out PNG from the Athletes tab) tall, in front of the title; Final sets the title's last word in a script face (`script`, `--sfont`).
   Each is a class on `social.html`'s body (`t-<id>`, styled in `public/social-templates.css`) with its own display face
-  for titles, times and scores (`TEMPLATES` in `socials.js`); colours still come from the colour set, so any template
+  for titles, times and scores (`TEMPLATES` in `socials.ts`); colours still come from the colour set, so any template
   takes any colour set. Kept in `socials.json` (`template`); `?template=<id>` asks for one. A star on a template marks
   it a favourite (`favourites`, in the list's order), and **Favourites only** (`favouritesOnly`) lists just those and
   the one in use; with none starred it lists them all.
@@ -1043,8 +1046,8 @@ as the other pages, and each finished game's line up once, so the tab asks PlayH
 
 ## Recordings
 
-For each PlayHQ game on the scoreboard while on air, `recorder.js` writes one recording, `Recordings/<date> <time> <home> v <away>.jsonl.gz`
-in the local data folder. It starts when the game is due (`games.js` `leadMs()`, the setup page's `autoSelectMinutesBefore`, before its
+For each PlayHQ game on the scoreboard while on air, `recorder.ts` writes one recording, `Recordings/<date> <time> <home> v <away>.jsonl.gz`
+in the local data folder. It starts when the game is due (`games.ts` `leadMs()`, the setup page's `autoSelectMinutesBefore`, before its
 scheduled start) and stops `afterMinutes` (10, 0 to 60) after PlayHQ says it's finished, when the board moves on to another game, after
 four hours if PlayHQ never says so, or off air; on air with no game due records nothing. It starts with the last of every answer, the scene
 and the board already known, so it stands on its own. One JSON line per thing that happened, with `t` (ms) and `k`:
@@ -1057,8 +1060,8 @@ stopped suddenly. Recordings older than 60 days, and old ones with no game, are 
 and the minutes after full time (`GET`/`POST /api/recordings` `{ record }` or `{ afterMinutes }`, `DELETE /api/recordings/<name>`, `GET /api/recordings/<name>/file`; private reads).
 Tests and 4K replays will play these back too (docs/game-recording-replay-plan-2026-10-29.md).
 
-**4K replay** (`replay.js`): *Replay* beside a game plays the recording's on-air layer (`scene`, `board`, `api`) back
-through Studio's own pages: `scene.js` `replay()`/`replayBoard()` send the recorded scene and board to the sockets instead of
+**4K replay** (`replay.ts`): *Replay* beside a game plays the recording's on-air layer (`scene`, `board`, `api`) back
+through Studio's own pages: `scene.ts` `replay()`/`replayBoard()` send the recorded scene and board to the sockets instead of
 the live ones (the live scene goes on underneath, unsaved changes impossible: scene, scoreboard, practice, sequences,
 music, mics changes and Stream Deck links other than `/deck/output/...` get a 409), and a graphic's read (`graphicRead`) is
 answered from the recording at that point (`replay.answer()`). Times are moved to now (`practice.shift()`), so with the
@@ -1066,7 +1069,7 @@ Output page's 4K on the outputs send the night at 2160p. It starts paused at the
 jump to what went on air (`{ seek: t }`, the `events` list: sources on, quarters) and Stop (`/api/replay`). Exposure is held
 and the night's recording paused. Studio never plays the video.
 
-**Following a HyperDeck** (`hyperdeck.js`): `{ follow: { kind: 'hyperdeck', address } }` (or `kind: 'none'`) makes the replay
+**Following a HyperDeck** (`hyperdeck.ts`): `{ follow: { kind: 'hyperdeck', address } }` (or `kind: 'none'`) makes the replay
 follow a HyperDeck's timecode. Studio connects to its Ethernet control protocol (TCP 9993) only while a replay follows it, sends
 `notify: transport: true` and asks `transport info` four times a second, and never sends a command that changes the deck. The
 timecode (`display timecode`, frames by the `video format`) is read as a time of day on the night, plus an offset kept per
@@ -1074,13 +1077,13 @@ recording in `replay.json`; between answers it runs on by the time passed and th
 stop drive the replay (Studio's Play/Pause gets a 400), `{ seek: t }` sets the offset so the video's moment is `t`, and `{ nudge }`
 moves the offset.
 
-**Following the SDI input** (`sditimecode.js`, `{ follow: { kind: 'sdi' } }`): the Mac app reads the RP188 timecode coming into
+**Following the SDI input** (`sditimecode.ts`, `{ follow: { kind: 'sdi' } }`): the Mac app reads the RP188 timecode coming into
 the first Blackmagic device with an input (`native/decklink` `inputStart`/`inputStatus`/`inputStop`, format detection on, the
 pictures not looked at; `desktop/decklink.js` `readInput`, asked by the helper's `readTimecode` message) and sends it to the
 helper (`sdiTimecode`) each time it changes and every half second. A timecode moving on by about a frame is playing, the same one
 is stopped, a jump is scrubbing; between changes it runs on. The helper asks again every 3 s while nothing comes.
 
-**Practice games** (`practice.js`): *Practise* beside a game on the Recordings tab plays it back as if live
+**Practice games** (`practice.ts`): *Practise* beside a game on the Recordings tab plays it back as if live
 (`POST /api/practice` `{ start: { recording, game, from, lead, rerun } }`, `{ pause }`, `{ jump }`, `{ stop }`; `GET` for where it is).
 While it runs `playhq.js` asks `practice.answer()` and `practice.live()` instead of PlayHQ: the answer recorded last before
 the same point of the night, with every date and time moved by the gap to now (a game's `date` with its `time` or
@@ -1092,14 +1095,14 @@ run's jumps) has each start and jump call `sequences.rearm()`: the game's fired 
 break and full time sequences queue on Output 1 again even for the same game id, and a pre-game moment more than a minute
 before the start or jump is skipped, as for one before Studio started.
 **Demo games**: `{ start: { ..., demo: { game, division, swap } } }` with a finished game of the competition in use (its
-division's PlayHQ id; `GET /api/practice/games?division=` lists the choices). `practice.js` `dress()` reads that game's line
+division's PlayHQ id; `GET /api/practice/games?division=` lists the choices). `practice.ts` `dress()` reads that game's line
 ups and the division's teams from PlayHQ, then maps the recording: its two teams to the game's (swapped with `swap`), the
 recorded division's other teams (its ladder, else fixtures) to the client's others, and athletes by position, by PlayHQ id
 (`wear()`; an athlete with no match becomes anonymous, so the goals stay the team's). A game with no or a short line up
-takes the season squad (`athletes.js` `squadFor`, by each athlete's most played position). The pairing table changes a pair
+takes the season squad (`athletes.ts` `squadFor`, by each athlete's most played position). The pairing table changes a pair
 (`{ pair: { id, name } }`), and `{ save: name }` keeps the demo (recording, game, client game, division, Swap, pairs) in
 `demos.json` in the local data folder, started again with `{ start: { saved } }` and removed with `{ forget }`. The client's division id is translated
-to the recorded one, and a question the recording never asked goes to PlayHQ (the client's competition). Exposure isn't kept (`exposure.js` `held`), finished games aren't added to `game-cache.json`, and the night's
+to the recorded one, and a question the recording never asked goes to PlayHQ (the client's competition). Exposure isn't kept (`exposure.ts` `held`), finished games aren't added to `game-cache.json`, and the night's
 recording is paused (a `practice` line at each end). Every Studio page shows a red strip while one runs (`studiobar.js`, one read of `/api/playback` every 3 s, which answers the replay and the practice game together).
 
 ## Roadmap
@@ -1111,7 +1114,7 @@ recording is paused (a `practice` line at each end). Every Studio page shows a r
 ## Finals
 
 Each competition setup has a finals format, and each division can have its own (setup page, **Finals**). The formats, in
-`finals.js`:
+`finals.ts`:
 
 - Top 2: **Grand final** (1 v 2) and **Best of three** (game 3 only if needed).
 - Top 4: **Semis then grand final** (1 v 4, 2 v 3), **Page** (1 v 2 winner straight to the grand final, the loser gets a second

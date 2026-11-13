@@ -1,5 +1,5 @@
-// Filling one Mac's gaps in a game's story from another Mac's story of the same game (board.js mergeStories, used by
-// stories.js when it keeps or copies a story): where one Studio missed goals (its internet dropped, or it picked the
+// Filling one Mac's gaps in a game's story from another Mac's story of the same game (board.ts mergeStories, used by
+// stories.ts when it keeps or copies a story): where one Studio missed goals (its internet dropped, or it picked the
 // game up part way), the other may have seen them one by one, so the gap is filled with them and the stats, worm and
 // moments worked out again. No extra reading of PlayHQ: only the stories the Macs already share.
 'use strict';
@@ -10,15 +10,15 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const http = require('node:http');
-const savefile = require('../savefile');
-const { create } = require('../stories');
+const savefile = require('../out/savefile');
+const { create } = require('../out/stories');
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'studio-gaps-'));
 // The board alone, for its mergeStories.
 function theBoard() {
   const dir = tmp();
   const control = { boards: {} };
-  const b = require('../board').create({
+  const b = require('../out/board').create({
     log: () => {}, datadir: { local: f => path.join(dir, f) },
     savefile: { readJson: (f, d) => d, writeFile: () => {} }, machine: {}, config: () => ({}),
     competitions: { superShotsFor: () => true }, scene: { publishBoard() {} },

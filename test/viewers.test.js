@@ -1,5 +1,5 @@
-// Live viewers (viewers.js): a competition's streams on YouTube and Facebook, read from stand-in APIs, added up,
-// recorded while on air, and turned into viewer-minutes in the sponsor report (exposure.js).
+// Live viewers (viewers.ts): a competition's streams on YouTube and Facebook, read from stand-in APIs, added up,
+// recorded while on air, and turned into viewer-minutes in the sponsor report (exposure.ts).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -37,9 +37,9 @@ test.before(async () => {
   const base = `http://127.0.0.1:${server.address().port}`;
   process.env.FIRSTPASS_YOUTUBE_API = `${base}/yt`;
   process.env.FIRSTPASS_FACEBOOK_API = `${base}/fb`;
-  competitions = require('../competitions');
-  viewers = require('../viewers');
-  exposure = require('../exposure');
+  competitions = require('../out/competitions');
+  viewers = require('../out/viewers');
+  exposure = require('../out/exposure');
   competitions.init(() => {});
   comp = competitions.create('Thunder League');
   competitions.setActive(comp);
@@ -105,7 +105,7 @@ test('a bad key says so, and the other streams still count', async () => {
 });
 
 test('readings are only taken on air, and give each sponsor viewer-minutes in the report', async () => {
-  const sponsors = require('../sponsors');
+  const sponsors = require('../out/sponsors');
   const recorded = [];
   let air = false;
   viewers.init(() => {}, { onAir: () => air, record: s => recorded.push(s.total), every: 0 });

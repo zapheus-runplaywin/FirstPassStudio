@@ -1,6 +1,6 @@
 // FirstPass Studio - keeping the settings folder in iCloud Drive.
 //
-// The data folder (datadir.js) is on this Mac by default. It can instead live in a folder in
+// The data folder (datadir.ts) is on this Mac by default. It can instead live in a folder in
 // iCloud Drive picked from the Mac app's menu, inside a subfolder named after this Mac (its Local hostname),
 // so two Macs signed in to the same Apple account each keep their own settings:
 //   iCloud Drive/FirstPass Studio/Studio-MacBook-Pro/competitions/...
@@ -13,14 +13,13 @@
 // Only the settings Studio saves move (SETTINGS); the Mac app's folder also holds Electron's
 // own files, which never do. Some files stay on this Mac whichever folder holds the settings (LOCAL_ONLY): the debug
 // logs (written all the time), the scores and clock (saved every few seconds while a game is
-// live) and the night's other games followed in the background, caches, the Socials tab's polaroid photos, the games' stories (which stories.js shares with the other Studio Macs itself), the app's window positions and this file. Only settings sync.
+// live) and the night's other games followed in the background, caches, the Socials tab's polaroid photos, the games' stories (which stories.ts shares with the other Studio Macs itself), the app's window positions and this file. Only settings sync.
 //
 // Another Mac's settings can be restored onto this one (restore()): they are copied, never
 // moved, so the other Mac keeps its own.
 //
 // PROVIDERS is the list of cloud drives; only iCloud Drive for now. Others (Dropbox, Google
 // Drive, OneDrive all live under ~/Library/CloudStorage on a Mac) can be added beside it.
-
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -307,7 +306,7 @@ function otherMacs(folder: string, dataDir: string | null | undefined): { dir: s
     .map(d => ({ dir: d, computer: (owner(d) || {}).computer || path.basename(d), since: (owner(d) || {}).since }));
 }
 
-// The settings as zip entries ({ name, file }, zip.js), for Export settings as a zip: every
+// The settings as zip entries ({ name, file }, zip.ts), for Export settings as a zip: every
 // file under SETTINGS in the folder, inside one folder named like the zip, plus
 // studio-export.json saying where and when they came from (folder: exportName()). The local-only files (logs, scores
 // and clock, caches) aren't settings, so they aren't in it. Hidden files (.DS_Store, a copy

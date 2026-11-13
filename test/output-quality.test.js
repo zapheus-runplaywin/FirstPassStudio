@@ -1,4 +1,4 @@
-// Picture HD or 4K (outputs.js quality): one setting for every output. In 4K each NDI and Blackmagic output keeps
+// Picture HD or 4K (outputs.ts quality): one setting for every output. In 4K each NDI and Blackmagic output keeps
 // the format saved for it and sends the 2160p one at the same rate, drawn at twice the density; nothing else about
 // it changes (names, sources, keys), and HD again is exactly as before. What can't go to 2160p says why. In 4K a
 // Blackmagic output can also have one of the device's own 2160p formats picked.
@@ -10,7 +10,7 @@ const path = require('node:path');
 
 const DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-output-quality-'));
 process.env.FIRSTPASS_DATA_DIR = DIR;
-const outputs = require('../outputs');
+const outputs = require('../out/outputs');
 outputs.init(() => {}, {});
 outputs.message({ type: 'displays', displays: [{ id: 1, label: 'Built-in', primary: true }, { id: 2, label: 'HDMI' }] });
 outputs.message({ type: 'ndi', ok: true, version: '6' });

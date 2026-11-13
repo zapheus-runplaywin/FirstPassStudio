@@ -1,16 +1,15 @@
 // FirstPass Studio - saved competition setups.
 //
 // Everything that belongs to one competition and doesn't come from PlayHQ lives in
-// competitions/<id>/ in the data folder (datadir.js): settings.json (PlayHQ link, names,
+// competitions/<id>/ in the data folder (datadir.ts): settings.json (PlayHQ link, names,
 // rules, colours, font and options), logos/ (team logos), brand/ (the competition's own
-// logo), fonts/ (font files added on the setup page, fonts.js), photos/ (athlete photos, each named after the athlete, e.g. "Jane Smith.jpg") and
+// logo), fonts/ (font files added on the setup page, fonts.ts), photos/ (athlete photos, each named after the athlete, e.g. "Jane Smith.jpg") and
 // athletes.json. competitions/active.json says which one the helper and every page use.
 //
 // The data folder starts with no competitions. imports/ in the app holds import configs,
 // ready-made setups (with logos) to start from: Import copies one into the data folder,
 // where it can be changed without touching the import config. From a copy of the
 // repository, "Save as import config" writes a competition back into imports/ to commit.
-
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -27,7 +26,7 @@ import type { Body, Log } from './types';
 interface Colours { main: string; dark: string; panel: string; panelAlt: string; highlight: string; accent: string; text: string; textOnHighlight: string; muted: string }
 // A club's logo (a file in logos/) and colour, shared by every team of the club.
 interface Club { logo?: string; colour?: string }
-// Where the competition streams, for live viewer numbers (viewers.js).
+// Where the competition streams, for live viewer numbers (viewers.ts).
 interface Stream { id: string; platform: 'youtube' | 'facebook'; name: string; where: string }
 type Tier = 'naming' | 'elite' | 'major' | 'partner' | 'supporter';
 type EmptyRule = 'up' | 'down' | 'skip' | 'vacancy';
@@ -70,7 +69,7 @@ const DEFAULTS: Settings = {
   halfTimeMinutes: 5,
   threeQuarterBreakMinutes: 3,
   superShotMinutes: 3,                 // super shots count in the last N minutes of each quarter; the scoreboard shows a tab then (0 = no tab)
-  finalsFormat: 'top4-page',           // the finals format (finals.js), blank = no finals
+  finalsFormat: 'top4-page',           // the finals format (finals.ts), blank = no finals
   divisionFinals: {},                  // { "PlayHQ division name": format id or "none" }, for a division with its own format
   defaultCourt: '',                    // the fallback court to follow on a night the Production Planner has no plan for
   autoSelectMinutesBefore: 10,
@@ -91,19 +90,19 @@ const DEFAULTS: Settings = {
   brandColours: [],                    // [{ hex, name }] pasted from a brand kit, shown as swatches in the colour pickers
   panelOpacity: 0.92,
   font: 'Montserrat',
-  fontSize: 100,                       // %: how tall another font's capitals are next to Montserrat's (fonts.js normalise)
+  fontSize: 100,                       // %: how tall another font's capitals are next to Montserrat's (fonts.ts normalise)
   competitionLogo: '',                 // a file in brand/: the light mode logo (for a light background)
   competitionLogoDark: '',             // a file in brand/: the dark mode logo (for a dark background); either one alone is used for both
   clubs: {},                           // { "Club": { logo: "file.png", colour: "#rrggbb" } }, shared by every team of the club in every division
   teamClubs: {},                       // { "PlayHQ team name": "Club" }, only for a team whose club isn't found from its name
-  // Sponsors (sponsors.js and the Sponsors page): what this competition calls each tier, what a tier's
+  // Sponsors (sponsors.ts and the Sponsors page): what this competition calls each tier, what a tier's
   // spots do when no sponsor is in it, and its own "advertise with us" card for empty spots.
   sponsorTierNames: 'names',           // 'names', 'metals' or 'own' (sponsorOwnNames)
   sponsorOwnNames: {},                 // { tier: "Diamond" }, for 'own'; a blank one uses the Names name
   sponsorEmpty: {},                    // { tier: 'up' | 'down' | 'skip' | 'vacancy' }, missing = SPONSOR_EMPTY_DEFAULTS
   sponsorVacancy: {},                  // { heading, message, contact, link }: the vacancy card, filled in by the competition's admin
   sponsorMoments: {},                  // { moment: sponsor id | 'off' }: who a moment's "brought to you by" tag is for; missing = Elite take turns
-  // Where the competition streams, for live viewer numbers (viewers.js): [{ id, platform: 'youtube' | 'facebook',
+  // Where the competition streams, for live viewer numbers (viewers.ts): [{ id, platform: 'youtube' | 'facebook',
   // name, where }], filled in by its admin. Their keys and tokens are kept on this Mac only (stream-keys.json).
   streams: [],
   viewersMinimum: 50,                  // the viewers graphic (viewers.html) stays hidden below this many watching
@@ -280,7 +279,7 @@ function clean(input: unknown, base: unknown = DEFAULTS): Settings {
     colours,
     brandColours,
     panelOpacity: Math.min(1, Math.max(0.3, number('panelOpacity', DEFAULTS.panelOpacity))),
-    // Any font name: a bundled one, one on the Mac or an added one (fonts.js). One that isn't there falls back to
+    // Any font name: a bundled one, one on the Mac or an added one (fonts.ts). One that isn't there falls back to
     // Montserrat on the graphics.
     font: fonts.cleanName(text('font')) || DEFAULTS.font,
     fontSize: Math.round(Math.min(130, Math.max(80, number('fontSize', DEFAULTS.fontSize) || DEFAULTS.fontSize))),
@@ -509,7 +508,7 @@ function themeCss(s: Settings, fontFiles: string[] = [], macFaces: Parameters<ty
 }
 
 // theme.css's colour variables from a competition's colours (c: main, dark, panel, panelAlt, highlight, accent, text,
-// textOnHighlight, muted) and panel opacity (o). The Socials tab's colour sets use it too (socials.js).
+// textOnHighlight, muted) and panel opacity (o). The Socials tab's colour sets use it too (socials.ts).
 function colourVars(c: Colours, o: number): Record<string, string> {
   return {
     '--purple': c.main, '--purple-rgb': rgb(c.main).join(', '),

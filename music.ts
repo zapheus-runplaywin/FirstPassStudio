@@ -24,7 +24,7 @@
 //   - "Ducks the music" on a scene or sequence (an interview on court): whatever music is playing (the player's
 //     or a sequence's) ducks low and keeps playing until the next scene, sequence or step without it.
 //   - A stinger with ?music=quiet or ?music=duck (stinger.html; the Switcher card's Music under it), on the output the stinger
-//     plays on (scene.js stingerMusic): the music ducks quickly as it sweeps in, so it's down
+//     plays on (scene.ts stingerMusic): the music ducks quickly as it sweeps in, so it's down
 //     by the time the frame is covered. quiet leaves it down for the scene cut to under it (as a scene that ducks the music does,
 //     until the next scene, sequence or step without it); dip brings it back up as the stinger leaves.
 //   - The super shot song (a setting, with its own volume): when the scoreboard's super shot period starts
@@ -32,7 +32,6 @@
 //     round and round, and fades out over the fade out time when the period ends.
 //
 // Saved as music.json in the data folder: the playlists and the player's settings. What's playing isn't.
-
 
 import fs from 'node:fs';
 import * as datadir from './datadir';
@@ -346,7 +345,7 @@ function stinger(mode: string, on: boolean, sec?: number) {
 
 // A scene or sequence with "Ducks the music" ticked started (quiet true), or one without it (false).
 function quiet(on: unknown) {
-  api?.quiet?.(!!on); // the mics dip with it (mics.js)
+  api?.quiet?.(!!on); // the mics dip with it (mics.ts)
   if (on) {
     // A stinger's dip becomes this scene's quiet, so the music stays down when the stinger ends.
     if (p.ducked === 'stinger') { p.ducked = 'quiet'; return true; }

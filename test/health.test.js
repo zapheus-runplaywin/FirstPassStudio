@@ -1,4 +1,4 @@
-// /api/health (server.js): one answer for the Output page's status line, saying what Studio follows,
+// /api/health (server.ts): one answer for the Output page's status line, saying what Studio follows,
 // how long since PlayHQ answered, and the state of the clock and the video output.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -23,7 +23,7 @@ test('health names the game, follows PlayHQ and reports a recent reading', async
   assert.equal(h.playhq.waiting, '');
   assert.equal(h.playhq.state, 'ok');
   assert.ok(h.playhq.readAgoMs < 10000);
-  // The board's PlayHQ line (playhqnet.js): the ping and what has been downloaded so far.
+  // The board's PlayHQ line (playhqnet.ts): the ping and what has been downloaded so far.
   assert.equal(typeof h.playhq.net.pingMs, 'number');
   assert.ok(h.playhq.net.bytes > 0);
   assert.ok(h.playhq.net.requests > 0);

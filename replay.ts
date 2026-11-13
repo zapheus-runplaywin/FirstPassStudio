@@ -1,12 +1,12 @@
 // FirstPass Studio - 4K replay: a recorded night's graphics played again, exactly as they went to air.
 //
-// A replay plays a recording's on-air layer (recorder.js: scene, board, api) back through Studio's own pages: the
+// A replay plays a recording's on-air layer (recorder.ts: scene, board, api) back through Studio's own pages: the
 // scene pages and every output are sent the recorded scene and scoreboard instead of the live ones, and a graphic's
 // read (GET /api/...) is answered with what it was answered on the night. With the Output page's 4K on, the outputs
 // send it at 2160p, so a 4K switcher or recorder can key it over the 4K camera recording of the game. Studio never
 // plays the video: start both together (a sync point and the nudge get it to the frame).
 //
-// The recorded times are moved to now, as for a practice game (practice.js shift()), so the clock and anything timed
+// The recorded times are moved to now, as for a practice game (practice.ts shift()), so the clock and anything timed
 // carries on as it did. While a replay runs nothing live goes to the pages, the scene and scoreboard can't be
 // changed (so the live setup is never touched), the night's recording is paused and no sponsor exposure is kept.
 // Stop puts the live scene and scoreboard back on the pages.
@@ -16,15 +16,15 @@
 // Play both.
 //
 // Or the replay follows the timecode of the player with the video (Follow): a HyperDeck over the network
-// (hyperdeck.js), or whatever sends SDI into the UltraStudio (sditimecode.js). The timecode, as a time of day, is the
+// (hyperdeck.ts), or whatever sends SDI into the UltraStudio (sditimecode.ts). The timecode, as a time of day, is the
 // moment of the night to show, so playing, pausing and scrubbing the player drive the graphics and they never
 // drift. The two clocks (the player's timecode and this Mac's) can differ, so the offset between them is kept for
 // each recording: the nudge moves it, and Jump there sets it (the video is at that moment now). Saved in replay.json
 // in the local data folder: { follow: 'none' | 'hyperdeck' | 'sdi', hyperdeck (its address), offsets: { recording: ms } }.
 //
 // hooks (init): read(recording), shift(value, ms), scene(state or null) and board(json or null) put the replay on the
-// pages (null: live again), paused(on) pause the night's recording, timecodes ({ hyperdeck, sdi }: hyperdeck.js and
-// sditimecode.js, each with follow, now, state), settings (replay.json's path).
+// pages (null: live again), paused(on) pause the night's recording, timecodes ({ hyperdeck, sdi }: hyperdeck.ts and
+// sditimecode.ts, each with follow, now, state), settings (replay.json's path).
 
 
 const TICK_MS = 20;
@@ -127,7 +127,7 @@ function load(recording: string, gameId?: string) {
 }
 
 // ─── Following a HyperDeck ─────────────────────────────────────────────────
-// The timecode followed (hyperdeck.js or sditimecode.js), or null.
+// The timecode followed (hyperdeck.ts or sditimecode.ts), or null.
 const source = () => (saved.follow !== 'none' && hooks.timecodes[saved.follow]) || null;
 const following = () => !!(run && source());
 const offset = () => (run && saved.offsets[run.recording]) || 0;

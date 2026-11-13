@@ -12,7 +12,6 @@
 // <name>.broken-<time> (so the next save doesn't destroy the evidence) and reported through
 // onError, instead of being silently taken as empty.
 
-
 import fs from 'node:fs';
 import path from 'node:path';
 import { errorCode } from './errors';

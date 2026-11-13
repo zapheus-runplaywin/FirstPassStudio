@@ -1,4 +1,4 @@
-// The Production Planner (planner.js, planner.html): the commentator pool, a court and commentators per game night,
+// The Production Planner (planner.ts, planner.html): the commentator pool, a court and commentators per game night,
 // nights that take the plan of the night before, the plan setting Scoreboard control's court, flags when the
 // scoreboard is on something else, and the Commentators graphic reading who is on the mic.
 const test = require('node:test');

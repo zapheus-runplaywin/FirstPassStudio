@@ -1,4 +1,4 @@
-// FirstPass Studio - which Stream Deck link set the links on a page are copied for (devices.js).
+// FirstPass Studio - which Stream Deck link set the links on a page are copied for (devices.ts).
 //
 // Each link set has its own key, so the Website keys on one Stream Deck can be given a new key, or removed, in
 // Devices without touching the others. linkSets(select, onBase) fills select with This Mac's links, every named set

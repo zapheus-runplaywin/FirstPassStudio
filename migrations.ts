@@ -1,18 +1,17 @@
 // FirstPass Studio - bringing saved settings up to date after an update.
 //
-// The data folder (datadir.js) has a version number in data-version.json. Each release
+// The data folder (datadir.ts) has a version number in data-version.json. Each release
 // that changes how settings are saved adds a step below that turns version N into N+1;
 // on start every step the folder hasn't had yet runs in order. Before any step runs, the
 // saved settings (SAVED below: not the log) are copied to backups/<date>-v<N>, so an
 // update can be undone by copying that folder back. The newest 5 backups are kept.
 //
-// A new setting needs no step: competitions.js fills in its default when it's missing.
+// A new setting needs no step: competitions.ts fills in its default when it's missing.
 // Steps are for settings that are renamed, moved or change meaning.
 //
 // If the folder was saved by a newer Studio (its version is higher than VERSION), nothing
 // is changed and competitions open read-only, so an older copy can't throw away settings
 // it doesn't understand.
-
 
 import fs from 'node:fs';
 import path from 'node:path';

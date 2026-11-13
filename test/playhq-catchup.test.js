@@ -1,4 +1,4 @@
-// PlayHQ catching up (board.js catchUpIn): a scorebench back on line sends minutes of scoring at once. More than one
+// PlayHQ catching up (board.ts catchUpIn): a scorebench back on line sends minutes of scoring at once. More than one
 // goal or super shot for a team in one 5 s check can't happen live, so it's noted as a gap for both teams: no goals
 // listed in made-up order, and no super shot or moment played for scoring that happened minutes ago. One super shot
 // in a check is still a super shot.

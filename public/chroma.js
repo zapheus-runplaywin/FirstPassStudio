@@ -154,7 +154,7 @@
     for (const el of document.querySelectorAll('[style]')) fixStyle(el.style);
   }
 
-  // Solid panels, and the cut. The panel colours come from theme.css (competitions.js themeCss).
+  // Solid panels, and the cut. The panel colours come from theme.css (competitions.ts themeCss).
   const css = document.createElement('style');
   css.textContent = `
     html.chroma-safe { --purple-deep: rgb(var(--deep-rgb)); --purple-deep-alt: rgb(var(--deep-alt-rgb)); }

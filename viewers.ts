@@ -13,7 +13,6 @@
 // Studio only asks while a video output is on (on air), or when Check now is pressed on the setup page.
 // Each reading while on air is saved with the sponsor exposure log (exposure.viewers), for viewer-minutes.
 
-
 import fs from 'node:fs';
 import * as datadir from './datadir';
 import * as savefile from './savefile';

@@ -6,14 +6,13 @@
 //   Mac      ~/Library/Application Support/FirstPass Studio
 //   Windows  %APPDATA%\FirstPass Studio
 //   Linux    ~/.config/FirstPass Studio
-// The settings can instead be kept in iCloud Drive (datalocation.js), in a subfolder named
+// The settings can instead be kept in iCloud Drive (datalocation.ts), in a subfolder named
 // after this Mac; data-location.json in the folder above says where. The logs, the scores and
 // clock and caches stay in the folder above either way (LOCAL_DIR, local()).
 // FIRSTPASS_DATA_DIR picks another folder (the desktop app passes the one it resolved), and
 // FIRSTPASS_LOCAL_DIR the local one (it defaults to FIRSTPASS_DATA_DIR when only that is set).
 // The app folder itself only holds the app: the pages, the code, the default config.json
 // and the import configs in imports/.
-
 
 import fs from 'node:fs';
 import os from 'node:os';

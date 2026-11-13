@@ -1,14 +1,14 @@
-// Bringing the data folder up to date after an update (migrations.js): each step from an old
+// Bringing the data folder up to date after an update (migrations.ts): each step from an old
 // folder, the backup made first, a folder saved by a newer Studio left alone, and Studio
-// starting on an old folder. Each case runs migrations.js in a process of its own with its
-// own app folder (a copy of migrations.js, the files it needs, and imports/) and data folder.
+// starting on an old folder. Each case runs migrations.ts in a process of its own with its
+// own app folder (a copy of migrations.ts, the files it needs, and imports/) and data folder.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const { VERSION } = require('../migrations');
+const { VERSION } = require('../out/migrations');
 const { startStudio } = require('./support/studio');
 
 const ROOT = path.join(__dirname, '..');
@@ -16,12 +16,13 @@ const tmp = name => fs.mkdtempSync(path.join(os.tmpdir(), `studio-migrate-${name
 const write = (file, data) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, typeof data === 'string' ? data : JSON.stringify(data, null, 2)); };
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 
-// Copies a file of the app and every file of the app it requires (./name), so a new one doesn't
+// Copies a compiled file of the app (out/) and every file of the app it requires (./name), so a new one doesn't
 // need adding here.
 function copyWithRequires(file, app) {
-  if (fs.existsSync(path.join(app, file))) return;
-  const text = fs.readFileSync(path.join(ROOT, file), 'utf8');
-  fs.writeFileSync(path.join(app, file), text);
+  if (fs.existsSync(path.join(app, 'out', file))) return;
+  const text = fs.readFileSync(path.join(ROOT, 'out', file), 'utf8');
+  fs.mkdirSync(path.join(app, 'out'), { recursive: true });
+  fs.writeFileSync(path.join(app, 'out', file), text);
   for (const [, name] of text.matchAll(/require\(['"]\.\/([^'"]+)['"]\)/g)) copyWithRequires(name.endsWith('.js') ? name : `${name}.js`, app);
 }
 
@@ -44,7 +45,7 @@ function dataFolder(t, files = {}) {
 function migrate(app, data) {
   const out = execFileSync(process.execPath, ['-e', `
     const lines = [];
-    const r = require(${JSON.stringify(path.join(app, 'migrations.js'))}).run((level, source, message) => lines.push(level + ' ' + message));
+    const r = require(${JSON.stringify(path.join(app, 'out', 'migrations.js'))}).run((level, source, message) => lines.push(level + ' ' + message));
     process.stdout.write(JSON.stringify({ r, lines }));`], { env: { ...process.env, FIRSTPASS_DATA_DIR: data } });
   return JSON.parse(out);
 }

@@ -1,7 +1,7 @@
-// FirstPass Studio - what the Socials tab's pictures work out from the season's fixture, results and ladders (socials.js
+// FirstPass Studio - what the Socials tab's pictures work out from the season's fixture, results and ladders (socials.ts
 // gathers them; nothing here asks PlayHQ). Each takes the season as Studio already has it:
 //   season   every game of the season, in date and time order: { id, date, time, division, round, home: { name, score },
-//            away, finished } (socials.js seasonOf; finished once PlayHQ has its final score)
+//            away, finished } (socials.ts seasonOf; finished once PlayHQ has its final score)
 //   rows     a division's ladder rows from PlayHQ: { position, team, played, won, lost, drawn, byes, points, pointsFor,
 //            pointsAgainst }
 // placesBefore and review: each team's place before a night, and Round in review (biggest win, closest game, upsets).
@@ -11,13 +11,12 @@
 // Results: numbers (Night in numbers), clubs (Club round up), streaks (Still unbeaten), teamCard (Team season card),
 // biggestWin and lastNights (Season wrap).
 
-
 import { ROUND as FINALS_ROUND } from './finals';
 import type { LadderRow } from './playhq';
 
 // A side of a season game: its score once PlayHQ has one.
 interface Side { name: string; score: number | null }
-// A game of the season (socials.js seasonOf). winner: 'home', 'away' or 'draw', on Round in review's games.
+// A game of the season (socials.ts seasonOf). winner: 'home', 'away' or 'draw', on Round in review's games.
 interface Game { id: string; date: string; time?: string | null; court?: string; division: string; round?: string; finished: boolean; winner?: string | null; home: Side; away: Side }
 // A finished game: both scores in.
 type Done = Game & { home: { name: string; score: number }; away: { name: string; score: number } };

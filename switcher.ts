@@ -20,7 +20,6 @@
 // Stream Deck: /deck/switcher/cut, auto, stinger, stinger/<input>, ftb, preview/<input>, program/<input>, usk/<n>/on|off|toggle,
 // dsk/<n>/on|off|toggle|auto, macro/<n>.
 
-
 import fs from 'node:fs';
 import dns from 'node:dns';
 import { spawn } from 'node:child_process';
@@ -40,7 +39,7 @@ interface Input { id: number; name: string; short: string }
 interface Summary {
   model: string; inputs: Input[]; program: number | null; preview: number | null; inTransition: boolean; usk: boolean[]; dsk: boolean[]; ftb: boolean; fps: number;
 }
-// What each output gives the switcher (outputs.js switcherPlan).
+// What each output gives the switcher (outputs.ts switcherPlan).
 type PlanOut = ReturnType<typeof Outputs.switcherPlan>[number];
 // What a key needs for its output (keyChecks): null where it doesn't matter.
 interface Want { fill: number; cut: number | null; pre: boolean | null; type: number | null; straightOff: boolean }
@@ -69,7 +68,7 @@ const CONNECT_MS = 5000;      // a switcher that hasn't answered this long after
 
 let log: Log = () => {};
 let onChange = () => {};
-let micsChanged = () => {};   // mics.js: the switcher's Fairlight audio changed (a fader moved)
+let micsChanged = () => {};   // mics.ts: the switcher's Fairlight audio changed (a fader moved)
 // What's picked: null (not set up), { kind: 'found', name, host, port, address } or { kind: 'address', address, port }.
 let pick: Picked | null = null;
 let atem: Atem | null = null; // the atem-connection client
@@ -93,8 +92,8 @@ let followTimer: NodeJS.Timeout | undefined;
 // Each output's line-up: frames to cut later (or earlier, below 0) than the middle of the cover, for that output's
 // delay into the switcher (NDI is later than HDMI): { outputId: frames }. The stinger's output's is used.
 let lineups: Record<string, number> = {};
-let stingerApi: StingerApi | null = null; // { find(ref), play(id) } from scene.js
-let outputsPlan = (): PlanOut[] => [];   // what each output gives the switcher (outputs.js switcherPlan), for the key settings check
+let stingerApi: StingerApi | null = null; // { find(ref), play(id) } from scene.ts
+let outputsPlan = (): PlanOut[] => [];   // what each output gives the switcher (outputs.ts switcherPlan), for the key settings check
 let straightOff = (_id: string) => {};   // unticks an output's Straight (Blackmagic fill), for Set up this key for me
 let stingerWait: { output: string; resolve(c: Cover | null): void } | null = null; // a stinger cut waiting to hear the stinger has started
 const STINGER_WAIT_MS = 3000; // how long a stinger has to start (its page loads its logo first)
@@ -315,7 +314,7 @@ async function connect() {
     if (atem !== a) return;
     changed();
     followSoon();
-    if ((paths || []).some(p => String(p).startsWith('fairlight'))) micsChanged(); // a fader moved (mics.js)
+    if ((paths || []).some(p => String(p).startsWith('fairlight'))) micsChanged(); // a fader moved (mics.ts)
   });
   try { await a.connect(target, port); }
   catch (err) { if (atem === a) setConn('error', errorMessage(err)); }
@@ -943,10 +942,10 @@ async function deck(parts: string[]) {
   return { status: 200, body: { ok: true, done: r.done, program: s.program, preview: s.preview, usk: s.usk, dsk: s.dsk } };
 }
 
-// ─── Mics on the switcher (mics.js) ─────────────────────────────────────
+// ─── Mics on the switcher (mics.ts) ─────────────────────────────────────
 // The switcher's own mic and line inputs (an ATEM Mini's 3.5 mm mic jacks, a bigger one's XLR or RCA): the audio
 // inputs that aren't a camera's embedded sound or a media player. Each has one source (stereo or mono), or two when
-// it's split into two mono channels in ATEM Software Control (left, then right). mics.js moves their faders; Studio
+// it's split into two mono channels in ATEM Software Control (left, then right). mics.ts moves their faders; Studio
 // changes nothing else on them (the input's On / Off / AFV, its EQ and dynamics stay as set on the switcher).
 // [{ id, name, sources: [{ id, fader (dB), mix }] }], sorted by input; [] when not connected or without Fairlight audio.
 const AUDIO_IN = 2;           // atem-connection's Enums.FairlightInputType.AudioIn
@@ -981,8 +980,8 @@ async function setMicFader(input: number, source: number | string, dB: number) {
   catch (err) { log('warn', 'switcher', `Couldn't move the fader of input ${input}: ${errorMessage(err)}`); return false; }
 }
 
-// changed(): the switcher's state changed; stinger: { find, play } (scene.js); outputs(): outputs.js switcherPlan;
-// unstraight(id): untick that output's Straight; mics(): its audio changed (mics.js).
+// changed(): the switcher's state changed; stinger: { find, play } (scene.ts); outputs(): outputs.ts switcherPlan;
+// unstraight(id): untick that output's Straight; mics(): its audio changed (mics.ts).
 interface Hooks { changed?(): void; stinger?: StingerApi; outputs?(): PlanOut[]; unstraight?(id: string): void; mics?(): void }
 function init(logger: Log, { changed: onChanged, stinger, outputs, unstraight, mics }: Hooks = {}) {
   log = logger;

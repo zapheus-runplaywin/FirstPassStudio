@@ -1,13 +1,12 @@
 // FirstPass Studio - which pictures and videos look soft in 4K.
 //
-// In 4K (outputs.js quality) Studio draws its own text and shapes at 3840 x 2160, but a picture or a video is only
+// In 4K (outputs.ts quality) Studio draws its own text and shapes at 3840 x 2160, but a picture or a video is only
 // as sharp as its file. soft() lists the ones that will look soft, for the Output page to name so a bigger file can
 // go in: a logo (the competition's team logos and brand logos, and images in the media folder, which is where the
 // sponsors' logos are) under 1024 pixels on its longer side, as the big animations draw a crest about 540 points
 // across (1080 pixels in 4K); and a video less than 2160 pixels tall. SVG is drawn at any size, so it's never soft.
 //
 // size(file) reads just the start of a PNG, JPEG, WebP or GIF for its size, kept until the file changes.
-
 
 import fs from 'node:fs';
 

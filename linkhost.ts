@@ -3,7 +3,6 @@
 // Deck on the same network. config.json "linkHost" changes it: "bonjour" (the default),
 // "localhost", or any name or IP address. Shared by the helper and the Mac app.
 
-
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 

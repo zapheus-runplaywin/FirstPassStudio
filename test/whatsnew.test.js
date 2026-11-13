@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const whatsnew = require('../desktop/whatsnew.js');
+const whatsnew = require('../out/desktop/whatsnew');
 
 // Release notes as the Mac app workflow writes them ("Write the release notes").
 const notes = (version, titles) => `FirstPass Studio ${version} for Apple silicon Macs.\n` +

@@ -17,7 +17,7 @@
 // and the picture sets (which kinds of picture the tab shows, picked on its Show row), kept week to week. Photos dropped on a polaroid stay
 // on this Mac only (socials-photos/ in the local folder, never in a backup or iCloud); the oldest go after PHOTOS_KEPT.
 //
-// Routes (server.js hands every /api/socials and /socials/ request here):
+// Routes (server.ts hands every /api/socials and /socials/ request here):
 //   GET  /api/socials                    the game nights, the settings, the kinds of picture (KIND_NAMES) and whether
 //                                        pictures can be saved (app: the Mac app) and here (the page is open on this Mac)
 //   GET  /api/socials/night?date=        one night for social.html: its games and results, the streamed court, sponsors,
@@ -71,8 +71,7 @@
 //                                        toDevice: true (a phone) makes them in a temporary folder on the Mac (folder: null),
 //                                        opening nothing, and adds made: { pictures: [{ name, url }], zip: { name, url } | null }
 //   GET  /api/socials/made/<id>/<n|zip>  a picture (or the zip) saved for a phone, for an hour; private like the
-//                                        settings (access.js), so with the lock on only a paired device gets it
-
+//                                        settings (access.ts), so with the lock on only a paired device gets it
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -97,7 +96,7 @@ import type { LadderRow } from './playhq';
 import type { Body, Log, ParentPort, Query, ReadBody, ReadRaw, Send } from './types';
 const { sameName } = stats;
 
-// A game of a night as the Production Planner has the fixture (planner.js byDate), and every night's games by date.
+// A game of a night as the Production Planner has the fixture (planner.ts byDate), and every night's games by date.
 type Raw = LiveRow;
 type Dates = Record<string, Raw[]>;
 // A side of a game for the pictures, and a game as social.html draws it (brief). final: its finals name, on a finals night.
@@ -106,14 +105,14 @@ interface Brief {
   id: string; date: string; time: string; court: string; venue: string; division: string; round: string; home: Team; away: Team;
   finished: boolean; winner: 'home' | 'away' | 'draw' | null; final?: string;
 }
-// A game's line ups (games.js readLineups), a side of them, and the season's shooters (games.js tallyShooters).
+// A game's line ups (games.ts readLineups), a side of them, and the season's shooters (games.ts tallyShooters).
 type Lineup = NonNullable<Awaited<ReturnType<GamesApi['readLineups']>>[number]>;
 type LineupSide = Lineup['home'];
 type Shooter = Awaited<ReturnType<GamesApi['tallyShooters']>>['players'][number];
-// A division's finals as the Finals page has them (games.js getFinals), or why there are none.
+// A division's finals as the Finals page has them (games.ts getFinals), or why there are none.
 type Finals = Awaited<ReturnType<GamesApi['getFinals']>>;
 type FinalsDraw = Finals | { division: string; error: string };
-// A kept story's Game stats and Score worm (board.js getStats and getWorm made them).
+// A kept story's Game stats and Score worm (board.ts getStats and getWorm made them).
 type Stats = ReturnType<BoardApi['getStats']>;
 type Worm = ReturnType<BoardApi['getWorm']>;
 interface Told { stats: Stats; worm: Worm; moments?: unknown[] }
@@ -128,11 +127,11 @@ interface Settings {
   mark: boolean; pivt: boolean; sponsor: Record<string, boolean>; colours: string; colourSets: ColourSet[]; template: string;
   favourites: string[]; favouritesOnly: boolean; movers: boolean; pictureSets: PictureSet[]; pictureSet: string;
 }
-// The competition, as the pictures name it (server.js about).
+// The competition, as the pictures name it (server.ts about).
 interface About { competition: string; venue: string; logo: string | null; runningShooters: string; finalsWinners: string }
-// A sponsor to pick for Sponsor spotlight (server.js sponsorList).
+// A sponsor to pick for Sponsor spotlight (server.ts sponsorList).
 interface SponsorPick { id: string; name: string; tier: string; tagline: string; website: string; logo: string | null }
-// A player the athlete register knows (athletes.js photoFor).
+// A player the athlete register knows (athletes.ts photoFor).
 type Who = Parameters<AthletesApi['photoFor']>[0];
 // What the Mac app answers when it has saved the pictures (desktop/socials.js).
 interface Saved { error?: string; folder: string | null; files: string[]; zip?: string; zipFile?: string; shared: boolean; skipped: { name: string; reason: string }[] }
@@ -208,7 +207,7 @@ const SHOOTERS_SHOWN = 6;
 const TOURNAMENT_SHOWN = 8; // the tournament top shooters, a division's best so far
 const MAX_OWN_SETS = 12;
 // The template sets: the look of every picture (public/social-templates.css, a class t-<id> on social.html's body),
-// each with its display face (fonts.js TEMPLATE_FONTS) and, for the ones that keep their own ground whatever the
+// each with its display face (fonts.ts TEMPLATE_FONTS) and, for the ones that keep their own ground whatever the
 // colours, which FirstPass Studio mark goes on it: light (the dark-ink one, on a pale ground) or white.
 // A template font's stylesheet; script is a second face some templates use for one word (--sfont).
 function fontCss(font: keyof typeof TEMPLATE_FONTS) { return `vendor/fonts/${TEMPLATE_FONTS[font]}/${TEMPLATE_FONTS[font]}.css`; }
@@ -462,7 +461,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     let nightLadders: NightLadderOut[] | null = null;
     if (want.has('ladders') || want.has('review')) out.ladders = nightLadders = await ladders(dates, date, games);
     if (want.has('review') && nightLadders) out.review = stats.review(games, nightLadders);
-    // The Upcoming pictures worked out from the season (socialstats.js). What the tab needs to list them comes every time
+    // The Upcoming pictures worked out from the season (socialstats.ts). What the tab needs to list them comes every time
     // (cheap, from the fixture): byes, the countdown, the divisions in their finals race, and those starting their season.
     const season = seasonOf(dates);
     const withFinals = [...new Set(season.map(g => g.division).filter(d => d && hasFinals(d)))];
@@ -515,7 +514,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     // Game story and Score worm (the games Studio streamed or followed and kept a story of) and Watch it back.
     const stories = games.filter(g => g.finished && storyFor(g.id)).map(g => g.id);
     out.stories = stories;
-    out.storiesFrom = storySources(stories); // the stories copied from other Studio Macs, or whose gaps they filled (stories.js): [{ studio, via, games }]
+    out.storiesFrom = storySources(stories); // the stories copied from other Studio Macs, or whose gaps they filled (stories.ts): [{ studio, via, games }]
     if (want.has('story')) out.story = storyOf(games.find(g => g.id === q.game));
     out.ofNight = ofTheNight(games.filter(g => stories.includes(g.id)));
     if (want.has('gamestats')) out.gameStats = await gameStats(raw.find((g, i) => games[i].id === q.game && games[i].finished));
@@ -530,7 +529,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     return out;
   }
 
-  // Every game of the season in date and time order, as socialstats.js takes them.
+  // Every game of the season in date and time order, as socialstats.ts takes them.
   function seasonOf(dates: Dates): stats.SeasonResult[] {
     return Object.keys(dates).sort().flatMap(d => dates[d].map(g => {
       const b = brief(g);
@@ -551,7 +550,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       return { division, error: `No ladder from PlayHQ: ${errorMessage(err)}` };
     }
   }
-  // The night's milestones (athletes.js: a first game, or a 50th, 100th...), each with their photo when approved and
+  // The night's milestones (athletes.ts: a first game, or a 50th, 100th...), each with their photo when approved and
   // their team's logo; on a finished game they played it, on one to come their next game would be it.
   async function milestones(games: Brief[]) {
     try {
@@ -577,7 +576,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     }
     return out;
   }
-  // A division's finals (games.js getFinals: the format, the ladder's finals places and every game worked out so far).
+  // A division's finals (games.ts getFinals: the format, the ladder's finals places and every game worked out so far).
   async function finalsDraw(division: string): Promise<FinalsDraw | null> {
     if (!division) return { division, error: 'Pick a division.' };
     try { return await finalsOf(division); } catch (err) {
@@ -662,7 +661,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
   }
 
   // ─── Shooting for the Results pictures (each finished game's line ups, read once and kept) ───────────────────
-  // A finished game with both scores, as socialstats.js takes one (none when it isn't).
+  // A finished game with both scores, as socialstats.ts takes one (none when it isn't).
   const doneOf = (g: Brief): stats.Done[] => g.finished && g.home.score !== null && g.away.score !== null
     ? [{ ...g, home: { name: g.home.name, score: g.home.score }, away: { name: g.away.name, score: g.away.score } }] : [];
   const shooterOf = (p: Shooter) => ({ name: p.name, team: p.team, logo: p.logo, photo: photoFor(p), games: p.games, goals: p.goals, superGoals: p.superGoals,
@@ -767,9 +766,9 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
   }
 
   // ─── Game story, Score worm and Watch it back ────────────────────────────────────────────────────────────
-  // A streamed or followed game's story (board.js keeps its Game stats and Score worm as the game left them), with the result from
+  // A streamed or followed game's story (board.ts keeps its Game stats and Score worm as the game left them), with the result from
   // the fixture and the logos; whether it's sure: the goals were all seen, and the score at the end is the result.
-  // A kept story, as board.js gameStory made it from getStats and getWorm (stories.js keeps it as it came).
+  // A kept story, as board.ts gameStory made it from getStats and getWorm (stories.ts keeps it as it came).
   const toldOf = (id: string) => storyFor(id) as Told | null;
   const isTold = (x: StoryOrNot): x is StoryOut => !x.error;
   function storyOf(g: Brief | undefined): StoryOrNot {

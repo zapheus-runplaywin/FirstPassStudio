@@ -1,9 +1,8 @@
-// FirstPass Studio - just enough .zip for the scene's export and import (scene.js).
+// FirstPass Studio - just enough .zip for the scene's export and import (scene.ts).
 //
 // write() streams a zip of files and buffers, stored as they are (images and videos are already
 // compressed), with ZIP64 for anything past 4 GB. entries() reads a zip's list of files, and
 // open() streams one of them out, stored or deflated, so an archive made by Finder works too.
-
 
 import fs from 'node:fs';
 import zlib from 'node:zlib';

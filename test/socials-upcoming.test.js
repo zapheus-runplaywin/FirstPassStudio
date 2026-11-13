@@ -1,11 +1,11 @@
-// The Socials tab's Upcoming pictures worked out from the season (socialstats.js): Form guide, Round preview, Byes,
+// The Socials tab's Upcoming pictures worked out from the season (socialstats.ts): Form guide, Round preview, Byes,
 // Milestones (also on Results), Finals race, Countdown and Season draw. The browser: Playwright's own, or
 // STUDIO_TEST_CHROMIUM; skipped without one (except in the Tests check).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { startStudio } = require('./support/studio');
 const { createWorld, discoverGame } = require('./support/playhq');
-const stats = require('../socialstats');
+const stats = require('../out/socialstats');
 
 let chromium = null;
 try { ({ chromium } = require('playwright')); } catch { /* not installed */ }

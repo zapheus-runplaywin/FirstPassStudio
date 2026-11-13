@@ -260,6 +260,8 @@ jobs:
         with:
           path: ~/Library/Caches/electron-builder
           key: electron-builder-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.builder }}
+      # The helper and the Mac app compiled from TypeScript into out/ (npm run build), which the app packs.
+      - run: npm run build
       - name: Build, sign and notarise
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}

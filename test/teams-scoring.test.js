@@ -1,5 +1,5 @@
 // /api/teams says whether PlayHQ is scoring the game (scoring: 'not-started', 'live' or
-// 'finished'), and the line ups appear once it is. Runs server.js against a stand-in PlayHQ.
+// 'finished'), and the line ups appear once it is. Runs server.ts against a stand-in PlayHQ.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');

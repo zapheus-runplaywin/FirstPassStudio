@@ -113,9 +113,9 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             plugins/studio-deck/package-lock.json
-      # The end-to-end test starts a real Studio (server.js), which needs Studio's own packages: the
+      # The end-to-end test starts a real Studio (out/server.js), which needs Studio's own packages and its build: the
       # Switcher key's test drives Studio's ATEM connection (atem-connection) against the stand-in switcher.
-      - run: npm ci --omit=dev --ignore-scripts
+      - run: npm ci --ignore-scripts && npm run build
         working-directory: .
       - run: npm ci --ignore-scripts
       # The plugin's shipped packages (@elgato/streamdeck and what it pulls in), as above. A warning rather

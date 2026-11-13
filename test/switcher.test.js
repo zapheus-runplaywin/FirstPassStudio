@@ -1,4 +1,4 @@
-// The ATEM switcher (switcher.js), against a stand-in that speaks the switcher's own protocol
+// The ATEM switcher (switcher.ts), against a stand-in that speaks the switcher's own protocol
 // (test/support/atem.js): finding it on the network, connecting, the Output page's and Stream Deck's
 // cuts, previews and keys, what a smaller switcher doesn't have, and losing it mid-night.
 const test = require('node:test');
@@ -8,7 +8,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { startStudio, wait } = require('./support/studio');
 const { startAtem } = require('./support/atem');
-const { parseBrowse, parseLookup, parseAddress } = require('../switcher');
+const { parseBrowse, parseLookup, parseAddress } = require('../out/switcher');
 
 const connected = (studio, ms = 8000) => studio.until(async () => { const s = await studio.get('/api/switcher'); return s.state === 'connected' && s; }, ms, 100);
 const link = async (studio, p) => studio.request('GET', `/deck/switcher/${p}`);

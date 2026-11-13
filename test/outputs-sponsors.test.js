@@ -1,4 +1,4 @@
-// Sponsor ads and exposure with more than one output (scene.js sponsorAd and showing, outputs.js sponsors): an
+// Sponsor ads and exposure with more than one output (scene.ts sponsorAd and showing, outputs.ts sponsors): an
 // ads step plays on any output, in that output's own ad sources; what's on another output counts for sponsors
 // only with Counts for sponsors ticked; an output's ad sources go with it.
 const test = require('node:test');
@@ -10,11 +10,11 @@ const path = require('node:path');
 
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-outputs-sponsors-'));
 mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
-const competitions = require('../competitions');
-const sponsors = require('../sponsors');
-const exposure = require('../exposure');
-const outputs = require('../outputs');
-const scene = require('../scene');
+const competitions = require('../out/competitions');
+const sponsors = require('../out/sponsors');
+const exposure = require('../out/exposure');
+const outputs = require('../out/outputs');
+const scene = require('../out/scene');
 competitions.init(() => {});
 const comp = competitions.create('Thunder League');
 competitions.setActive(comp);

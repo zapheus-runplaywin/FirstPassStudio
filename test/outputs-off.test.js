@@ -1,6 +1,6 @@
-// An output set to Web links only is off (outputs.js clean): never switched on, by the Output page, a Stream Deck link or an
+// An output set to Web links only is off (outputs.ts clean): never switched on, by the Output page, a Stream Deck link or an
 // older outputs.json; and what's on an output that isn't sending isn't on air in the sponsors' exposure report
-// (scene.js showing, exposure.js), even while another output is.
+// (scene.ts showing, exposure.ts), even while another output is.
 const test = require('node:test');
 const { mock } = require('node:test');
 const assert = require('node:assert/strict');
@@ -12,11 +12,11 @@ process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-o
 // Saved before Web links only counted as off: Output 1 set to Web links only but switched on.
 fs.writeFileSync(path.join(process.env.FIRSTPASS_DATA_DIR, 'outputs.json'), JSON.stringify({ mode: 'off', on: true }));
 mock.timers.enable({ apis: ['setTimeout', 'Date'], now: new Date(2026, 9, 24, 19, 0, 0).getTime() });
-const competitions = require('../competitions');
-const sponsors = require('../sponsors');
-const exposure = require('../exposure');
-const outputs = require('../outputs');
-const scene = require('../scene');
+const competitions = require('../out/competitions');
+const sponsors = require('../out/sponsors');
+const exposure = require('../out/exposure');
+const outputs = require('../out/outputs');
+const scene = require('../out/scene');
 competitions.init(() => {});
 const comp = competitions.create('Thunder League');
 competitions.setActive(comp);

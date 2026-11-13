@@ -1,4 +1,4 @@
-// Scenes and sequences shared by the outputs (scene.js, sequences.js): any output can play any scene or
+// Scenes and sequences shared by the outputs (scene.ts, sequences.ts): any output can play any scene or
 // sequence, each output has its own current scene and its own playing sequence, and a sequence's music plays on every output playing it.
 const test = require('node:test');
 const { mock } = require('node:test');
@@ -9,8 +9,8 @@ const path = require('node:path');
 
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-outputs-scenes-'));
 mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
-const outputs = require('../outputs');
-const scene = require('../scene');
+const outputs = require('../out/outputs');
+const scene = require('../out/scene');
 outputs.init(() => {}, { removed: id => scene.dropOutput(id) });
 scene.init(() => {}, { outputs: { find: outputs.find, summary: outputs.summary } });
 outputs.apply({ add: true });

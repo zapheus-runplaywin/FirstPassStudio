@@ -16,7 +16,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const FILE = path.join(__dirname, 'whatsnew.json');
+// desktop/: this file runs compiled in the app (from out/desktop/), and from desktop/ itself when the workflow makes whatsnew.json.
+const DESKTOP_DIR = path.basename(path.dirname(__dirname)) === 'out' ? path.join(__dirname, '..', '..', 'desktop') : __dirname;
+const FILE = path.join(DESKTOP_DIR, 'whatsnew.json');
 
 const parse = v => { const m = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(String(v || '').trim()); return m ? m.slice(1).map(Number) : null; };
 // Above zero when a is the higher version.

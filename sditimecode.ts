@@ -1,5 +1,5 @@
 // FirstPass Studio - following the timecode coming into a Blackmagic UltraStudio's SDI input, for the 4K replay
-// (replay.js), as hyperdeck.js does over the network.
+// (replay.ts), as hyperdeck.ts does over the network.
 //
 // SDI carries timecode (RP188) with every frame, so any player sending SDI into the UltraStudio gives a running
 // timecode: a HyperDeck's monitor or SDI output, a deck, a switcher's output. The Mac app reads it (native/decklink,
@@ -7,7 +7,6 @@
 // second besides. A timecode moving on a frame at a time is playing; one that stays the same is stopped, and one
 // jumping is scrubbing. Between changes it runs on by the time passed. HDMI carries no timecode, so the HDMI input
 // can't be used for this. Only in the Mac app: the helper on its own has no Blackmagic device to read.
-
 
 import { tcMs } from './hyperdeck';
 import type { Log, ParentPort } from './types';

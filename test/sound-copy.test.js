@@ -1,4 +1,4 @@
-// Sound goes to (outputs.js sound, desktop/soundcopy.js, scene.html?copy=1): where an output's sound plays. The first
+// Sound goes to (outputs.ts sound, desktop/soundcopy.js, scene.html?copy=1): where an output's sound plays. The first
 // destination is the output's own route; a destination that is one of the Mac's sound outputs by name, such as the
 // commentators' mixer, is a sound copy with only the mics ticked for it. The Mac app opens a copy only while its
 // output is on; the copy's window finds the device by name and plays everything there (never on the Mac's own
@@ -36,7 +36,7 @@ test('the first destination is the output\'s own route; a named one is a copy se
   // Saved before Sound goes to was a list: Sound (in the SDI and on the Mac) and Also send the sound to become it.
   fs.writeFileSync(path.join(process.env.FIRSTPASS_DATA_DIR, 'outputs.json'), JSON.stringify({ outputs: [
     { id: 'main', slot: 1, name: 'Output 1', mode: 'decklink', decklinkSound: 'both', copySound: 'PodTrak P8', copyMics: ['abc'] }] }));
-  const outputs = require('../outputs');
+  const outputs = require('../out/outputs');
   const logged = [];
   outputs.init((level, area, text) => logged.push(text));
   outputs.message({ type: 'displays', displays: [{ id: 1, label: 'Built-in', primary: true }, { id: 2, label: 'HDMI' }] });

@@ -77,6 +77,6 @@ test('the debug log: pages write to it, and it can be read', async () => {
 
 test('the data folder gets its version, and the control page\'s settings file', async () => {
   const version = JSON.parse(fs.readFileSync(path.join(studio.dataDir, 'data-version.json'), 'utf8'));
-  assert.equal(version.version, require('../migrations').VERSION);
+  assert.equal(version.version, require('../out/migrations').VERSION);
   assert.ok(fs.existsSync(path.join(studio.dataDir, 'control.json')));
 });

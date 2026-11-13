@@ -1,4 +1,4 @@
-// Sequences: the scene's sources played one after another (sequences.js, through scene.js), with
+// Sequences: the scene's sources played one after another (sequences.ts, through scene.ts), with
 // Next, Pause and Stop, the /deck/sequence links, and saving.
 const test = require('node:test');
 const { mock } = require('node:test');
@@ -9,7 +9,7 @@ const path = require('node:path');
 
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-sequences-'));
 mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
-const scene = require('../scene');
+const scene = require('../out/scene');
 scene.init(() => {});
 
 const ok = a => assert.equal(scene.apply(a), null, JSON.stringify(a));

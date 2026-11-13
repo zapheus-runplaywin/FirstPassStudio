@@ -1,6 +1,6 @@
 // FirstPass Studio - each game's story, and sharing the stories between Studio Macs.
 //
-// The board (board.js) keeps the story of the game on Output 1's scoreboard, and of each of the night's other games it
+// The board (board.ts) keeps the story of the game on Output 1's scoreboard, and of each of the night's other games it
 // follows in the background: its Game stats, Score worm and moments, in game-stories/<game id>.json in the local
 // folder. The Socials tab's Game stats, Game story, Score worm, Moments of the game and "of the night" pictures are
 // drawn from them. A Mac that was off air for part of the night, or had following the other games turned off, lacks
@@ -9,7 +9,7 @@
 //   1. On the same network: every Studio announces itself with Bonjour (macOS's dns-sd, SERVICE) and looks for the
 //      others. Every SYNC_EVERY it asks each one it finds for its finished stories (GET /api/stories, then
 //      GET /api/stories/<game id> for each one it doesn't have or has a worse copy of) and keeps a copy. Asking is
-//      a plain read: nothing on the other Mac changes, so no pairing is needed (access.js lets reads through).
+//      a plain read: nothing on the other Mac changes, so no pairing is needed (access.ts lets reads through).
 //   2. iCloud Drive, for the nights the Macs never saw each other: each finished story is also written to
 //      iCloud Drive/FirstPass Studio/game-stories/ (CLOUD_FOLDER) when iCloud Drive is on, whether or not the settings
 //      are kept there, and every SYNC_EVERY the stories other Macs put there are copied in.
@@ -25,7 +25,7 @@
 // Mac's own story only when it is better than it without counting when it was saved, and this Mac doesn't write its
 // own over a better copy (nor a story it only followed over a better one it streamed: a game it left part way through
 // by hand), so it doesn't matter which way a story arrives first. Where one story has a gap the other saw goal by goal,
-// the two are made into one (combined(), with board.js mergeStories given through useMerge): the better one with that gap
+// the two are made into one (combined(), with board.ts mergeStories given through useMerge): the better one with that gap
 // filled, kept as this Mac's own (filled: the Studios whose stories filled it), so it is shared on and the other Mac takes
 // it too. A Mac whose story has gaps asks for the other's story of the game even when it isn't better, once for each
 // save of it. Only finished stories are shared: the game ended, or the scoreboard moved
@@ -43,11 +43,10 @@
 //   bonjour                      false turns the announcing and looking off (anywhere but a Mac it is off anyway)
 //   firstSync                    ms after start up before the first look (FIRST_SYNC; FIRSTPASS_STORIES_FIRST_SYNC_MS for tests)
 //
-// Routes (server.js hands /api/stories here):
+// Routes (server.ts hands /api/stories here):
 //   GET /api/stories             this Mac's own finished stories of the last SHARE_DAYS: { studio, studioId, stories: [{ gameId, savedAt, gaps, followed }] }
 //   GET /api/stories/<game id>   one of them, as kept (404 when it isn't this Mac's own and finished; ?live=1 gives one
 //                                still being played too, for a Mac that picked the game up part way)
-
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -60,14 +59,14 @@ import type * as Savefile from './savefile';
 import type { Log, Send } from './types';
 
 type Via = 'network' | 'icloud';
-// A game's story as kept (board.js gameStory() makes it): what this module reads of it, the rest kept as it is.
+// A game's story as kept (board.ts gameStory() makes it): what this module reads of it, the rest kept as it is.
 interface Story {
   gameId: string; savedAt: number; followed?: boolean; ended?: boolean; final?: boolean;
   studio?: string; studioId?: string; from?: { studio: string; via: Via }; filled?: string[];
   worm?: { gaps?: unknown[] }; stats?: { gapInHistory?: unknown }; moments?: unknown[]; goalOrder?: unknown;
   [key: string]: unknown;
 }
-// board.js mergeStories: the better story with its gaps filled from the other (how many in filledGaps), or null.
+// board.ts mergeStories: the better story with its gaps filled from the other (how many in filledGaps), or null.
 type Merge = (better: Story, other: Story) => (Partial<Story> & { filledGaps?: number }) | null;
 // What gapsOf() and better() read of a story (a listing's entry stands in for one).
 type Rated = Pick<Story, 'worm' | 'stats' | 'followed'> & { savedAt?: number };
@@ -123,7 +122,7 @@ function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId =
   const done = (s: Story | null) => !!s && !!(s.ended || s.final || Date.now() - s.savedAt > DONE_AFTER);
   const recent = (s: Story) => Date.now() - s.savedAt < SHARE_DAYS * 86400000;
 
-  // Filling gaps (board.js mergeStories, handed over with useMerge): the better of two stories of a game with its gaps
+  // Filling gaps (board.ts mergeStories, handed over with useMerge): the better of two stories of a game with its gaps
   // filled from the other, as this Mac's own (so it is shared on, and the other Mac takes it too: it has fewer gaps),
   // saying whose stories filled it (filled: [studio names]); or null when no gap could be filled.
   let merge: Merge | null = null;
@@ -327,7 +326,7 @@ function create({ log = () => {}, dir, savefile, studio = 'This Mac', studioId =
     return n;
   }
 
-  // A Mac that picked a game up part way (board.js fillFromPeers): the other Studios' stories of it so far, game still
+  // A Mac that picked a game up part way (board.ts fillFromPeers): the other Studios' stories of it so far, game still
   // being played or not, from the Studios the last look found. [story]
   let seenAt: string[] = [];
   async function liveFrom(gameId: string): Promise<Story[]> {

@@ -1,5 +1,5 @@
-// More than one output (outputs.js): up to four, each with its own graphics. Output 1 is the primary
-// (scenes, sequences, the old links); the others show the sources turned on for them (scene.js out), with
+// More than one output (outputs.ts): up to four, each with its own graphics. Output 1 is the primary
+// (scenes, sequences, the old links); the others show the sources turned on for them (scene.ts out), with
 // their sound. An older outputs.json becomes Output 1, and two outputs can't share a way out.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -12,8 +12,8 @@ process.env.FIRSTPASS_DATA_DIR = DIR;
 // An outputs.json from before there could be more than one: one output's settings.
 fs.writeFileSync(path.join(DIR, 'outputs.json'), JSON.stringify({ mode: 'ndi', on: true, ndiSignal: 'alpha', ndiName: 'Studio', ndiFormat: '1080p25', chromaColor: '#0047bb' }));
 
-const outputs = require('../outputs');
-const scene = require('../scene');
+const outputs = require('../out/outputs');
+const scene = require('../out/scene');
 let removed = [];
 outputs.init(() => {}, { removed: id => { removed.push(id); scene.dropOutput(id); } });
 scene.init(() => {}, { outputs: { find: outputs.find, summary: outputs.summary } });

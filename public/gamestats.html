@@ -90,7 +90,7 @@
     if (params.get('title')) document.getElementById('title').textContent = params.get('title');
 
     // Each stat row: home value | label | away value, the better one lit up, with a bar
-    // split between them. To add a stat, add a row here (and its number to getStats in server.js).
+    // split between them. To add a stat, add a row here (and its number to getStats in server.ts).
     //   value(side, d) the number the bar and the highlight use; text(side, d) what is shown (default the value).
     const word = d => (d.periodType === 'halves' ? 'half' : 'quarter');
     const plural = d => (d.periodType === 'halves' ? 'Halves' : 'Quarters');

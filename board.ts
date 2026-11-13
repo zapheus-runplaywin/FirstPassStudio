@@ -3,22 +3,22 @@
 // Scores, the clock and the period, by hand from the control page and the Stream Deck or following
 // PlayHQ's live feed (refreshFromPlayhq, followClock); the goal order the last goals and the score
 // worm are drawn from; super shots; hot streaks and game moments; the game stats card; each streamed game's story
-// (kept by stories.js, for the Socials tab's Game story, Score worm and Moments of the game). Kept in
+// (kept by stories.ts, for the Socials tab's Game story, Score worm and Moments of the game). Kept in
 // scoreboard-state.json so a restart mid-game keeps the score, with the lasting settings (auto
 // select, the court, refresh seconds, the clock following, the ticker speed) also in control.json.
 //
 // create(deps) gives the one board. deps:
 //   log(level, source, message, detail)   the debug log
 //   datadir, savefile                      where the state file lives; atomic writes
-//   stories                                stories.js: where each streamed game's story is kept (keep, read)
+//   stories                                stories.ts: where each streamed game's story is kept (keep, read)
 //   machine                                config.json's machine settings (playhqRefreshSeconds)
-//   config()                               the competition setup in use (CONFIG in server.js)
-//   competitions                           competitions.js (super shots per division)
-//   scene                                  scene.js (publishBoard: the board over the scene socket)
+//   config()                               the competition setup in use (CONFIG in server.ts)
+//   competitions                           competitions.ts (super shots per division)
+//   scene                                  scene.ts (publishBoard: the board over the scene socket)
 //   playhq                                 the PlayHQ client (getLive, liveScore, scoringNotYet, PERIOD_NUMBER, getRoundGames)
 //   control                                control.json: get(), save(), LASTING, exists(), markUnsaved()
-//   logoFor(name), colourFor(name), rules(division), competitionName(), warmTeamLists(why)   from server.js
-//   record                                 recorder.js (record.action: each action, for the game recording)
+//   logoFor(name), colourFor(name), rules(division), competitionName(), warmTeamLists(why)   from server.ts
+//   record                                 recorder.ts (record.action: each action, for the game recording)
 import fs from 'node:fs';
 import path from 'node:path';
 import { isFinished, startOf, localDate } from './playhq';
@@ -77,7 +77,7 @@ interface Board extends GameBoard {
   clock: Clock; periodLabel: string; showClock: boolean; followPlayhqClock: boolean;
   autoSelect: boolean; autoCourt: string; courtFrom: string; courtNight: string; planCourt?: string; playhqRefreshSec: number; followOthers: boolean; tickerSpeed: number; updatedAt: number;
   lastGame?: { id: string; home: Team; away: Team }; handPickedOn?: string;
-  // Automatic game selection (games.js).
+  // Automatic game selection (games.ts).
   autoNote?: string; autoNext?: unknown; autoHold?: string;
 }
 type Trouble = '' | 'not-live' | 'quiet';
@@ -108,7 +108,7 @@ interface GameChoice {
   id: string; roundId?: string | null; division?: string; court?: string; round?: string; date?: string | null; time?: string | null; venue?: string; status?: string | null;
   home: { name: string; score?: number | null }; away: { name: string; score?: number | null }; toBeDecided?: boolean;
 }
-// What board.js needs from the rest of the helper (see the top of this file).
+// What board.ts needs from the rest of the helper (see the top of this file).
 interface Deps {
   log: Log; datadir: typeof Datadir; savefile: typeof Savefile;
   stories?: { keep(story: Story, opts?: { final?: boolean }): void; read(id: string): Story | null; useMerge?(fn: Merge): void; liveFrom?(id: string): Promise<Story[]> };
@@ -169,7 +169,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     const start = b.gameId ? startOf(b) : null;
     return start !== null && !gameStarted(b) ? { kind: 'start', at: start } : null;
   }
-  // Pushes the board to the pages following it (scene.js), once the current change has finished.
+  // Pushes the board to the pages following it (scene.ts), once the current change has finished.
   let boardPushTimer: NodeJS.Immediate | null = null;
   function pushBoard() {
     if (boardPushTimer) return;
@@ -177,15 +177,15 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   }
   // Each game's story, kept once it has goals so the Socials tab's Game story and Score worm pictures can be made after
   // the scoreboard moves on (clearGoals wipes the goal order for the next game): its Game stats, Score worm and every
-  // moment (b.gameMoments) as the game left them, in game-stories/<game id>.json in the local folder (stories.js, which
+  // moment (b.gameMoments) as the game left them, in game-stories/<game id>.json in the local folder (stories.ts, which
   // also shares the finished ones with the other Studio Macs). Written at most every STORY_EVERY while the game is on,
   // and at once when it ends or the scoreboard picks another game (final). The board's game is a streamed story; a game
-  // only followed in the background (see "The night's other games") is marked followed, and stories.js prefers a
+  // only followed in the background (see "The night's other games") is marked followed, and stories.ts prefers a
   // streamed story of the same game from another Mac over it.
   const STORY_EVERY = 15 * 1000;
   const storyAt = new Map<string, number>(); // game id -> when its story was last kept
   // Games with a change not yet in their story (it came within STORY_EVERY of the last save): kept once that's passed
-  // (keepOwedStories, each second from server.js), so the story a late Mac asks for (stories.js liveFrom) isn't left behind.
+  // (keepOwedStories, each second from server.ts), so the story a late Mac asks for (stories.ts liveFrom) isn't left behind.
   const storyOwed = new Map<string, GameBoard>(); // game id -> its board
   function keepOwedStories() { for (const [id, b] of [...storyOwed]) { if (b.gameId === id) keepStory(false, b); else storyOwed.delete(id); } }
   function keepStory(now: boolean, b: GameBoard | undefined = boards['1']) {
@@ -235,7 +235,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
       showClock: true,
       followPlayhqClock: false,  // true = the clock follows the PlayHQ scorer's game clock (while following PlayHQ); matches source when that changes
       autoSelect: true,          // pick the game from the court and the time
-      autoCourt: config().defaultCourt || '', // the court to follow tonight (games.js followPlan sets it each night)
+      autoCourt: config().defaultCourt || '', // the court to follow tonight (games.ts followPlan sets it each night)
       courtFrom: config().defaultCourt ? 'fallback' : '', // where it came from: 'plan', 'fallback' or 'hand'
       courtNight: '',            // "<competition>|<night>" the court was set for
       playhqRefreshSec: DEFAULT_REFRESH_SEC,
@@ -374,7 +374,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
         b.away = { name: game.away.name, score: game.away.score ?? 0 };
         if (b.goalsGameId !== game.id) clearGoals(b, game.id);
         // A game followed in the background: the board carries on from its goals, quarters and clock (takenOver says so,
-        // so games.js switchTo doesn't put it back to Q1 with a full clock).
+        // so games.ts switchTo doesn't put it back to Q1 with a full clock).
         b.takenOver = takeOver(b, game.id) ? game.id : null;
         setImmediate(() => warmTeamLists(a.auto ? 'game picked automatically' : 'game picked'));
         break;
@@ -1063,7 +1063,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // goals there, and works the stats, worm and moments out again from the goal order (a board of its own, on no page,
   // whose moments are played through again without logging). Quarters a filled gap could have covered (from the last
   // goal before it to the reading after it) are worked out from the goals once no gap is left in them; the rest are as
-  // base had them. Answers null when no gap was filled. stories.js does the choosing (see better()) and the keeping.
+  // base had them. Answers null when no gap was filled. stories.ts does the choosing (see better()) and the keeping.
   function goalWalk(goals: Goal[]) { // the score before each entry, and which gap-free stretch it's in
     const score = { home: 0, away: 0 }, at: { home: number; away: number; stretch: number }[] = [];
     let stretch = 0;
@@ -1150,7 +1150,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
 
   // A game this Mac picked up part way (turned on late, or its internet dropped), on the scoreboard or followed in the
   // background: while its goal order has a gap, every PEER_FILL_EVERY it asks the other Studio Macs for their story of the
-  // game so far (stories.js liveFrom) and fills the gap from it (mergeStories) there and then, so the worm, runs,
+  // game so far (stories.ts liveFrom) and fills the gap from it (mergeStories) there and then, so the worm, runs,
   // streaks and Commentator stats have the whole game while it's still on, and it carries on by itself from there. The
   // moments already played aren't played again (the streaks fired come with the goals). Another Mac's story is kept at
   // most every STORY_EVERY, so a gap only just made waits for its next save.
@@ -1185,7 +1185,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     pushBoard();
     return true;
   }
-  // Each second (server.js): the scoreboard's game and every followed one.
+  // Each second (server.ts): the scoreboard's game and every followed one.
   function fillGapsFromPeers() {
     for (const b of [board(), ...Object.values(followed)]) fillFromPeers(b).catch((err: unknown) => log('warn', 'goals', `Filling a gap from another Studio failed: ${errorMessage(err)}`));
   }
@@ -1243,7 +1243,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     saveFollowed();
     log('info', 'follow', `${b.home.name} v ${b.away.name} goes on being followed in the background at ${b.home.score}-${b.away.score}`);
   }
-  // The night's games (games.js, every so often): the ones not on the scoreboard and not finished are followed. Games no
+  // The night's games (games.ts, every so often): the ones not on the scoreboard and not finished are followed. Games no
   // longer on the night (another night picked, the setting off) are let go, their stories kept.
   function followGames(games: GameChoice[] | null | undefined) {
     const want = new Map<string, GameChoice>();
@@ -1304,7 +1304,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     keepStory(!!f.done, f); // at most every STORY_EVERY, as the board's is
     if (goalsChanged || f.done) { saveFollowed(); pushBoard(); } // Scoreboard control lists where it's up to
   }
-  // Each second (server.js): every followed game due a reading. Each is read through the live feed's cache, so PlayHQ is
+  // Each second (server.ts): every followed game due a reading. Each is read through the live feed's cache, so PlayHQ is
   // asked once per playhqRefreshSec per game, and a game still being read is left alone.
   const reading = new Set<string>();
   function refreshFollowed() {
@@ -1314,7 +1314,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
       readFollowed(f).catch((err: unknown) => log('error', 'follow', `Following ${f.home.name} v ${f.away.name} failed: ${errorMessage(err)}`)).finally(() => reading.delete(f.gameId));
     }
   }
-  // What Scoreboard control lists under the switch: each followed game and where it's up to (recorder.js records them from it).
+  // What Scoreboard control lists under the switch: each followed game and where it's up to (recorder.ts records them from it).
   function followedGames() {
     return Object.values(followed).map(f => ({ gameId: f.gameId, home: f.home.name, away: f.away.name, court: f.court, date: f.date, time: f.time, division: f.division, round: f.round,
       score: { home: Number(f.home.score) || 0, away: Number(f.away.score) || 0 }, period: f.period, done: !!f.done, waiting: !!(f.wait && f.wait.n),
@@ -1351,11 +1351,11 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     return m ? Number(m[1]) * 60 + Number(m[2] || 0) : null;
   }
 
-  // The quarter length from the competition setup, applied by server.js when the setup changes.
+  // The quarter length from the competition setup, applied by server.ts when the setup changes.
   const quarterSec = () => QUARTER_SEC;
   const setQuarterSec = (n: number) => { QUARTER_SEC = n; };
 
-  // A copy of the scoreboard, and putting one back (practice.js: a practice game leaves it as it was).
+  // A copy of the scoreboard, and putting one back (practice.ts: a practice game leaves it as it was).
   const snapshot = (): Board => JSON.parse(JSON.stringify(board()));
   function restore(s: Board | null | undefined) {
     if (!s) return;

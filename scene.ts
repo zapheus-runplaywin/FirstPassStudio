@@ -13,12 +13,12 @@
 // a source changed by hand afterwards is changed everywhere, and changed lists the ones that
 // differ from the current scene's saved state.
 //
-// With more than one output (outputs.js), each source also has an on and off for each output besides the
+// With more than one output (outputs.ts), each source also has an on and off for each output besides the
 // primary (out: { <output id>: true }), and scene.html?output=<id> draws that output's sources. Scenes and
 // sequences are shared by every output: going to a scene (a.output, the primary unless set) sets its
 // sources on that output, and each output has its own current scene (current for the primary, currentOut
 // for the others) and its own playing sequence. Sponsor ads stay with the primary. Each output plays the sound of
-// the sources on it; the music and the mics are the primary's alone (music.js, mics.js). /deck/output/<output>/layer/<name>/on|off|toggle|restart,
+// the sources on it; the music and the mics are the primary's alone (music.ts, mics.ts). /deck/output/<output>/layer/<name>/on|off|toggle|restart,
 // /deck/output/<output>/layers/off, /deck/output/<output>/scene/<name>|next|prev|again and
 // /deck/output/<output>/sequence/... act on one output; the links above act on the primary.
 //
@@ -26,7 +26,6 @@
 // Chromium can't play ProRes, so a .mov added to the media folder is converted to a WebM
 // beside it (VP9, keeping transparency) with the ffmpeg the app bundles; the original is kept. Nothing here
 // changes the other pages: each still works on its own at its own link.
-
 
 import { APP_DIR, VERSION } from './appdir';
 import crypto from 'node:crypto';
@@ -67,9 +66,9 @@ interface Source {
 }
 interface Scene { id: string; name: string; colour: string; states: Record<string, string>; quiet: boolean; switcher?: SwitcherAction[] }
 interface SceneData { sources: Source[]; scenes: Scene[]; current: string | null; currentOut: Record<string, string> }
-// The outputs as the scene asks them (outputs.js find and summary).
+// The outputs as the scene asks them (outputs.ts find and summary).
 interface OutputsApi { find(ref: unknown): { id: string } | null; summary?(): ReturnType<typeof Outputs.summary> }
-// recorder.js, for the game recording.
+// recorder.ts, for the game recording.
 interface RecordApi { board(json: unknown): void; scene(state: unknown, json: string): void }
 // What a Stream Deck link gives (deck()).
 type DeckOut = { status: number; body: unknown } | null;
@@ -118,7 +117,7 @@ function adSource(kind: AdKind, file: string | null, out: string | null = null):
   }
   return src;
 }
-// Which sponsor's ad each Sponsor ad source has in it, for the exposure report (exposure.js).
+// Which sponsor's ad each Sponsor ad source has in it, for the exposure report (exposure.ts).
 const adSponsor = new Map<string, string>();
 // Whether what's on an output counts in the sponsors' exposure report: always the primary's; another output's
 // only with Counts for sponsors ticked (Studio can't tell whether it's on the stream: a camera's keyer, a
@@ -157,7 +156,7 @@ function sponsorAd(opts: { house?: boolean } = {}, out: string | null = null): A
 }
 
 let log: Log = () => {};
-// The outputs (outputs.js), to find one by its name or number in a Stream Deck link. Without them, only
+// The outputs (outputs.ts), to find one by its name or number in a Stream Deck link. Without them, only
 // the primary output.
 const PRIMARY = 'main';
 let outputsApi: OutputsApi = { find: ref => (ref === PRIMARY || ref === '1' ? { id: PRIMARY } : null) };
@@ -178,7 +177,7 @@ function setOn(s: Source, on: boolean, out: string | null) {
   if (s.soundOut) { delete s.soundOut[out || PRIMARY]; if (!Object.keys(s.soundOut).length) delete s.soundOut; }
 }
 // A video's sound fading out on an output (out, or the primary) over sec, as the next step's music starts under the
-// end of it (sequences.js planCross): soundOut { [output]: { at, ms, showSeq } } on the source, for that showing.
+// end of it (sequences.ts planCross): soundOut { [output]: { at, ms, showSeq } } on the source, for that showing.
 function fadeSound(id: string, out: string | null, sec: number) {
   const s = scene.sources.find(x => x.id === id);
   if (!s || s.type !== 'video') return;
@@ -207,11 +206,11 @@ let rev = 0;
 const listeners = new Set<ServerResponse>(); // server-sent events (/api/scene/events): the Stream Deck plugin
 const sockets = new Set<Duplex>();   // WebSockets (/api/scene/socket): Studio's own pages
 // The scoreboard over the same socket, for the pages that asked for it ({"subscribe":"board"}): the
-// scoreboard, the control page, the goals and the countdown follow it instead of polling. server.js
+// scoreboard, the control page, the goals and the countdown follow it instead of polling. server.ts
 // gives boardSource (the scoreboard's JSON) and calls publishBoard when the board may have changed.
 const boardSockets = new Set<Duplex>();
 let boardSource: (() => Body) | null = null;
-// The switcher (switcher.js) the same way, for the pages that asked ({"subscribe":"switcher"}): the Output page.
+// The switcher (switcher.ts) the same way, for the pages that asked ({"subscribe":"switcher"}): the Output page.
 const switcherSockets = new Set<Duplex>();
 let switcherSource: (() => unknown) | null = null;
 function switcherFrame(json: unknown) { return wsFrame(1, Buffer.from(JSON.stringify({ type: 'switcher', switcher: json }))); }
@@ -222,7 +221,7 @@ function publishSwitcher() {
   for (const s of switcherSockets) s.write(frame);
 }
 let lastBoardKey = '';
-// recorder.js, for the game recording: the scene and the board as they're sent (init's record).
+// recorder.ts, for the game recording: the scene and the board as they're sent (init's record).
 let recordApi: RecordApi | null = null;
 function boardFrame(json: unknown) { return wsFrame(1, Buffer.from(JSON.stringify({ type: 'board', board: json }))); }
 function setBoardSource(fn: () => Body) { boardSource = fn; }
@@ -338,7 +337,7 @@ function cleanScene(given: unknown, existing: Partial<Scene> = {}): Scene {
     states,
     quiet: !!s.quiet,  // Ducks the music when this scene is picked (an interview on court); the key keeps its old name
   };
-  // Switcher actions (switcher.js) done as the scene is picked on the primary.
+  // Switcher actions (switcher.ts) done as the scene is picked on the primary.
   const sw = switcher.cleanActions(s.switcher);
   if (sw.length) out.switcher = sw;
   out.name = uniqueSceneName(s.name, out.id);
@@ -389,7 +388,7 @@ function goTo(sc: Scene, fromSequence: boolean, step: boolean, out: string | nul
   log('info', 'scene', `Went to scene "${sc.name}"${out ? ` on ${outputName(out)}` : ''}: ${on} on, ${off} off`);
   // The music is the primary's, and so is the switcher: its actions fire only for the primary, and any
   // still to come from the scene before are called off. A sequence's scene step's belong to the sequence
-  // (sequences.js calls them off as it moves on or stops).
+  // (sequences.ts calls them off as it moves on or stops).
   if (!out && (!step || sc.quiet)) music.quiet(sc.quiet);
   if (!out) switcher.run(sc.switcher, `Scene "${sc.name}"`, fromSequence && step ? 'sequenceScene' : 'scene');
 }
@@ -440,7 +439,7 @@ function broadcast(json: string) {
   for (const s of sockets) s.write(frame);
 }
 
-// A 4K replay (replay.js) puts a recorded scene and board on the pages instead of the live ones: replay(state)
+// A 4K replay (replay.ts) puts a recorded scene and board on the pages instead of the live ones: replay(state)
 // sends one, replay(null) the live scene again; replayBoard(json) and replayBoard(null) the same for the board.
 // The live scene goes on changing underneath (saved as ever), just not shown while a replay runs.
 let replayState: unknown = null, replayBoardJson: unknown = null;
@@ -470,7 +469,7 @@ function wsFrame(opcode: number, payload: Buffer) {
   return Buffer.concat([head, payload]);
 }
 
-// The most a page's frame may hold (scene.js upgrade()).
+// The most a page's frame may hold (scene.ts upgrade()).
 const WS_MAX_IN = 64 * 1024;
 
 // The http server's 'upgrade' event for /api/scene/socket: true when taken.
@@ -520,7 +519,7 @@ function upgrade(req: IncomingMessage, socket: Duplex & { setNoDelay?(on: boolea
 }
 
 function state() {
-  // The mics dip under the music and a video's sound (mics.js): brought up to date whenever the scene is read.
+  // The mics dip under the music and a video's sound (mics.ts): brought up to date whenever the scene is read.
   mics.follow(music.state().music, videoOn());
   // The other outputs' current scenes and changes by output id.
   const currentOut: Record<string, string> = {}, changedOut: Record<string, string[]> = {};
@@ -548,7 +547,7 @@ function apply(given: unknown): string | null {
   noteShowings();
   return error;
 }
-// A change Studio makes by itself (the Production Planner loading a game's run order, server.js): made, saved and
+// A change Studio makes by itself (the Production Planner loading a game's run order, server.ts): made, saved and
 // sent to the pages like one from the Output page. Returns the error, or null.
 function act(a: Act) {
   const error = apply(a);
@@ -560,7 +559,7 @@ function act(a: Act) {
 const playsTheme = (s: Source) => s.type === 'browser' && /[?&]theme=[^&]/.test(String(s.url || ''));
 // A stinger with ?music=quiet or duck ducks the music as it comes on, by the time it covers the frame (0.22 of its length);
 // duck (dip, its old name, still works) brings it back up when it goes off. It's set on the Switcher card (Music under it)
-// or in the source's options, and goes by the output the stinger plays on (switcher.js stingerOutput: the one on a
+// or in the source's options, and goes by the output the stinger plays on (switcher.ts stingerOutput: the one on a
 // downstream key, Output 1 unless another that's on is), so it works on a night Output 1 is off.
 const isStinger = (s: Source) => s.type === 'browser' && /^\/?stinger\.html(\?|$)/.test(String(s.url || ''));
 function stingerMusic(s: Source, on: boolean) {
@@ -615,7 +614,7 @@ function notePlays() {
   }
 }
 
-// For switcher.js's stinger cuts: the scene's stinger (a stinger.html source; ref is its id or name, else the
+// For switcher.ts's stinger cuts: the scene's stinger (a stinger.html source; ref is its id or name, else the
 // first), and playing it from the top on an output (the primary unless output names another; reloaded if it's on there already).
 function stingerSource(ref?: unknown) {
   const list = scene.sources.filter(isStinger);
@@ -664,14 +663,14 @@ function changeOnOutput(a: Act, src: Source, out: string) {
 const outputName = (id: string) => outputsApi.summary?.().find(o => o.id === id)?.name || 'another output';
 // An output was removed: nothing is on for it any more.
 function dropOutput(id: string) {
-  let any = false;
+  let dropped = false;
   sequences.dropOutput(id);
-  for (const s of scene.sources) if (s.out[id]) { delete s.out[id]; delete s.outSeq[id]; any = true; }
-  if (scene.currentOut[id]) { delete scene.currentOut[id]; any = true; }
+  for (const s of scene.sources) if (s.out[id]) { delete s.out[id]; delete s.outSeq[id]; dropped = true; }
+  if (scene.currentOut[id]) { delete scene.currentOut[id]; dropped = true; }
   endedOut.delete(id);
   // Its own ad sources go with it.
-  for (const kind of Object.keys(AD_SOURCES) as AdKind[]) if (find(adSourceId(kind, id))) { change({ type: 'remove', id: adSourceId(kind, id) }); any = true; }
-  if (any) { noteShowings(); save(); }
+  for (const kind of Object.keys(AD_SOURCES) as AdKind[]) if (find(adSourceId(kind, id))) { change({ type: 'remove', id: adSourceId(kind, id) }); dropped = true; }
+  if (dropped) { noteShowings(); save(); }
 }
 function change(a: Act): string | null {
   const found = a.id || a.name ? find(a.id || a.name) : null;
@@ -1041,7 +1040,7 @@ function mediaList(): Media[] {
 // Where a media file is used: sources showing it, pages playing it as their ?theme=, the sequences (of every
 // competition) whose music it is, the music player's playlists, super shot song and queue, and sponsors' ads.
 // onAir marks a use that's on screen or playing now, which stops it being removed.
-// A sequence names its track by file, or as a link spells it (music.js findTrack), which a file of that exact name wins.
+// A sequence names its track by file, or as a link spells it (music.ts findTrack), which a file of that exact name wins.
 const sameTrack = (ref: string, file: string) => ref === file || (!fs.existsSync(path.join(MEDIA_DIR, cleanFile(ref))) && slug(String(ref).replace(/\.[^.]+$/, '')) === slug(file.replace(/\.[^.]+$/, '')));
 function sequenceFiles() {
   const files = new Map<string | null, string | null>([[sequences.file(), null], [datadir.file('sequences.json'), null]]);
@@ -1361,7 +1360,7 @@ async function route(req: IncomingMessage, res: ServerResponse, url: URL, { send
     save();
     return send(res, 200, state()), true;
   }
-  // The mics (mics.js): the output window mixing them says what it hears, the Output page in the Mac app lists the
+  // The mics (mics.ts): the output window mixing them says what it hears, the Output page in the Mac app lists the
   // Mac's audio inputs, and the Output page asks for both every half second while its Mics section is open.
   if (p === '/api/scene/mics/report' && req.method === 'POST') return mics.report(await readBody(req)), send(res, 200, { ok: true }), true;
   if (p === '/api/scene/mics/devices' && req.method === 'POST') return mics.devicesListed((await readBody(req)).devices), send(res, 200, mics.live()), true;
@@ -1465,7 +1464,7 @@ async function route(req: IncomingMessage, res: ServerResponse, url: URL, { send
   return false;
 }
 
-// outputs: outputs.js's find and summary, for the outputs besides the primary.
+// outputs: outputs.ts's find and summary, for the outputs besides the primary.
 interface Hooks { ffmpeg?: string; sequencesFile?(): string | null; outputs?: OutputsApi; record?: RecordApi }
 function init(logger: Log | null, { ffmpeg, sequencesFile, outputs, record }: Hooks = {}) {
   log = logger || log;
@@ -1500,12 +1499,12 @@ function init(logger: Log | null, { ffmpeg, sequencesFile, outputs, record }: Ho
 // The competition in use changed (or its setup was saved): load its sequences if it's another one.
 function competitionChanged() { if (sequences.reload()) notify(); }
 
-// The scoreboard, each second, for the sequences' game triggers (sequences.js game()) and the super shot song.
+// The scoreboard, each second, for the sequences' game triggers (sequences.ts game()) and the super shot song.
 function game(snapshot: (GameReading & { superShot: boolean }) | null) {
   sequences.game(snapshot);
   if (music.superShotPeriod(snapshot)) notify();
 }
-// A practice game with Run game-timed sequences again: the game's moments fire again from now (sequences.js rearm()).
+// A practice game with Run game-timed sequences again: the game's moments fire again from now (sequences.ts rearm()).
 function rearmGame() { sequences.rearm(); notify(); }
 
 // The media folder's images, as files: [{ name, file }].

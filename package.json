@@ -18,6 +18,7 @@
     "release": "npm run build && electron-builder --mac --publish always",
     "build": "tsc -p .",
     "watch": "tsc -p . --watch",
+    "examples": "npm run build && node out/examples.js",
     "pretest": "npm run build",
     "pretest:ci": "npm run build"
   },

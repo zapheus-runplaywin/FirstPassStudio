@@ -2,7 +2,7 @@
 // only when its signature verifies and its Developer ID is Vizrt's or NewTek's.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const signed = require('../desktop/signed');
+const signed = require('../out/desktop/signed');
 
 const VIZRT = `Executable=/Applications/NDI Tools/NDI Video Monitor.app/Contents/Frameworks/libndi.dylib
 Identifier=libndi

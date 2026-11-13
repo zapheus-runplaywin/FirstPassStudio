@@ -1,7 +1,7 @@
-// FirstPass Studio - a certificate from Let's Encrypt, for the secure phone link (securelink.js).
+// FirstPass Studio - a certificate from Let's Encrypt, for the secure phone link (securelink.ts).
 //
 // ACME (RFC 8555) with the DNS-01 challenge: Studio proves it owns <name>.studio.firstpass.pivt.au by putting a TXT
-// record in the zone (route53.js), so nothing on the internet has to reach the Mac, which sits on a venue network with
+// record in the zone (route53.ts), so nothing on the internet has to reach the Mac, which sits on a venue network with
 // a private address. It needs nothing but Node's crypto: P-256 keys, ES256-signed requests, and a certificate signing
 // request built here (csr()), since Node can read certificates but not write a request for one.
 //
@@ -10,7 +10,6 @@
 // account is { key (PEM), url } from an earlier run, or null to make a new account (no email: Let's Encrypt allows
 // that). The answer has the new account too, to save for next time. SECURELINK_ACME_DIRECTORY points it at a stand-in
 // for the tests (Let's Encrypt's own staging server works too).
-
 
 import crypto from 'node:crypto';
 import { errorMessage, fetchFailure } from './errors';

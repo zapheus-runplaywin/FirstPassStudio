@@ -167,7 +167,7 @@
     setInterval(() => { if (!document.hidden && health) render(); }, 1000);
   }
 
-  // While a practice game or a 4K replay runs (practice.js, replay.js), a red strip under the bar on every Studio page
+  // While a practice game or a 4K replay runs (practice.ts, replay.ts), a red strip under the bar on every Studio page
   // says so, with Stop. One read of /api/playback (both at once) every 3 s while the page is in view; styled by
   // studio.css (.fp-practice).
   const strip = document.createElement('div');

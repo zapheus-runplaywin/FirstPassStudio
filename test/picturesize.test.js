@@ -1,11 +1,11 @@
-// What looks soft in 4K (picturesize.js): the size of a PNG, JPEG, WebP or GIF from its header, logos under 1024
+// What looks soft in 4K (picturesize.ts): the size of a PNG, JPEG, WebP or GIF from its header, logos under 1024
 // pixels and videos under 2160 pixels tall listed, SVG never; and the Output page gets the list only in 4K.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const picturesize = require('../picturesize');
+const picturesize = require('../out/picturesize');
 
 const DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-picturesize-'));
 test.after(() => fs.rmSync(DIR, { recursive: true, force: true }));
@@ -52,7 +52,7 @@ test('logos under 1024 pixels and videos under 2160 pixels tall are soft, SVG ne
 
 test('the Output page gets the list only in 4K', () => {
   process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-picturesize-out-'));
-  const outputs = require('../outputs');
+  const outputs = require('../out/outputs');
   outputs.init(() => {}, { soft: () => [{ what: 'logo', name: 'Blizzardz.png', width: 512, height: 512 }] });
   assert.deepEqual(outputs.state().soft, []);
   outputs.apply({ quality: 'uhd' });

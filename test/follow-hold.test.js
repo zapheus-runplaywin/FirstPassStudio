@@ -1,4 +1,4 @@
-// Back to Follow PlayHQ from a score kept by hand (board.js holdHandScore): with the scorebench off line, the operator
+// Back to Follow PlayHQ from a score kept by hand (board.ts holdHandScore): with the scorebench off line, the operator
 // scores by hand, then presses Follow PlayHQ. While PlayHQ is behind and its feed hasn't changed, the board keeps the
 // hand score (and its goals); once PlayHQ catches up, or has anything new, the board follows it.
 'use strict';

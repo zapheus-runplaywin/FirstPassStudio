@@ -1,4 +1,4 @@
-// FirstPass Studio - following a Blackmagic HyperDeck's timecode over the network, for the 4K replay (replay.js).
+// FirstPass Studio - following a Blackmagic HyperDeck's timecode over the network, for the 4K replay (replay.ts).
 //
 // A HyperDeck reports where it is through its Ethernet control protocol (text over TCP port 9993). Studio asks it to
 // say when its transport changes (notify: transport: true) and asks for its transport info a few times a second as
@@ -9,7 +9,6 @@
 // Studio only reads: it sends nothing that changes the HyperDeck (no play, stop or record), so its own buttons and
 // anything else controlling it carry on as before. It connects only while a replay follows it, and keeps trying
 // again while the HyperDeck isn't answering.
-
 
 import net from 'node:net';
 import type { Log } from './types';

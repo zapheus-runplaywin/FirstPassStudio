@@ -1,4 +1,4 @@
-// Scenes: saved on/off looks for the one shared list of sources (scene.js), the /deck/scene links,
+// Scenes: saved on/off looks for the one shared list of sources (scene.ts), the /deck/scene links,
 // and export and import keeping them.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-scenes-'));
-const scene = require('../scene');
+const scene = require('../out/scene');
 scene.init(() => {});
 
 const ok = a => assert.equal(scene.apply(a), null, JSON.stringify(a));

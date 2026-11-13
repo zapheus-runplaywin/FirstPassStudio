@@ -1,4 +1,4 @@
-// Runs server.js for a test, in a data folder of its own, against the stand-in PlayHQ
+// Runs server.ts for a test, in a data folder of its own, against the stand-in PlayHQ
 // (test/support/playhq.js), in a time zone where it's about midday.
 //   const studio = await startStudio(t);            // empty data folder, no competition
 //   const studio = await startStudio(t, { competition: 'Thunder League' });  // imported from templates/
@@ -15,7 +15,7 @@ const { spawn } = require('node:child_process');
 const { startPlayhq, createWorld, localZone } = require('./playhq');
 
 const ROOT = path.join(__dirname, '..', '..');
-const SERVER = path.join(ROOT, 'server.js');
+const SERVER = path.join(ROOT, 'out', 'server.js');
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -27,8 +27,8 @@ function freePort() {
 
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
-// Runs server.js with env on a free port until it says it is running. The free port is found by
-// opening and closing a socket, so another process can take it before server.js does (seen on the
+// Runs server.ts with env on a free port until it says it is running. The free port is found by
+// opening and closing a socket, so another process can take it before server.ts does (seen on the
 // Mac runner, where test files run side by side): then it is tried again on another port.
 // Gives { child, port, output, exit (a promise of the exit code), exited() }.
 async function runServer(env, tries = 3) {
@@ -47,9 +47,9 @@ async function runServer(env, tries = 3) {
     });
     if (running) return { child, port, output, exit, exited: () => exited };
     if (exited === null) { child.kill(); await exit; }
-    // server.js exits 3 when its port is taken (EXIT_PORT_IN_USE), saying so in words rather than EADDRINUSE.
+    // server.ts exits 3 when its port is taken (EXIT_PORT_IN_USE), saying so in words rather than EADDRINUSE.
     if (attempt < tries && exited === 3) continue;
-    throw new Error(exited === null ? `server.js didn't start:\n${output.join('')}` : `server.js exited (${exited}):\n${output.join('')}`);
+    throw new Error(exited === null ? `server.ts didn't start:\n${output.join('')}` : `server.ts exited (${exited}):\n${output.join('')}`);
   }
 }
 

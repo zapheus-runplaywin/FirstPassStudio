@@ -7,11 +7,11 @@
 // name as well (port 8443, config.json "securePort"), with the same pages and the same rules as on http.
 //
 // It's off until it's set up on the Devices tab: the Route 53 hosted zone ID and an access key that may change only
-// that zone (made once for PIVT, shared by every Studio Mac; route53.js). Studio then
+// that zone (made once for PIVT, shared by every Studio Mac; route53.ts). Studio then
 //   0. reads the zone's name from Route 53 (studio.firstpass.pivt.au), so the name is never built in here,
 //   1. picks a random name for this Mac, once (k3f9x2), so two Macs at a two-court night each have their own,
 //   2. points <name>.<zone> at this Mac's address on the network (an A record), and again whenever the address changes,
-//   3. gets a certificate for the name from Let's Encrypt (acme.js, by a TXT record in the zone), and a new one when it
+//   3. gets a certificate for the name from Let's Encrypt (acme.ts, by a TXT record in the zone), and a new one when it
 //      has under 30 days left (they last 90),
 //   4. answers on https with it. At the next launch a certificate still good is served at once, before any of the above.
 // Each step that fails says why in the Devices tab's Secure phone link card and tries again later. The graphics,
@@ -24,7 +24,6 @@
 // Saved as securelink.json in the local data folder (never in iCloud or a backup): the settings, the zone's name, the Mac's name, the Let's
 // Encrypt account and the certificate. The access key's secret goes in the Mac's Keychain when Studio runs in the app
 // (in the file otherwise: npm start, the tests).
-
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -226,7 +225,7 @@ function run(): Promise<void> {
   return running;
 }
 
-// Reads securelink.json and starts, if it's on. opts: { log, port, handler, upgrade } (server.js's request handlers).
+// Reads securelink.json and starts, if it's on. opts: { log, port, handler, upgrade } (server.ts's request handlers).
 function start(opts: { log?: Log; port?: number | string; handler?: RequestListener; upgrade?: Upgrade } = {}): void {
   if (opts.log) log = opts.log;
   if (opts.port) port = Number(opts.port);

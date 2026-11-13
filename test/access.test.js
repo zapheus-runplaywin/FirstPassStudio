@@ -1,4 +1,4 @@
-// Who on the network may change things (access.js, server.js): reading is always open, changes
+// Who on the network may change things (access.ts, server.ts): reading is always open, changes
 // from other devices are refused with a plain message when config.json remoteChanges is false,
 // the computer's own addresses always count as local, and Studio sends no CORS header.
 const test = require('node:test');
@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const access = require('../access');
+const access = require('../out/access');
 const { startStudio } = require('./support/studio');
 
 test('changes: anything but GET and HEAD, and the Stream Deck links', () => {

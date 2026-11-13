@@ -1,4 +1,4 @@
-// The game recordings (recorder.js): each PlayHQ game on air is one file in Recordings/, from when it's due on the
+// The game recordings (recorder.ts): each PlayHQ game on air is one file in Recordings/, from when it's due on the
 // scoreboard to a set time after full time, with what PlayHQ said, each scoreboard action, and what went to air (the
 // scene, the board, a graphic's reads), only when it changed, starting with the last of each already known; never a
 // Studio page's reads or a private answer. Lines are written as gzip members of their own, so the file reads up to
@@ -28,7 +28,7 @@ test('the recorder keeps only changes, starts with what it already knows, and ti
     const longAgo = new Date(Date.now() - 61 * 86400000);
     fs.utimesSync(old, longAgo, longAgo);
 
-    const recorder = require('../recorder');
+    const recorder = require('../out/recorder');
     recorder.init(() => {}, { dir: recordings, settings: path.join(dir, 'recordings.json'), start: { version: '9.9.9', competition: 'thunder' } });
     const names = fs.readdirSync(recordings).sort();
     assert.deepEqual(names, ['2026-10-01 1900.jsonl.gz'], 'the set-up-only and the old one are gone, and none is started with no game');
@@ -85,7 +85,7 @@ test('the recorder keeps only changes, starts with what it already knows, and ti
 
 test('a recording follows its game: due before the start, stopped after full time or by the next game', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-recorder-'));
-  const recorder = require('../recorder');
+  const recorder = require('../out/recorder');
   try {
     const recordings = path.join(dir, 'Recordings');
     const settings = path.join(dir, 'recordings.json');
@@ -184,7 +184,7 @@ test('a PlayHQ game on air is recorded, a graphic\'s reads but not a Studio page
 
 test('each game followed in the background gets a recording of its own: what PlayHQ said, from its first reading to after full time', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-recorder-'));
-  const recorder = require('../recorder');
+  const recorder = require('../out/recorder');
   try {
     const recordings = path.join(dir, 'Recordings');
     recorder.init(() => {}, { dir: recordings, settings: path.join(dir, 'recordings.json'), start: { version: '9.9.9', competition: 'thunder' } });

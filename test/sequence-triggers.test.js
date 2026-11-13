@@ -1,4 +1,4 @@
-// Sequences that start by themselves from the game (sequences.js game(), through scene.js): before the
+// Sequences that start by themselves from the game (sequences.ts game(), through scene.ts): before the
 // start, at the breaks and full time, the pending start with Start now / Cancel, "until the game
 // moves on", "repeat until", and the Automatic sequences switch.
 const test = require('node:test');
@@ -10,7 +10,7 @@ const path = require('node:path');
 
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-triggers-'));
 mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
-const scene = require('../scene');
+const scene = require('../out/scene');
 scene.init(() => {});
 
 const ok = a => assert.equal(scene.apply(a), null, JSON.stringify(a));
@@ -22,7 +22,7 @@ const step = (names, length = { type: 'time', sec: 20 }) => ({ sources: names.ma
 const link = p => scene.deck(p.split('/'));
 const playingName = () => st().playing && st().sequences.find(s => s.id === st().playing.id).name;
 
-// The game, as server.js sends it each second. tick() moves time on a second at a time, sending it each time.
+// The game, as server.ts sends it each second. tick() moves time on a second at a time, sending it each time.
 let g;
 let gameNo = 0;
 function newGame(changes = {}) {
@@ -250,7 +250,7 @@ test('with no game picked, the manual clock drives the breaks, and putting the q
   assert.equal(playingName(), 'Quarter break');
 });
 
-// A practice game with Run game-timed sequences again (practice.js, scene.rearmGame()): each start and jump forgets the
+// A practice game with Run game-timed sequences again (practice.ts, scene.rearmGame()): each start and jump forgets the
 // game's moments, so the same game's pre-game sequence fires again; one due before the practice's start is skipped.
 test('a practice game run again fires the same game\'s pre-game sequence again, and skips one already due', () => {
   reset();

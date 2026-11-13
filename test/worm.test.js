@@ -1,5 +1,5 @@
 // The score worm for worm.html: the margin over game time from the goal order, with a gap
-// where Studio didn't see the goals. Runs server.js and presses the scores like the control page.
+// where Studio didn't see the goals. Runs server.ts and presses the scores like the control page.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

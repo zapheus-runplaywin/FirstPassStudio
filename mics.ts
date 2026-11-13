@@ -29,18 +29,17 @@
 // A mic can be plugged into the ATEM switcher instead (on: 'atem'): one of its mic or line inputs (input, as the
 // switcher numbers them: 1301 for an ATEM Mini's Mic 1), both its channels or, when the input is split into two mono
 // channels in ATEM Software Control, the left or the right one. The switcher mixes it; Studio moves its fader to the
-// same level, mute and dips (fading them in steps), through switcher.js. Studio never fights the operator: a fader
+// same level, mute and dips (fading them in steps), through switcher.ts. Studio never fights the operator: a fader
 // moved on the switcher or in ATEM Software Control becomes that mic's level, and on connecting Studio sends nothing,
 // it takes the fader as it finds it. Everything else on the input (On, Off or AFV, EQ, dynamics) stays the
 // switcher's. These mics are heard whatever Studio's outputs are doing, since the switcher carries them.
 //
 // A phone can be a mic too (on: 'phone'), as a backup commentator headset: the Commentator page on a paired phone sends
 // whatever mic the phone has (a USB-C interface, a wired headset or Bluetooth) to Output 1's window over the network
-// (phonemic.js), which mixes it like a mic plugged into the Mac. Studio adds the mic the first time the phone starts,
+// (phonemic.ts), which mixes it like a mic plugged into the Mac. Studio adds the mic the first time the phone starts,
 // named after it (phone: the paired device's id). Its card says when the phone's connection drops.
 //
 // Saved as mics.json in the data folder: one set of mics for the Mac (the devices are this Mac's), not per competition.
-
 
 import fs from 'node:fs';
 import * as datadir from './datadir';
@@ -89,8 +88,8 @@ let down = false;
 let dip = { from: 0, to: 0, at: 0, ms: 0 };
 const seen = new Map<string, Seen>(); // output id -> { at, devices, levels, problems, status }: what that output's window last said
 let listed: { at: number; devices: string[] } = { at: 0, devices: [] }; // the devices the Output page in the Mac app listed
-let changedHook = () => {};    // scene.js: publish the scene (a fader moved on the switcher changed a mic's level)
-let sw: Switcher | null = null;                 // switcher.js: { inputs(), set(input, source, dB) }
+let changedHook = () => {};    // scene.ts: publish the scene (a fader moved on the switcher changed a mic's level)
+let sw: Switcher | null = null;                 // switcher.ts: { inputs(), set(input, source, dB) }
 const sent = new Map<string, { dB: number; at: number }>();        // mic id -> { dB, at }: where Studio last put (or first found) its fader
 let stepTimer: NodeJS.Timeout | undefined;
 
@@ -233,7 +232,7 @@ function drive() {
   if (fading && !stepTimer) { stepTimer = setInterval(drive, STEP_MS); stepTimer.unref?.(); }
   if (!fading && stepTimer) { clearInterval(stepTimer); stepTimer = undefined; drive(); }
 }
-// The switcher's state changed (switcher.js): a mic's fader Studio hasn't seen yet is taken as it is, and one moved
+// The switcher's state changed (switcher.ts): a mic's fader Studio hasn't seen yet is taken as it is, and one moved
 // by hand on the switcher (not Studio's own move coming back) becomes that mic's level.
 function switcherChanged() {
   if (!sw) return;
@@ -275,8 +274,8 @@ function onSwitcherLive() {
   return { inputs: inputs.map(i => ({ id: i.id, name: i.name, split: i.sources.length > 1 })), connected: inputs.length > 0, faders, levels, problems };
 }
 
-// scene.js, each time the scene changes: whether music is being heard and whether a video plays its sound.
-// m is music.js's state().music.
+// scene.ts, each time the scene changes: whether music is being heard and whether a video plays its sound.
+// m is music.ts's state().music.
 function follow(m: MusicNow | null | undefined, videoOn: unknown) {
   why.music = !!m && m.status === 'playing' && !m.muted && m.gain.to > 0 && m.video !== 'pause';
   why.video = !!videoOn;
@@ -449,10 +448,10 @@ function state() {
   return { mics: { ...settings, dipped: down, why: reasons(), hand, dip } };
 }
 
-// switcher: switcher.js's { inputs: micInputs, set: setMicFader }, from server.js.
+// switcher: switcher.ts's { inputs: micInputs, set: setMicFader }, from server.ts.
 function useSwitcher(api: Switcher) { sw = api; switcherChanged(); }
 
-// changed(): publish the scene (scene.js).
+// changed(): publish the scene (scene.ts).
 function init(logger: Log | null | undefined, { changed }: { changed?: () => void } = {}) {
   log = logger || log;
   if (changed) changedHook = changed;

@@ -8,15 +8,15 @@
 //
 // create(deps) gives the register for the competition in use. deps:
 //   log(level, source, message)      the debug log
-//   config()                         the competition setup in use (CONFIG in server.js)
-//   competitions                     competitions.js (images, clubs, the active id)
-//   savefile                         savefile.js (atomic writes)
+//   config()                         the competition setup in use (CONFIG in server.ts)
+//   competitions                     competitions.ts (images, clubs, the active id)
+//   savefile                         savefile.ts (atomic writes)
 //   playhq                           the PlayHQ client (structureNow, getStructure, readGame, eachLimited,
 //                                    PLAYHQ_AT_ONCE, POSITION_RANK)
 //   board()                          the scoreboard in use
-//   getSeasonGames(grade), getTeamSheets(), setupTeams(opts)   from server.js
-//   norm(s), sameTeam(a, b)          name matching, as server.js does it
-//   send(res, status, body), readBody(req), readRaw(req, max)   HTTP helpers from server.js
+//   getSeasonGames(grade), getTeamSheets(), setupTeams(opts)   from server.ts
+//   norm(s), sameTeam(a, b)          name matching, as server.ts does it
+//   send(res, status, body), readBody(req), readRaw(req, max)   HTTP helpers from server.ts
 import fs from 'node:fs';
 import path from 'node:path';
 import { isFinished } from './playhq';

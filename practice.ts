@@ -1,4 +1,4 @@
-// FirstPass Studio - practice games: a recorded game (recorder.js) played back as if it were live.
+// FirstPass Studio - practice games: a recorded game (recorder.ts) played back as if it were live.
 //
 // While a practice game runs, PlayHQ isn't asked anything (but see a followed game below): playhq.js asks this module instead (answer() for the
 // GraphQL API, live() for live scoring), which gives what PlayHQ said at the same point of the recorded night.
@@ -8,7 +8,7 @@
 // minutes before the game's scheduled start, as many as Starts in says, each quarter or full time), and can be paused
 // and nudged (+ or - ms).
 //
-// A game Studio followed in the background (another court's: recorder.js records it as "... (followed)") plays the
+// A game Studio followed in the background (another court's: recorder.ts records it as "... (followed)") plays the
 // same way, which is how graphics are put over someone else's video of that game: jump to the quarter the video is
 // on and Pause, cue the video on that quarter's first centre pass, press Play on both together, and nudge until the
 // score changes with the goals. Its recording has only what Studio asked PlayHQ that night, so anything else the
@@ -20,8 +20,8 @@
 // the clock stands still.
 //
 // Starting one keeps the scoreboard as it was and picks the recorded game by hand; stopping puts the scoreboard
-// back. Nothing a practice game does counts: sponsor exposure isn't kept (exposure.js held), and the night's
-// recording is paused (recorder.js) so a practice isn't recorded as a night of its own.
+// back. Nothing a practice game does counts: sponsor exposure isn't kept (exposure.ts held), and the night's
+// recording is paused (recorder.ts) so a practice isn't recorded as a night of its own.
 //
 // A demo game is a practice game wearing the client's competition (the one in use): a historic game of theirs is
 // picked, and only its teams and athletes are taken from it. Everything else, the score, clock, quarters, moments
@@ -35,7 +35,7 @@
 //
 // hooks (init): read(recording) the recording's lines, reset() forget what was read from PlayHQ, snapshot() and
 // restore(s) the scoreboard, select(game) pick the game on the scoreboard, rearm() the game's moments fire again from
-// now (sequences.js), paused(on) pause the night's recording,
+// now (sequences.ts), paused(on) pause the night's recording,
 // choices(gradeId) the client's divisions and a division's finished games, for picking one,
 // competition() the competition in use's id, readJson(file) and writeJson(file, value) for the saved demos,
 // demo(gameId, gradeId) the client's historic game ({ division, gradeId, teams, home, away }, each side { name,
@@ -196,7 +196,7 @@ function at<A extends { t: number }>(list: A[]): A {
 
 // ─── What playhq.js asks while a practice game runs ─────────────────────────
 // The GraphQL answer's data. When the recording never asked that: an error, or, in a demo game, undefined, and
-// PlayHQ is asked (the client's competition, seasons and divisions). A followed game's recording (recorder.js: a game
+// PlayHQ is asked (the client's competition, seasons and divisions). A followed game's recording (recorder.ts: a game
 // Studio followed in the background) has only what Studio asked PlayHQ that night, not what the graphics would have,
 // so for it too anything else is asked of PlayHQ (as it is now: a finished game's line ups have its final numbers).
 function answer(op: string, vars: unknown) {

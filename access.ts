@@ -3,7 +3,7 @@
 // Studio listens on every network connection so a phone, another computer or a Stream Deck can
 // open its pages and press its links by the Mac's .local name. Reading is always open. Changing
 // things (scores, the scene, sequences, settings, media) is open too by default, and config.json
-// "remoteChanges": false limits it to this computer and the devices allowed in Devices… (devices.js), each within its
+// "remoteChanges": false limits it to this computer and the devices allowed in Devices… (devices.ts), each within its
 // level: a request from anywhere else that would change something gets a 403 with the reason. The Mac app's tray has a
 // tick box for it.
 //
@@ -21,11 +21,10 @@
 // the browser think another site's name is this Mac). That Host check covers reads of private data
 // too (foreignHost()), since a rebinding page counts as Studio's own and could otherwise read them.
 
-
 import os from 'node:os';
 import type { IncomingHttpHeaders } from 'node:http';
 
-// A device's level in Devices… (devices.js), or null for a request from no allowed device.
+// A device's level in Devices… (devices.ts), or null for a request from no allowed device.
 type Level = 'full' | 'scoring' | null;
 
 // Reads of private data rather than graphics: the settings and scene backups (every photo, logo and
@@ -39,8 +38,8 @@ function privateRead(method: string, pathname: string): boolean {
   return PRIVATE.includes(pathname) || pathname.startsWith('/api/setup') || pathname.startsWith('/api/recordings') || pathname.startsWith('/api/socials/made/') || macOnly(pathname);
 }
 
-// Who may change things from another device (the Devices… window, devices.js), and the secure phone link's settings and
-// key (securelink.js): read and changed only on this Mac, whether or not "Only this Mac can change things" is ticked, so another device can never let itself in.
+// Who may change things from another device (the Devices… window, devices.ts), and the secure phone link's settings and
+// key (securelink.ts): read and changed only on this Mac, whether or not "Only this Mac can change things" is ticked, so another device can never let itself in.
 const MAC_ONLY = ['/api/devices', '/api/securelink', '/api/phonemic/offers'];
 const macOnly = (pathname: string) => MAC_ONLY.some(p => pathname === p || pathname.startsWith(p + '/'));
 // The 403 message for one of those asked for from another address, or null.
@@ -70,15 +69,15 @@ function isLocal(remoteAddress: string | null | undefined, own: Set<string> = ow
   return !a || own.has(a);
 }
 
-// Asking to be added to the devices list (devices.js ask()) works while the lock is on: that is how a device gets in
+// Asking to be added to the devices list (devices.ts ask()) works while the lock is on: that is how a device gets in
 // without it, and nothing is added until someone at the Mac presses Allow.
 const ASK = ['/api/pair'];
 const asking = (pathname: string) => ASK.some(p => pathname === p || pathname.startsWith(p + '/'));
 
-// What every allowed device may do, whatever its level: start a phone mic (the Commentator page, phonemic.js).
+// What every allowed device may do, whatever its level: start a phone mic (the Commentator page, phonemic.ts).
 const ANY_LEVEL = ['/api/phonemic/offer'];
 
-// What a device allowed to score only may change (devices.js level 'scoring'): the scoreboard control page (the score,
+// What a device allowed to score only may change (devices.ts level 'scoring'): the scoreboard control page (the score,
 // clock, quarter, game and round pick) and the Stream Deck's score, clock, quarter and game links.
 const SCORING_POSTS = ['/api/scoreboard', '/api/rounds'];
 const SCORING_LINKS = ['home', 'away', 'scores', 'clock', 'quarter', 'source', 'auto', 'court'];
@@ -89,7 +88,7 @@ function scoring(method: string, pathname: string): boolean {
 }
 
 // The 403 message, or null when the request may go ahead. level is the allowed device the request comes from
-// (devices.js: a paired browser's cookie, a signed plugin press, a link set's key), or null: a 'full' device passes
+// (devices.ts: a paired browser's cookie, a signed plugin press, a link set's key), or null: a 'full' device passes
 // while the lock is on, and a 'scoring' one passes for scoring().
 function refusal(setting: unknown, method: string, pathname: string, remoteAddress: string | undefined, own?: Set<string>, level: Level = null): string | null {
   if (setting !== false || asking(pathname)) return null;
@@ -140,7 +139,7 @@ function foreignHost(method: string, pathname: string, headers: IncomingHttpHead
 
 // The 403 message when a changing request came from another web page, or null when it may go
 // ahead. headers are the request's; port is Studio's; hosts from ownHosts(); secure is the secure phone link
-// (securelink.js), { host, port }, when it's on: its https pages are Studio's own too. A request with no
+// (securelink.ts), { host, port }, when it's on: its https pages are Studio's own too. A request with no
 // browser headers at all (the Stream Deck plugin, a Website key, curl) always passes.
 function crossSite(method: string, pathname: string, headers: IncomingHttpHeaders | null | undefined, port: number | string, hosts: Set<string>,
   secure: { host: string; port: number | string } | null = null): string | null {
@@ -163,7 +162,7 @@ function crossSite(method: string, pathname: string, headers: IncomingHttpHeader
 // Whether a Stream Deck link press is known to come from someone allowed to press it: null for anything that isn't a
 // Stream Deck link, true or false for one. A web page on another site can make the browser fetch a /deck/ link (an
 // image tag sends no Origin, and plain http sends no Sec-Fetch-Site), so crossSite() can't tell it from a Website key.
-// What it can't do: know a device's key (/k/<key>/deck/..., proof.keyOk, see devices.js), sign the press with a paired
+// What it can't do: know a device's key (/k/<key>/deck/..., proof.keyOk, see devices.ts), sign the press with a paired
 // plugin's private key (proof.signed, devices.signed()), add a custom header (x-studio-deck, which the Studio plugin
 // sent before it could pair; a browser asks Studio first, and Studio never says yes; counted only while proof.headerOk,
 // until a plugin has paired), or send a Referer naming one of Studio's own pages (the Output page and the API page

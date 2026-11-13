@@ -1,4 +1,4 @@
-// The Socials tab's Results stat pictures worked out from the season (socialstats.js and socials.js): Sharpshooter,
+// The Socials tab's Results stat pictures worked out from the season (socialstats.ts and socials.ts): Sharpshooter,
 // Super shot leaders, On fire, Night in numbers, Club round up, On a roll, Team season card and Season wrap. The
 // browser: Playwright's own, or STUDIO_TEST_CHROMIUM; skipped without one (except in the Tests check).
 const test = require('node:test');
@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { startStudio, ROOT } = require('./support/studio');
 const { createWorld } = require('./support/playhq');
-const stats = require('../socialstats');
+const stats = require('../out/socialstats');
 
 let chromium = null;
 try { ({ chromium } = require('playwright')); } catch { /* not installed */ }

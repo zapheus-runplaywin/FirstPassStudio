@@ -5,16 +5,16 @@
 //
 // create(deps) gives the team sheets for the competition in use. deps:
 //   log(level, source, message)   the debug log
-//   config()                      the competition setup in use (CONFIG in server.js: apiKey, apiBaseUrl, gameSummaryPath, apiTenant)
+//   config()                      the competition setup in use (CONFIG in server.ts: apiKey, apiBaseUrl, gameSummaryPath, apiTenant)
 //   playhq                        the PlayHQ client (getGame, getLive, organisation)
-//   datadir                       datadir.js (last-game-summary.json in the local folder)
+//   datadir                       datadir.ts (last-game-summary.json in the local folder)
 //   board()                       the scoreboard in use
-//   getUpNext()                   the next game on the court (games.js), for the warm up
-//   squadFor(team, division), withSquad(side, division), logoFor(team)   from athletes.js
-//   competitionName(), rules(division)   from games.js
-//   defaultRefreshSec()           how often PlayHQ is checked unless the control says otherwise (board.js)
-//   sameTeam(a, b)                name matching, as server.js does it
-//   courtShown(board)             the court's name on the graphics: typed on Scoreboard control, else PlayHQ's (board.js)
+//   getUpNext()                   the next game on the court (games.ts), for the warm up
+//   squadFor(team, division), withSquad(side, division), logoFor(team)   from athletes.ts
+//   competitionName(), rules(division)   from games.ts
+//   defaultRefreshSec()           how often PlayHQ is checked unless the control says otherwise (board.ts)
+//   sameTeam(a, b)                name matching, as server.ts does it
+//   courtShown(board)             the court's name on the graphics: typed on Scoreboard control, else PlayHQ's (board.ts)
 import fs from 'node:fs';
 import { errorMessage } from './errors';
 import * as net from './playhqnet'; // counts what PlayHQ answers, for the board's PlayHQ line

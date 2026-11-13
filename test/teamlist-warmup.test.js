@@ -1,6 +1,6 @@
 // The team lists are warmed up when a game is picked (and at start up), and finished games'
 // line ups are kept in game-cache.json, so a restart doesn't read the season from PlayHQ again.
-// Runs server.js against a stand-in PlayHQ.
+// Runs server.ts against a stand-in PlayHQ.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');

@@ -1,6 +1,6 @@
 // Where the sound is going, and how loud, at a glance: the status board's Sound out tile (a row for each place each
 // output's sound goes, with what it plays at and a meter for each side) and "Sound: …" on each output's card, from
-// Sound goes to, how each destination is doing (outputs.js soundState) and the levels the windows report
+// Sound goes to, how each destination is doing (outputs.ts soundState) and the levels the windows report
 // (POST /api/outputs/level, GET /api/outputs/sound). The Mac app's windows can't run here, so the page is handed
 // outputs as the app would report them, and the levels are posted as the windows would.
 const test = require('node:test');

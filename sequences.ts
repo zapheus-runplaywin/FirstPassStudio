@@ -12,7 +12,7 @@
 // manual controls keep working: Next, Pause and Stop, a source turned
 // off by hand moves to the next step, and going to a scene stops the sequence. One plays at a time on each output.
 //
-// With more than one output (outputs.js), sequences are shared: any sequence plays on any output, picked
+// With more than one output (outputs.ts), sequences are shared: any sequence plays on any output, picked
 // when it's played (a.output), turning its sources on and off there. Each output has its own runner, so one
 // sequence can play on each at once (the same one on two, even). A sequence plays on its playsOn outputs
 // (the primary unless set): started by itself, or played on one of them by hand or from the Stream Deck,
@@ -20,7 +20,7 @@
 // plays there alone. An output in playsOn that has gone is left out; with all of them gone it doesn't
 // start by itself. Each output does its own Then when the sequence ends there (thenOn, else then), so one
 // sequence played on two outputs can go to a different scene or sequence on each. A sequence's music is Output 1's,
-// like all the music (music.js): it plays, quiets, fades and stops with the sequence on Output 1 (sound()), and a
+// like all the music (music.ts): it plays, quiets, fades and stops with the sequence on Output 1 (sound()), and a
 // sequence playing on another output alone plays without it. Its Sponsor ads steps play in each output's own ad
 // sources.
 //
@@ -31,7 +31,7 @@
 // Game triggers: a sequence can start by itself N minutes before the picked game's scheduled start
 // (only when Studio was running at that moment: opened inside the window, it's left to the operator),
 // at quarter time, half time or three quarter time, or at full time, a few seconds after the siren.
-// The moments come from the scoreboard Studio already keeps (server.js calls game() each second with
+// The moments come from the scoreboard Studio already keeps (server.ts calls game() each second with
 // the clock, quarter and start time), so there are no extra PlayHQ calls. A triggered start waits
 // its few seconds as "pending", with Start now and Cancel. Automatic starts sit behind one switch, remembered between launches; with it
 // off nothing starts by itself. A step can last until the game moves on (the clock starts, or a break
@@ -48,8 +48,7 @@
 // starting it blind; Cancel takes it out again. Playing a scene or sequence by hand leaves the queue as it is
 // (unless it was the head). The queue is saved with the competition's sequences (runOrder), and named orders
 // (runOrders) can be loaded for the night, renamed and deleted. The Production Planner can assign a saved order to a
-// game (planner.js); it loads, in place of what's queued, as the scoreboard moves to that game (server.js).
-
+// game (planner.ts); it loads, in place of what's queued, as the scoreboard moves to that game (server.ts).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -103,7 +102,7 @@ interface GameReading {
 }
 interface Watch { id: string; fired: Set<string>; ranIn: number; everRan: boolean; zeroAt: number | null; running: boolean; period: number; onBreak: boolean; finished: boolean }
 type Moment = { kind: 'resume' } | { kind: 'fulltime' } | { kind: 'break'; which: string };
-// The scene, as the sequences use it (scene.js gives it to init()).
+// The scene, as the sequences use it (scene.ts gives it to init()).
 interface Source { id: string; name: string; type: string; file?: string; loop?: boolean; sound?: boolean; visible?: boolean }
 interface SceneRef { id: string; name: string; states: Record<string, string>; quiet?: boolean }
 interface Api {
@@ -139,7 +138,7 @@ const PAGE_LIMIT_MS = 60000, VIDEO_LIMIT_MS = 10 * 60000, VIDEO_SPARE_MS = 3000;
 const SETTLE_MS = 3000;
 
 let log: Log = () => {};
-// The scene, from scene.js (init() sets it before anything else is called).
+// The scene, from scene.ts (init() sets it before anything else is called).
 let api: Api = { source: () => null, setOn() {}, scene: () => null, goTo() {}, duration: () => null, changed() {} };
 let fileOf = (): string | null => null;
 let file: string | null = null; // sequences.json of the competition in use
@@ -232,7 +231,7 @@ function cleanStep(st: unknown): Step {
   let type = oneOf(LENGTHS, l.type, kind === 'scene' ? 'now' : 'time');
   if (type === 'now' && kind !== 'scene') type = 'time';
   const length: Length = type === 'time' ? { type, sec: Math.round(clamp(l.sec, 1, 3600, 20)) } : { type };
-  // Switcher actions (switcher.js) done as the step starts, or a few seconds in.
+  // Switcher actions (switcher.ts) done as the step starts, or a few seconds in.
   const sw = switcher.cleanActions(s.switcher);
   const extra = sw.length ? { switcher: sw } : {};
   if (kind === 'scene') return { id, kind, scene: cleanId(s.scene, ''), sources: [], length, ...extra };
@@ -307,7 +306,7 @@ function clean(given: unknown, existing: Partial<Sequence> & { startOn?: string 
     musicEnd: cleanMusicEnd(s.musicEnd),
     quiet: !!s.quiet,
     hidden: !!s.hidden,  // left off the Output page's list (a mini sequence used inside others)
-    playsOn: playsOn.length ? playsOn : [PRIMARY], // the outputs it plays on together (outputs.js), the primary unless set
+    playsOn: playsOn.length ? playsOn : [PRIMARY], // the outputs it plays on together (outputs.ts), the primary unless set
     thenOn,  // an output's own Then, by output id, where it differs from then
     steps: (Array.isArray(s.steps) ? s.steps : []).slice(0, 100).map(cleanStep),
   };
@@ -697,7 +696,7 @@ function tick() {
   else schedule();
 }
 
-// A Sponsor ads step coming on: the next ad in the rotation, in the scene's Sponsor ad source (scene.js
+// A Sponsor ads step coming on: the next ad in the rotation, in the scene's Sponsor ad source (scene.ts
 // sponsorAd), as long as the ad: a video until it finishes, a still for its seconds. With no ad to play
 // (and no house ad), it goes straight on.
 function fillAd(step: FlatStep) {
@@ -1031,7 +1030,7 @@ function gameTick(g: GameReading | null | undefined) {
   if (changed) api.changed();
 }
 
-// A practice game started or jumped with Run game-timed sequences again (practice.js): the game's moments
+// A practice game started or jumped with Run game-timed sequences again (practice.ts): the game's moments
 // that have fired are forgotten, so its pre-game, break and full time sequences fire again, even for the same game id.
 // Like Studio starting, a pre-game moment that passed before now (give or take a minute) is skipped.
 function rearm() {
@@ -1103,7 +1102,7 @@ function sourceRemoved(id: string) {
 
 // ─── Changes from the Output page and the Stream Deck ────────────────────
 // Returns an error, null when done, or undefined when the change isn't a sequence change. a.output (an
-// output's id, from scene.js; the primary without one) is the output to play on, and the one Next, Stop,
+// output's id, from scene.ts; the primary without one) is the output to play on, and the one Next, Stop,
 // Pause and the like act on. Run order changes (ro…) always act on Output 1's.
 function apply(a: Act): string | null | undefined {
   const sq = a.sequence ? find(a.sequence) : null;
@@ -1297,7 +1296,7 @@ function applyHere(a: Act, found: Sequence | null): string | null | undefined {
       const o = orders.find(x => x.id === String(a.order || '')) || orders.find(x => slug(x.name) === slug(a.order));
       if (!o) return `No saved run order "${str(a.order)}".`;
       // Loaded in place of what's queued (the Output page asks first when the queue isn't empty). a.planner: the
-      // game the Production Planner loaded it for, as the scoreboard moved to it (server.js plannerRunOrder); nobody
+      // game the Production Planner loaded it for, as the scoreboard moved to it (server.ts plannerRunOrder); nobody
       // was asked then, so when that dropped anything queued, the run order panel says so until it's closed.
       const had = queue.length;
       queue = cleanItems(o.items);

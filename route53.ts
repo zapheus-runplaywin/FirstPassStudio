@@ -1,4 +1,4 @@
-// FirstPass Studio - Amazon Route 53, for the secure phone link (securelink.js).
+// FirstPass Studio - Amazon Route 53, for the secure phone link (securelink.ts).
 //
 // The secure link's names live in a Route 53 hosted zone (PIVT's is studio.firstpass.pivt.au, handed over from GoDaddy
 // by its NS records). Studio reads the zone's name from the zone itself (zoneName()), and changes two kinds of record
@@ -9,7 +9,6 @@
 //
 // Requests are signed with AWS Signature Version 4 (sign()), using Node's own crypto: no AWS SDK.
 // SECURELINK_ROUTE53_URL points it at a stand-in for the tests.
-
 
 import crypto from 'node:crypto';
 import { fetchFailure } from './errors';

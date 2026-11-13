@@ -1,10 +1,10 @@
 // FirstPass Studio - playhqnet: what Studio's talk with PlayHQ costs, for the PlayHQ line above the score on the
 // Output page's status board (public/output/board.js, through /api/health playhq.net): how long PlayHQ took to answer
 // (the ping, timed on a real request), the download over the last minute, and everything downloaded since Studio
-// went on air (server.js runs only while on air, so the count starts again each time).
+// went on air (server.ts runs only while on air, so the count starts again each time).
 //
 // Every request to PlayHQ goes through note() (playhq.js: the guest session, every GraphQL query and the live feed;
-// teams.js: the Game Summary), so a new kind of request is counted by calling it too. A practice game asks PlayHQ
+// teams.ts: the Game Summary), so a new kind of request is counted by calling it too. A practice game asks PlayHQ
 // nothing, so it adds nothing.
 const WINDOW_MS = 60 * 1000;
 
@@ -56,7 +56,7 @@ function create(now = Date.now) {
   return { note, failed, snapshot };
 }
 
-// The one Studio uses, shared by playhq.js and teams.js.
+// The one Studio uses, shared by playhq.js and teams.ts.
 const shared = create();
 const { note, failed, snapshot } = shared;
 export { create, answerBytes, note, failed, snapshot };

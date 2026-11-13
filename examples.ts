@@ -9,7 +9,6 @@
 // CHROME_PATH to use another Chromium based browser.
 // Uses the helper if it is already running, otherwise starts it for the run.
 
-
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -41,7 +40,7 @@ function findChrome() {
   return list.find(p => fs.existsSync(p));
 }
 
-// The helper's answer to GET p. Only the parts examples.js reads are typed: its answers are Studio's own.
+// The helper's answer to GET p. Only the parts examples.ts reads are typed: its answers are Studio's own.
 async function getJson<T>(p: string): Promise<T> {
   const res = await fetch(BASE + p);
   const body = await res.json().catch(() => ({})) as T & { error?: string };
@@ -53,7 +52,7 @@ function note(message: string) {
   console.log(message);
   fetch(BASE + '/api/log', {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ page: 'examples.js', level: 'info', message }),
+    body: JSON.stringify({ page: 'examples.ts', level: 'info', message }),
   }).catch(() => {});
 }
 

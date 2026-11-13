@@ -1,4 +1,4 @@
-// Removing media (scene.js mediaUses and removeMedia, DELETE /api/scene/media): where a file is used, the
+// Removing media (scene.ts mediaUses and removeMedia, DELETE /api/scene/media): where a file is used, the
 // warning before it goes, nothing on air removed, and the lists that keep it letting go.
 const test = require('node:test');
 const { mock } = require('node:test');
@@ -10,9 +10,9 @@ const { startStudio } = require('./support/studio');
 
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-mediaremove-'));
 mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
-const competitions = require('../competitions');
-const sponsors = require('../sponsors');
-const scene = require('../scene');
+const competitions = require('../out/competitions');
+const sponsors = require('../out/sponsors');
+const scene = require('../out/scene');
 competitions.init(() => {});
 const comp = competitions.create('Thunder League');
 competitions.setActive(comp);

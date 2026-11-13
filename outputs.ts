@@ -2,9 +2,9 @@
 //
 // Up to four outputs at once, each with its own graphics. Output 1 (id "main") is the primary output: it
 // always exists, and it's the one scenes, sequences and old Stream Deck links act on. Outputs 2 to 4 are added
-// on the Output page; each shows the sources turned on for it (scene.js keeps an on and off per output). Each
+// on the Output page; each shows the sources turned on for it (scene.ts keeps an on and off per output). Each
 // output plays the sound of what it shows (its videos and pages), with the music and the mics on the outputs
-// they're ticked for (music.js, mics.js). Each output picks one way out:
+// they're ticked for (music.ts, mics.ts). Each output picks one way out:
 //   chroma   - the scene over a solid colour on one extra display (a single HDMI into a switcher
 //              that keys on that colour);
 //   fill+key - the scene over black on one display (fill) and its transparency as white on black
@@ -18,7 +18,7 @@
 // what to show, over the utility process's message port. Run without the app (npm start) there are none, and the Output page says so.
 //
 // Each output also says how it comes into the ATEM switcher (keyer, swFill, swKey: the key and the switcher inputs it's
-// plugged into; swCameras: the cameras its graphics go with), for switcher.js's key settings check and its cuts;
+// plugged into; swCameras: the cameras its graphics go with), for switcher.ts's key settings check and its cuts;
 // switcherPlan() gives it that, with the signal it sends.
 //
 // An output's way out can't be one another output already uses: the same display, the Blackmagic device
@@ -37,7 +37,6 @@
 // Saved as outputs.json in the data folder: { outputs: [...], quality }, the primary first (an older file with one
 // output's settings becomes Output 1). Stream Deck: /deck/output/on|off|toggle (the primary),
 // /deck/output/<name or number>/on|off|toggle and /deck/output/all/on|off|toggle.
-
 
 import fs from 'node:fs';
 import * as datadir from './datadir';
@@ -162,7 +161,7 @@ const primary = () => list[0];
 let onRemove = (_id: string) => {};
 // Called after any change to the outputs' settings (the switcher's key settings check follows them).
 let onChange = () => {};
-// The pictures and videos that look soft in 4K (picturesize.js soft()), for the Output page while 4K is on.
+// The pictures and videos that look soft in 4K (picturesize.ts soft()), for the Output page while 4K is on.
 let softPictures = (): unknown[] => [];
 // The Mac app's displays: [{ id, label, width, height, scale, primary }]; null when not run by the app.
 // width x height is the size macOS draws at; scale 2 means it draws each point as 2 x 2 pixels (HiDPI).
@@ -223,12 +222,12 @@ function clean(s: Body, old: Settings = DEFAULTS): Output {
     // can't tell whether another output is on the stream.
     sponsors: pick('sponsors', false) === true,
     // Into the switcher as: the key it comes into and the switcher inputs its fill and key are plugged into (0: not
-    // picked). Only read by the key settings check (switcher.js); nothing is sent to the switcher until asked.
+    // picked). Only read by the key settings check (switcher.ts); nothing is sent to the switcher until asked.
     keyer: words('keyer', KEYERS, ''),
     swFill: swInput(pick('swFill', 0)),
     swKey: swInput(pick('swKey', 0)),
     // The cameras this output's graphics go with (switcher inputs), for an output on an upstream key: Studio's cuts
-    // take its key on with them and off with any other camera (switcher.js). None: Studio leaves its key alone.
+    // take its key on with them and off with any other camera (switcher.ts). None: Studio leaves its key alone.
     swCameras: [...new Set(arr(pick('swCameras')).map(swInput).filter(Boolean))].sort((a, b) => a - b).slice(0, 20),
   };
 }
@@ -655,8 +654,8 @@ function deck(parts: string[]) {
     return { status: 200, body: { ok: true, on: primary().on, mode: primary().mode, output: primary().name } };
   }
   if (parts[1] === 'all') {
-    const any = list.some(o => o.on && o.mode !== 'off');
-    const on = ({ on: true, off: false, toggle: !any } as Record<string, boolean | undefined>)[parts[2]];
+    const anyOn = list.some(o => o.on && o.mode !== 'off');
+    const on = ({ on: true, off: false, toggle: !anyOn } as Record<string, boolean | undefined>)[parts[2]];
     if (on === undefined || parts.length > 3) return { status: 404, body: { error: 'Use /deck/output/all/on, off or toggle.' } };
     const before = JSON.stringify(list);
     for (const o of list) o.on = on && o.mode !== 'off'; // one set to Web links only stays off
@@ -769,7 +768,7 @@ function summary() {
     sponsors: o.id === PRIMARY || o.sponsors, sending: sending.has(o.id) }));
 }
 
-// What each output sending something gives the switcher, for its key settings check (switcher.js):
+// What each output sending something gives the switcher, for its key settings check (switcher.ts):
 // [{ id, name, slot, colour, keyer: 'dsk1' | 'usk2' | ... | 'none', fill, key, cameras, signal, premultiplied }]. signal is
 // chroma (over a colour), fillkey (a fill and a key), fill (fill only) or alpha (one NDI source with transparency);
 // premultiplied: the fill is premultiplied (Studio's always is, unless the Blackmagic device's Straight is ticked).

@@ -21,7 +21,7 @@
 // access.scoring()) or 'full'; Devices… can change it later. Every allowed device, link set and plugin can change
 // things while "Only this Mac can change things" is ticked (access.refusal()), within its level.
 //
-// devices.json in the local data folder: never in iCloud, a backup or a template (datalocation.js LOCAL_ONLY).
+// devices.json in the local data folder: never in iCloud, a backup or a template (datalocation.ts LOCAL_ONLY).
 //   [{ id, name, kind: 'links' | 'program' | 'plugin' | 'browser', level: 'full' | 'scoring', secret | publicKey, address,
 //      created, lastSeen }]
 // The secrets never leave this module except as This Mac's key (linkKey(), which the Output page puts in the links
@@ -30,7 +30,6 @@
 // The first time, This Mac's links takes its key from deck-key.txt, where Studio kept it before, so every link
 // already on a Stream Deck keeps working. deck-key.txt is kept in step when the key is renewed, so an older Studio
 // opened on this Mac uses the same key rather than one that was given up.
-
 
 import fs from 'node:fs';
 import crypto from 'node:crypto';
@@ -59,7 +58,7 @@ const OLD_KEY_FILE = datadir.local('deck-key.txt');
 const LINKS = 'mac-links';
 const LEVELS: readonly Level[] = ['scoring', 'full'];
 const isLevel = (v: unknown): v is Level => LEVELS.includes(v as Level);
-// The device cookie a paired browser sends (server.js sets it).
+// The device cookie a paired browser sends (server.ts sets it).
 const COOKIE = 'studio_device';
 // lastSeen is saved at most this often, so a run of key presses doesn't write the file each time.
 const SEEN_EVERY = 60 * 1000;
@@ -106,7 +105,7 @@ function saveOldKey(key: string) {
   try { savefile.writeFileSync(OLD_KEY_FILE, key + '\n'); } catch (err) { log('error', 'devices', `Couldn't save the Stream Deck key: ${errorMessage(err)}`); }
 }
 
-// Reads devices.json, making This Mac's links if it isn't there. log(level, source, message) is server.js's log.
+// Reads devices.json, making This Mac's links if it isn't there. log(level, source, message) is server.ts's log.
 function load(logger?: Log): Device[] {
   if (logger) log = logger;
   const read = savefile.readJson<Device[] | null>(FILE, null, (err, movedTo) => log('error', 'devices', `devices.json couldn't be read (${errorMessage(err)})${movedTo ? `; moved aside as ${movedTo}` : ''}`));
@@ -283,7 +282,7 @@ function answer(id: string, allow: boolean, level?: unknown): boolean {
 }
 
 // The asking device collects the answer with its token: { status: 'waiting' | 'allowed' | 'denied' | 'gone' }, and
-// once allowed its device id, level and its key (a program; a browser gets it as cookie, for server.js to set as a
+// once allowed its device id, level and its key (a program; a browser gets it as cookie, for server.ts to set as a
 // cookie and never show). The key is handed over once; the request ends with any answer.
 function collect(id: string, token: unknown) {
   if (!asking || asking.id !== id || !same(asking.token, token || '')) return { status: 'gone' };

@@ -12,7 +12,7 @@ let chromium = null;
 try { ({ chromium } = require('playwright')); } catch { /* not installed */ }
 
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-chroma-'));
-const outputs = require('../outputs');
+const outputs = require('../out/outputs');
 let colours = [];
 outputs.init(() => {}, { colours: () => colours });
 outputs.message({ type: 'displays', displays: [{ id: 1, label: 'Built-in', primary: true }, { id: 2, label: 'HDMI' }] });

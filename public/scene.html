@@ -18,10 +18,10 @@
   page's preview of that output shows, silent unless ?sound=1. In a 3840 x 2160 window it's drawn at 2x (zoom.js), and
   the pages inside at twice the density, so it goes sharp over a 4K recording (with 4K replay).
   ?output=<id> draws one of the outputs besides the primary (outputs.js): the sources turned on for that
-  output, with their sound. The music and the mics are Output 1's (music.js, mics.js): the primary's window plays
+  output, with their sound. The music and the mics are Output 1's (music.ts, mics.ts): the primary's window plays
   them, and the other outputs' windows play without them.
   Output 1's own window in the app (?fit=1, not muted, not the key) also mixes in the mics plugged into the
-  Mac (mics.js), so they go out with the rest of its sound; a Scene View never plays them.
+  Mac (mics.ts), so they go out with the rest of its sound; a Scene View never plays them.
   ?copy=1&sink=<device> is an output's sound copy (desktop/soundcopy.js, a named device in the Output page's "Sound
   goes to"): a hidden window playing that output's sound to that one sound output of the Mac (its mixers' setSinkId), such as
   the commentators' mixer, with only the Mac's mics in ?mics=<id,id> (none without it; ?mics=all for every one, on
@@ -311,7 +311,7 @@
     const token = ++L.token;
     v.loop = s.loop;
     v.muted = !s.sound || silent;
-    // Its sound fading out under the next music (sequences.js planCross), for this showing only.
+    // Its sound fading out under the next music (sequences.ts planCross), for this showing only.
     const f = s.soundOut && s.soundOut[here];
     L.soundOut = f && f.showSeq === s.showSeq ? f : null;
     v.volume = videoVolume(L, s);
@@ -340,7 +340,7 @@
     }
   }
 
-  // ─── Music (music.js) ───────────────────────────────────────────────────
+  // ─── Music (music.ts) ───────────────────────────────────────────────────
   // Studio keeps the player: the track, where it is (pos: sec at time at), and its fade (gain: from, to,
   // at, ms). Output 1's scene windows play it, unless silent, so the music goes wherever Output 1's video sound goes.
   // Two players: audio plays the music, tail the song fading out under it when one sequence's music takes over from
@@ -433,13 +433,13 @@
     if (el === audio && music && music.status === 'playing' && !copying) fetch('/api/scene', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'musicEnded', playId: music.playId }) }).catch(() => {});
   });
 
-  // ─── Mics (mics.js) ─────────────────────────────────────────────────────
+  // ─── Mics (mics.ts) ─────────────────────────────────────────────────────
   // Live mics plugged into the Mac, mixed into the sound here. Only Output 1's own window in the app (?fit=1, not
   // silent, not the key) opens them: never a Scene View, where a speaker near a mic would feed back, and never twice. Each mic: its device's channel (both mixed to one, or left or right), a low cut, its level (with
   // the master level, mutes and the dip on top); then all of them through a limiter. The browser's call
   // processing (echo cancelling, noise suppression, automatic level) is off: it would pump the crowd noise.
   // A sound copy opens only the mics ticked for it (?mics=).
-  // A phone mic (on: 'phone', the Commentator page) comes over the network instead (phonemic.js): the window mixing
+  // A phone mic (on: 'phone', the Commentator page) comes over the network instead (phonemic.ts): the window mixing
   // Output 1's main sound (its own, or its main sound copy's) answers the phone and mixes it like a Mac input.
   const micsHere = copying || (params.get('fit') === '1' && params.get('mute') !== '1' && params.get('key') !== '1');
   const phoneHost = micsHere && primary && (copying ? copyMain : true);
@@ -567,7 +567,7 @@
     micStatus = Object.values(micProblem)[0] || '';
     wireReturns();
   }
-  // ─── Phone mics (phonemic.js) ───
+  // ─── Phone mics (phonemic.ts) ───
   // Takes each phone's offer, answers it, and mixes the sound that comes in. The answer has every address in it (on one
   // network they're there at once), so nothing else goes back and forth. A dropped connection says so on the mic's card
   // (and the board); the phone starts again by itself.
@@ -697,7 +697,7 @@
   // ─── The players' mixer, and how loud this window plays (the status board's Sound out) ───
   // Every window that plays sound (an output's own window, a sound copy) plays its players (the music, the song fading
   // out under it, the videos) through one mixer, on its device: the Mac's sound output, or the copy's device. The
-  // mixer is what the status board's meter and a phone's Hear Studio (phonemic.js) hear, so they follow every song and
+  // mixer is what the status board's meter and a phone's Hear Studio (phonemic.ts) hear, so they follow every song and
   // video with nothing taken per song. (Copies taken from each player, as before, lost the next song in a playlist
   // on the Mac and played it twice on the speakers.) The page sounds and the mics have their own mixers, copied in
   // for the meter. Each player is wired in for good the first time, at its own volume. Windows that play nothing (the

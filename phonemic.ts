@@ -3,7 +3,7 @@
 // The Commentator page (public/commentator.html) on a paired phone sends the phone's mic (a USB-C interface, a wired
 // headset or Bluetooth) straight to the Mac over the venue Wi-Fi with WebRTC: no internet, no relay. Studio only
 // passes the two ends' descriptions between them:
-//   1. the phone posts its offer (offer()); the first time, Studio adds a mic for that phone (mics.js, on: 'phone'),
+//   1. the phone posts its offer (offer()); the first time, Studio adds a mic for that phone (mics.ts, on: 'phone'),
 //      named after it, so it gets a card in Mics with its level, mute, low cut, ducking and Silent warning,
 //   2. Output 1's window (scene.html, the one mixing the Mac's mics) asks for offers waiting (waiting()), makes the
 //      connection and posts its answer (answer()),
@@ -11,9 +11,8 @@
 // A phone that starts again (a reconnect, the page reloaded) makes a new offer, which replaces its last one.
 // Each description has every address in it (no trickling), which on one network is there at once.
 //
-// Only a paired phone (devices.js) or this Mac itself may offer, and only this Mac may see offers and answer them
-// (server.js). Nothing here is saved: a restart of Studio has the phones start again by themselves.
-
+// Only a paired phone (devices.ts) or this Mac itself may offer, and only this Mac may see offers and answer them
+// (server.ts). Nothing here is saved: a restart of Studio has the phones start again by themselves.
 
 import crypto from 'node:crypto';
 import type * as Mics from './mics';
@@ -79,7 +78,7 @@ function collect(id: string, phoneId: string, mixing: boolean): Result {
   return { waiting: true, why: mixing ? 'Output 1 is picking up…' : 'Waiting for Output 1: it has to be on for Studio to hear the phone.' };
 }
 
-// micsModule: mics.js; add(changes): adds a mic the way the Output page does (scene.act), giving its error or null.
+// micsModule: mics.ts; add(changes): adds a mic the way the Output page does (scene.act), giving its error or null.
 function init(logger: Log | null, micsModule: typeof Mics, add: typeof addMic): void {
   log = logger || log;
   mics = micsModule;

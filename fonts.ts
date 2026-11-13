@@ -16,7 +16,6 @@
 // sits centred in it the way Montserrat does, whichever font is picked. Bundled fonts and added
 // font files are measured from their files; a Mac font is measured by the Mac (macFaces).
 
-
 import { APP_DIR } from './appdir';
 import fs from 'node:fs';
 import path from 'node:path';

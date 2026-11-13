@@ -32,7 +32,7 @@ export const KINDS: Record<KeyKind, KindColours> = {
 	playback: { label: "Replay", off: "#2a2a2e", on: "#a1a1aa" },
 };
 
-/** Each output's colour by its number (Studio's outputs.js COLOURS): the disc on a key for that output. */
+/** Each output's colour by its number (Studio's outputs.ts COLOURS): the disc on a key for that output. */
 export const OUTPUT_COLOURS = ["#ea9a38", "#f24f91", "#4ec1e6", "#95ba45"];
 
 /** The output a key acts on, as its disc shows it: the output's number and colour. */

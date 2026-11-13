@@ -1,4 +1,4 @@
-// Sponsors (sponsors.js, the Sponsors page): sponsors kept once and shown on competitions at a tier
+// Sponsors (sponsors.ts, the Sponsors page): sponsors kept once and shown on competitions at a tier
 // in each, the competition's tier names, what an empty tier's spots do, the vacancy card, logos and
 // QR codes, through the helper as sponsors.html uses it.
 const test = require('node:test');

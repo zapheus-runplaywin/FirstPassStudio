@@ -1,4 +1,4 @@
-// The Socials tab (socials.js, socials.html, social.html): the season's game nights, one night's pictures made from
+// The Socials tab (socials.ts, socials.html, social.html): the season's game nights, one night's pictures made from
 // the fixture Studio already has (every court), its results, ladders and top shooters, the Production Planner's court and commentators, the sponsor strip
 // and Studio mark settings kept per competition, photos for the polaroid, and saving, which needs the Mac app
 // (app.test.js saves real PNGs).
@@ -279,7 +279,7 @@ test('the tab knows whether it is open on this Mac, and pictures saved for a pho
   assert.equal((await studio.get('/api/socials')).here, true, 'a page on this Mac');
   assert.equal((await studio.request('GET', '/api/socials/made/00000000-0000-4000-8000-000000000000/1')).status, 404);
   assert.equal((await studio.request('GET', '/api/socials/made/not-an-id/1')).status, 404);
-  const access = require('../access');
+  const access = require('../out/access');
   assert.equal(access.privateRead('GET', '/api/socials/made/00000000-0000-4000-8000-000000000000/1'), true);
   assert.equal(access.privateRead('GET', '/api/socials'), false, 'the tab itself stays open to read');
 });

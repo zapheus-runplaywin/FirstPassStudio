@@ -1,4 +1,4 @@
-// The court's name on the graphics (board.js courtShown): PlayHQ's name for the game's court unless one is typed on
+// The court's name on the graphics (board.ts courtShown): PlayHQ's name for the game's court unless one is typed on
 // Scoreboard control, which lasts the night; following a court keeps using PlayHQ's name.
 const test = require('node:test');
 const assert = require('node:assert/strict');

@@ -4,14 +4,13 @@
 // sponsors/<id>/. A sponsor belongs to the competitions it's shown on, at a tier in each
 // (competitions: { "thunder-league": { tier: "major" } }), so a sponsor of more than one competition
 // is kept once. The tiers, their names and what an empty tier does are the competition's own
-// settings (competitions.js sponsorTiers), as is its vacancy card, an "advertise with us" card
+// settings (competitions.ts sponsorTiers), as is its vacancy card, an "advertise with us" card
 // that can take an empty tier's spots.
 //
 // pick() says which sponsors fill a tier's spots in a competition, following its empty-tier rules,
 // for the graphics that show sponsors. qrSvg() makes the QR code for a sponsor's website (with
 // tracking tags, so a sponsor sees visits from the stream in their own website analytics) or for
 // the vacancy card, here on this computer.
-
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -476,7 +475,7 @@ function view(compId: string | null | undefined) {
 // competition's tier names, empty-tier rules and vacancy card), /api/sponsors/logo (POST or DELETE
 // ?id=&which=logo|logoWhite&name=), /api/sponsors/qr.svg (?id=&place= or ?vacancy=1),
 // /api/sponsors/pick (?tier=&place=) and /sponsors/<id>/<file> for logos.
-// ctx: { send, readBody, readRaw, saveSettings(id, changes), gave(req, sponsors, place, opts) (exposure.js) }. Answers true when it handled the request.
+// ctx: { send, readBody, readRaw, saveSettings(id, changes), gave(req, sponsors, place, opts) (exposure.ts) }. Answers true when it handled the request.
 async function route(req: IncomingMessage, res: ServerResponse, url: URL, ctx: Ctx) {
   const { send, readBody, readRaw } = ctx;
   const q = Object.fromEntries(url.searchParams);
@@ -564,7 +563,7 @@ async function route(req: IncomingMessage, res: ServerResponse, url: URL, ctx: C
     if (q.sponsor) s = find(q.sponsor);
     else s = moment(compId, key, { count: q.count !== '0' });
     if (!s) { send(res, 200, { none: true }); return true; }
-    // On screen for the tag's seconds, if the page is on in the scene (exposure.js).
+    // On screen for the tag's seconds, if the page is on in the scene (exposure.ts).
     if (ctx.flash) ctx.flash(req, s, 'moment', Math.min(10, Number(q.seconds) || 2.5), { competition: compId });
     send(res, 200, { sponsor: compId ? forGraphic(s, compId, 'moment', competitions.get(compId)) : null });
     if (q.count !== '0' && !q.sponsor) log('info', 'sponsors', `${competitions.SPONSOR_MOMENTS[key]}: brought to you by "${s.name}"`);

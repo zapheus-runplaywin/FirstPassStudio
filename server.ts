@@ -6,9 +6,8 @@
 // session cookie. A web page loaded as an overlay can't set those, so this tiny server
 // fetches the data and hands it to the pages in public/.
 //
-// Run:  node server.js        (Node 18 or newer, nothing to install)
+// Run:  npm start        (after npm install: it compiles the TypeScript into out/ and runs out/server.js)
 // Then: http://localhost:8080/ lists the pages.
-
 
 import { APP_DIR, VERSION } from './appdir';
 import http from 'node:http';
@@ -59,7 +58,7 @@ import type { Act, Body, Config, ControlData, Log, Machine, Query } from './type
 
 const ROOT = APP_DIR;
 const PUBLIC_DIR = path.join(ROOT, 'public');
-// Everything the helper saves goes in the data folder (datadir.js), outside the app.
+// Everything the helper saves goes in the data folder (datadir.ts), outside the app.
 const DATA = datadir.file;
 // config.json holds this computer's settings (port, cache, log size): the app's config.json
 // has the defaults, and a config.json in the data folder changes any of them (only the
@@ -72,16 +71,16 @@ delete MACHINE._note;
 let CONFIG: Config = { ...MACHINE, ...competitions.get(null) }; // the defaults until applyCompetition (below) puts the competition in use
 const PORT = Number(process.env.PORT || MACHINE.port || 8080);
 // The start of every page link shown to people (Graphics page, control page, Mac app): the Mac's
-// Bonjour name unless config.json linkHost says otherwise. See linkhost.js.
+// Bonjour name unless config.json linkHost says otherwise. See linkhost.ts.
 const LINK_BASE = `http://${linkHost(MACHINE.linkHost)}:${PORT}`;
 // The names a browser may call Studio by when changing something (access.crossSite): read when asked,
 // since the Mac's addresses come and go.
 const ownHosts = () => access.ownHosts([linkHost(MACHINE.linkHost), bonjourName(), securelink.host()]);
-// The secure phone link (securelink.js): Studio on https as well, by this Mac's own name on the internet, once it's set
+// The secure phone link (securelink.ts): Studio on https as well, by this Mac's own name on the internet, once it's set
 // up on the Devices tab. Its pages may change things like the http ones (access.crossSite's secure origin).
 const SECURE_PORT = Number(process.env.SECURE_PORT || MACHINE.securePort || 8443);
 const secureOrigin = () => (securelink.host() ? { host: securelink.host(), port: SECURE_PORT } : null);
-// This Mac's Stream Deck key (access.js deckPress()): kept with the devices list on this Mac only (devices.js), never in
+// This Mac's Stream Deck key (access.ts deckPress()): kept with the devices list on this Mac only (devices.ts), never in
 // a backup or iCloud. Links copied from Studio carry it as /k/<key>/deck/...; a link without it is refused. Read when
 // asked, since the Devices… window can give it a new one.
 const deckBase = () => `${LINK_BASE}/k/${devices.linkKey()}`;
@@ -121,9 +120,9 @@ const log: Log = (level, source, message, extra) => {
 process.on('uncaughtException', err => { log('error', 'helper', `Crash: ${err.stack || err.message}`); process.exit(1); });
 process.on('unhandledRejection', err => log('error', 'helper', `Unhandled: ${errorStack(err) || err}`));
 
-// Bring saved settings up to date (migrations.js) before anything reads them.
+// Bring saved settings up to date (migrations.ts) before anything reads them.
 const DATA_STATE = migrations.run(log);
-// The game recordings (recorder.js): each PlayHQ game on the scoreboard while on air, from when it's due (the
+// The game recordings (recorder.ts): each PlayHQ game on the scoreboard while on air, from when it's due (the
 // automatic game selection's minutes before its start) to a while after full time, and each of the night's other games
 // Studio follows in the background, from its first reading.
 const RECORDING_START = () => ({ version: VERSION, competition: competitions.activeId() || '' });
@@ -160,7 +159,7 @@ viewers.init(log, { onAir: () => outputs.windows().length > 0, record: exposure.
 // The ATEM switcher, if one is set up: its state goes to the Output page over the scene's socket.
 scene.setSwitcherSource(switcher.status);
 phonemic.init(log, mics, changes => scene.act({ type: 'micAdd', changes }));
-// Mics plugged into the switcher (mics.js): Studio moves their faders, and follows a fader moved on the switcher.
+// Mics plugged into the switcher (mics.ts): Studio moves their faders, and follows a fader moved on the switcher.
 switcher.init(log, { changed: () => { scene.publishSwitcher(); mics.switcherChanged(); }, stinger: { find: scene.stingerSource, play: scene.playStinger }, outputs: outputs.switcherPlan,
   unstraight: id => outputs.apply({ output: id, decklinkStraight: false }), mics: () => mics.switcherChanged() });
 mics.useSwitcher({ inputs: switcher.micInputs, set: switcher.setMicFader, level: switcher.micLevel });
@@ -198,7 +197,7 @@ function saveControl() {
   controlSaved = next;
   savefile.writeJsonSync(CONTROL_FILE, control);
 }
-// ─── Each streamed game's story (stories.js), shared with the other Studio Macs on the network and through iCloud Drive ──
+// ─── Each streamed game's story (stories.ts), shared with the other Studio Macs on the network and through iCloud Drive ──
 // The tests turn both off (FIRSTPASS_NO_BONJOUR, FIRSTPASS_STORIES_CLOUD=off) so test Studios never share with each other
 // or write to the iCloud Drive of the Mac running them; FIRSTPASS_STORIES_CLOUD=<folder> and FIRSTPASS_OTHER_STUDIOS=
 // http://host:port,... stand in for them.
@@ -211,7 +210,7 @@ const stories = storiesLib.create({
 });
 process.on('exit', () => stories.stop()); // Bonjour's dns-sd stops announcing this Studio
 
-// ─── The board (board.js): scores, clock, goals, streaks, stats and the worm ──
+// ─── The board (board.ts): scores, clock, goals, streaks, stats and the worm ──
 const theBoard = createBoard({
   log, datadir, savefile, stories, machine: MACHINE, config: () => CONFIG, competitions, scene, playhq,
   control: { get: () => control, save: () => saveControl(), LASTING, exists: () => fs.existsSync(CONTROL_FILE), markUnsaved: () => { controlSaved = ''; } },
@@ -221,7 +220,7 @@ const theBoard = createBoard({
 const { board, newBoard, saveBoards, scoreboardJson, pushBoard, applyAction, clockElapsed, clockLeft, refreshFromPlayhq, followClock, parseClock,
   getGoals, getStats, getWorm, streak, superShot, tickerSpeed, DEFAULT_REFRESH_SEC, TICKER_SPEED } = theBoard;
 
-// ─── The games (games.js): this round, fixtures, up next, auto-select, season graphics, finals ──
+// ─── The games (games.ts): this round, fixtures, up next, auto-select, season graphics, finals ──
 const theGames = createGames({
   log, config: () => CONFIG, competitions, finals, playhq, board: theBoard,
   control: { get: () => control, save: () => saveControl() },
@@ -231,7 +230,7 @@ const theGames = createGames({
 const { setNightChoice, getRoundInfo, getCurrentGames, getFixtures, getUpNext, getIntroOutro, getCountdown, autoPick,
   getSeasonGames, competitionName, rules, finalsFor, getFinals, setFinalsResult, getLadderBar, getHeadToHead, getForm, getTicker, getTopShooters } = theGames;
 
-// ─── The Production Planner (planner.js): each night's court and commentators ──
+// ─── The Production Planner (planner.ts): each night's court and commentators ──
 const planner = createPlanner({
   log, competitions, savefile, getStructure, getSeasonGames, board, sameCourt: theGames.sameCourt, night: theGames.nightChoice,
   about: () => ({ competition: competitionName(), venue: CONFIG.venueName || '' }), logoFor: n => logoFor(n),
@@ -259,13 +258,13 @@ async function plannerRunOrder() {
   finally { plannerBusy = false; }
 }
 
-// The Socials tab: a game night's pictures for social media, saved by the Mac app (socials.js).
+// The Socials tab: a game night's pictures for social media, saved by the Mac app (socials.ts).
 const socials = createSocials({
   log, competitions, savefile, photosDir: datadir.local('socials-photos'), byDate: () => planner.byDate(), onStream: date => planner.onStream(date),
   about: () => ({ competition: competitionName(), venue: CONFIG.venueName || '', logo: rules().competitionLogoDark, runningShooters: CONFIG.runningShooters || '',
     finalsWinners: CONFIG.finalsWinners === 'premiers' ? 'Premiers' : 'Champions' }),
   logoFor: n => logoFor(n),
-  // Athletes' photos: only those who approved their use (athletes.js photoFor), and the list to pick from.
+  // Athletes' photos: only those who approved their use (athletes.ts photoFor), and the list to pick from.
   photoFor: who => photoFor(who), // a name, or a shooter with their PlayHQ ids
   athletesWithPhotos: () => Object.values(athletes()).filter(e => e.photoOk).map(e => ({ name: e.name, photo: photoFor(e.name), teams: athleteTeams(e.name) }))
     .filter(a => a.photo).sort((a, b) => a.name.localeCompare(b.name)),
@@ -291,13 +290,13 @@ const socials = createSocials({
     return id ? sponsors.wall(id).flatMap(t => t.sponsors.map(x => ({ id: x.id, name: x.name, tier: t.name, tagline: x.tagline || '', website: x.website || '', logo: x.logoWhiteUrl || x.logoUrl }))) : [];
   },
   onScreen: date => Object.fromEntries(exposure.report({ nights: [date] }).sponsors.map(x => [x.id, x.seconds])),
-  // Game story and Score worm: each streamed game's story as the scoreboard kept it (board.js gameStory).
+  // Game story and Score worm: each streamed game's story as the scoreboard kept it (board.ts gameStory).
   storyFor: id => theBoard.gameStory(id),
   storySources: ids => stories.sources(ids), // the copies from other Studio Macs among them
   // Watch it back: a QR code for the replay's link, and the competition's streams to suggest one from (Live viewers).
   qrFor: link => sponsors.qrSvg(link).svg,
   streamsFor: () => { const id = competitions.activeId(); try { return id ? competitions.get(id).streams || [] : []; } catch { return []; } },
-  milestonesFor: games => athleteRegister.milestones(games), // the night's first games and 50ths (athletes.js)
+  milestonesFor: games => athleteRegister.milestones(games), // the night's first games and 50ths (athletes.ts)
   tallyShooters: games => theGames.tallyShooters(games), superShots: division => !!rules(division).superShots,
   // A division's finals: whether it has a format (Competitions setup), and its finals as the Finals page has them.
   hasFinals: division => !!finalsFor(division), finalsOf: division => getFinals({ division }),
@@ -321,7 +320,7 @@ async function refreshTick() {
 }
 setInterval(refreshTick, 1000);
 
-// The night's other games, followed in the background so each has a story (board.js followGames, refreshFollowed): the
+// The night's other games, followed in the background so each has a story (board.ts followGames, refreshFollowed): the
 // game night's games are looked at every FOLLOW_LIST_MS (PlayHQ's fixture, through its cache; FIRSTPASS_FOLLOW_LIST_MS for
 // tests), and each followed game is read each second through the live feed's cache, so PlayHQ is asked once per
 // playhqRefreshSec per game while its scoring is open. Not while a practice game runs: PlayHQ isn't asked then.
@@ -336,11 +335,11 @@ async function followNight() {
 }
 setInterval(followNight, FOLLOW_LIST_MS);
 setTimeout(followNight, 5000);
-// And each one Studio has read gets a recording of its own (recorder.js followGames), to play back later.
+// And each one Studio has read gets a recording of its own (recorder.ts followGames), to play back later.
 setInterval(() => { if (!practice.active()) { theBoard.refreshFollowed(); theBoard.fillGapsFromPeers(); } theBoard.keepOwedStories(); recorder.followGames(theBoard.followedGames()); }, 1000);
 
 
-// The game, each second, for sequences that start by themselves (scene.js, sequences.js): the picked
+// The game, each second, for sequences that start by themselves (scene.ts, sequences.ts): the picked
 // game's scheduled start, the quarter, the clock (PlayHQ's scorer's or the manual one) and PlayHQ's
 // break flag and finished status, all from the board, so it costs no PlayHQ calls.
 function gameSnapshot() {
@@ -382,7 +381,7 @@ setInterval(pushBoard, 1000);
 //   /deck/auto/on  off  toggle   (pick the game from the court and the time)
 //   /deck/court/Indoor%2001  or  /deck/court/1   (the court for automatic selection)
 //   /deck/ticker/faster  slower  normal   /deck/ticker/speed/150   (pixels per second)
-// (The 4K replay's and practice game's links, /deck/replay/... and /deck/practice/..., are replay.js's and practice.js's deck().)
+// (The 4K replay's and practice game's links, /deck/replay/... and /deck/practice/..., are replay.ts's and practice.ts's deck().)
 const STREAK_KINDS: Record<string, string> = { heating: 'heating', heatingup: 'heating', fire: 'fire', onfire: 'fire', goalforgoal: 'goalForGoal', lead: 'lead', front: 'lead',
   level: 'level', square: 'level', comeback: 'comeback', siren: 'siren', backtoback: 'backToBack' };
 function deckAction(parts: string[], q: Query): Act | null {
@@ -455,7 +454,7 @@ function health() {
   const answeredAt = Math.max(seen.okAt, seen.notScoredAt);
   const readAgoMs = answeredAt ? now - answeredAt : null;
   // ok: fine or nothing to read; warn: a reading is overdue; bad: PlayHQ has been failing for a minute. Apart from
-  // these, trouble says PlayHQ answers but isn't scoring the game live (board.js playhqTrouble, the scorebench off line),
+  // these, trouble says PlayHQ answers but isn't scoring the game live (board.ts playhqTrouble, the scorebench off line),
   // which the pages show in purple, not red.
   // Overdue is measured from the later of the last answer and the switch to following PlayHQ (clockMatchedAt),
   // so the first seconds after a switch back from manual scores aren't a false alarm.
@@ -485,9 +484,9 @@ function health() {
     playhq: { state: playhqState, following, waiting, finished, status: b.playhqStatus || '', readAgoMs, refreshSec: refreshMs / 1000,
       error: lastLive.error && lastLive.errorAt > answeredAt ? lastLive.error : (b.playhqError || ''),
       trouble, troubleSays: theBoard.troubleSays(trouble),
-      // Back to Follow PlayHQ from a hand score that PlayHQ hasn't caught up with yet: the board keeps it (board.js holdHandScore).
+      // Back to Follow PlayHQ from a hand score that PlayHQ hasn't caught up with yet: the board keeps it (board.ts holdHandScore).
       holding: following && !!b.followHold && !!b.followHold.logged,
-      // What talking to PlayHQ costs (playhqnet.js), for the board's PlayHQ line: the ping, the last minute's
+      // What talking to PlayHQ costs (playhqnet.ts), for the board's PlayHQ line: the ping, the last minute's
       // download a second, and the bytes downloaded since Studio went on air.
       net: playhqNet.snapshot() },
     clock: { following: following && !!b.followPlayhqClock, running: !!b.clock.running, period: b.period, periodLabel: rules(b.division).periodLabel, left: clockLeft(b) },
@@ -562,7 +561,7 @@ function applyCompetition(why: string) {
 }
 
 // What the setup page shows for one competition.
-// A competition's added font files, as paths, so theme.css can measure them (fonts.js normalise).
+// A competition's added font files, as paths, so theme.css can measure them (fonts.ts normalise).
 const fontPaths = (id: string | null) => (id ? competitions.images(id, 'fonts').flatMap(f => { const file = competitions.imageFile(id, 'fonts', f); return file ? [file] : []; }) : []);
 
 function setupInfo(id: string) {
@@ -681,7 +680,7 @@ async function setupRoute(req: IncomingMessage, res: ServerResponse, url: URL, q
       log('info', 'setup', `${id}: removed ${kind} ${q.name}`);
       return send(res, 200, setupInfo(id));
     }
-    // Added files are served as plain files, never as pages of Studio's (uploads.js), as /logos/ and the rest are.
+    // Added files are served as plain files, never as pages of Studio's (uploads.ts), as /logos/ and the rest are.
     const file = competitions.imageFile(id, kind, q.name || '');
     if (!file) return send(res, 404, 'Not found', 'text/plain');
     return fs.readFile(file, (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', uploads.SERVE_HEADERS));
@@ -703,7 +702,7 @@ async function setupRoute(req: IncomingMessage, res: ServerResponse, url: URL, q
   return send(res, 200, setupInfo(id));
 }
 
-// ─── Team sheets and shooting stats (teams.js) ──────────────────────────────
+// ─── Team sheets and shooting stats (teams.ts) ──────────────────────────────
 // Name matching, as the athlete register, the team sheets and the lower third do it.
 const norm = (s: unknown) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const sameTeam = (a: unknown, b: unknown) => !!norm(a) && norm(a) === norm(b);
@@ -716,21 +715,21 @@ const teams = createTeams({
 const { positionOf, warmTeamLists, getTeamSheets } = teams;
 
 // ─── Team logos, athlete photos and the athlete register ────────────────────
-// All in athletes.js; this is the register for the competition in use.
+// All in athletes.ts; this is the register for the competition in use.
 const athleteRegister = createAthletes({
   log, config: () => CONFIG, competitions, savefile, playhq, board: () => board(),
   getSeasonGames: g => getSeasonGames(g), getTeamSheets: () => getTeamSheets(), setupTeams: o => setupTeams(o),
   norm: s => norm(s), sameTeam: (a, b) => sameTeam(a, b), send, readBody, readRaw,
 });
 const { logoFor, colourFor, photoFor, fileApproved, photoKey, genderInfo, silhouette, athleteTeams, athletes, withPhotos, withSquad, squadFor, athletesRoute } = athleteRegister;
-// 4K replays (replay.js): a recording's on-air layer on the pages again, its times moved to now.
-// A replay can follow a HyperDeck's timecode (hyperdeck.js) or the SDI input's (sditimecode.js, from the Mac app); what it
+// 4K replays (replay.ts): a recording's on-air layer on the pages again, its times moved to now.
+// A replay can follow a HyperDeck's timecode (hyperdeck.ts) or the SDI input's (sditimecode.ts, from the Mac app); what it
 // follows is this Mac's (replay.json, local).
 hyperdeck.init(log);
 sditimecode.init(log);
 replay.init(log, { read: name => recorder.read(name), shift: (v, ms) => practice.shift(v, ms), scene: st => scene.replay(st),
   board: json => scene.replayBoard(json), paused: on => recorder.pause(on), timecodes: { hyperdeck, sdi: sditimecode }, settings: datadir.local('replay.json') });
-// Practice games (practice.js): a recording plays back as if live. It forgets what was read from PlayHQ when it
+// Practice games (practice.ts): a recording plays back as if live. It forgets what was read from PlayHQ when it
 // starts, moves and stops, so the recording's answers (and then PlayHQ's again) are read afresh.
 practice.init(log, {
   read: name => recorder.read(name),
@@ -781,7 +780,7 @@ practice.init(log, {
     return { division: grade.name, gradeId, teams, home: await side(game.home), away: await side(game.away) };
   },
 });
-// ─── Person lower third (lowerthird.js) ─────────────────────────────────────
+// ─── Person lower third (lowerthird.ts) ─────────────────────────────────────
 const lowerThird = createLowerThird({
   log, board: () => board(), playhq, competitionName: () => competitionName(), rules: () => rules(),
   athletes, photoKey, athleteTeams, genderInfo, photoFor, silhouette, logoFor, norm, sameTeam,
@@ -885,7 +884,7 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     // from a web page on another site; a read of private data (access.PRIVATE: backups, the athlete register, the log,
     // sponsor reports, the setup) must be asked for by one of Studio's own names, not a DNS rebinding page's; and
     // config.json "remoteChanges": false keeps changes, and those reads, to this computer and the devices allowed in
-    // Devices… (devices.js: a link set's key, a signed plugin press, a paired browser's cookie), within their level.
+    // Devices… (devices.ts: a link set's key, a signed plugin press, a paired browser's cookie), within their level.
     const signed = devices.signed(method, req.url || '/', req.headers);
     const keyDevice = keyed ? devices.match(keyed[1]) : null;
     const device = keyDevice || (signed === 'ok' && devices.byId(str(req.headers['x-studio-device']))) || devices.fromCookie(req.headers.cookie);
@@ -901,7 +900,7 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
       // sets) doesn't show it as a problem (studio.js).
       return send(res, 403, refused === notMac ? { error: refused, macOnly: true } : { error: refused });
     }
-    // A 4K replay (replay.js) is on the pages: a graphic's read gets what it was answered on the night, and the scene
+    // A 4K replay (replay.ts) is on the pages: a graphic's read gets what it was answered on the night, and the scene
     // and scoreboard can't be changed (nor a practice game started) until it's stopped, so the live setup is left as it
     // was. The outputs can still be changed (4K on, an output on).
     if (replay.active()) {
@@ -928,7 +927,7 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
       return send(res, 403, { error: why, ...(pair ? { pair: true } : {}) });
     }
     if (url.pathname === '/api/deck-key') return send(res, 200, { key: devices.linkKey(), base: deckBase() });
-    // Another device asks to control Studio (devices.js ask()); it learns the answer from GET /api/pair/<id> with its token.
+    // Another device asks to control Studio (devices.ts ask()); it learns the answer from GET /api/pair/<id> with its token.
     if (url.pathname === '/api/pair' && method === 'POST') {
       const body = await readBody(req);
       const asked = devices.ask(body.name, access.strip(req.socket.remoteAddress), str(body.publicKey) || undefined, body.browser === true);
@@ -943,7 +942,7 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
       const link = `${securelink.link() || LINK_BASE}/pair.html?then=${encodeURIComponent(page)}`;
       return send(res, 200, { link, svg: sponsors.qrSvg(link).svg });
     }
-    // A phone as a backup commentator headset (phonemic.js): the Commentator page's offer (a paired phone, or this Mac),
+    // A phone as a backup commentator headset (phonemic.ts): the Commentator page's offer (a paired phone, or this Mac),
     // the phone collecting the answer, and Output 1's window (this Mac only) taking the offers and answering them.
     if (url.pathname === '/api/phonemic/offer' && method === 'POST') {
       const local = access.isLocal(req.socket.remoteAddress);
@@ -984,7 +983,7 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
       const headers = cookie ? { 'set-cookie': `${devices.COOKIE}=${cookie}; Path=/; HttpOnly; SameSite=Strict; Max-Age=34560000${secure ? '; Secure' : ''}` } : {};
       return send(res, got.status === 'gone' ? 404 : 200, got.key ? { ...got, base: `${LINK_BASE}/k/${str(got.key)}` } : got, undefined, headers);
     }
-    // The secure phone link (securelink.js), set up on the Devices tab, on this Mac only (access.notThisMac()): where it is,
+    // The secure phone link (securelink.ts), set up on the Devices tab, on this Mac only (access.notThisMac()): where it is,
     // and its settings ({ zoneId, keyId, secret, on }; the secret is never read back).
     if (url.pathname === '/api/securelink' && method === 'GET') return send(res, 200, await securelink.status());
     if (url.pathname === '/api/securelink' && method === 'POST') {
@@ -1045,7 +1044,7 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
         return send(res, 404, 'Not found', 'text/plain');
       }
       const file = competitions.imageFile(competitions.activeId() || '', kind, name);
-      // Added files are served as plain files, never as pages of Studio's (uploads.js).
+      // Added files are served as plain files, never as pages of Studio's (uploads.ts).
       if (!file) return send(res, 404, 'Not found', 'text/plain');
       return fs.readFile(file, (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', uploads.SERVE_HEADERS));
     }
@@ -1142,10 +1141,10 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
       // The video outputs: /deck/output/on|off|toggle, /deck/output/<output>/on|off|toggle, /deck/output/all/....
       const output = outputs.deck(parts);
       if (output) return send(res, output.status, output.body);
-      // The ATEM switcher: /deck/switcher/cut, auto, preview/<input>, usk/<n>/on ... (switcher.js).
+      // The ATEM switcher: /deck/switcher/cut, auto, preview/<input>, usk/<n>/on ... (switcher.ts).
       const sw = await switcher.deck(parts);
       if (sw) return send(res, sw.status, sw.body);
-      // A 4K replay or a practice game: /deck/replay/play, pause, toggle, stop, next, prev, nudge/<ms>; /deck/practice/... (replay.js, practice.js).
+      // A 4K replay or a practice game: /deck/replay/play, pause, toggle, stop, next, prev, nudge/<ms>; /deck/practice/... (replay.ts, practice.ts).
       const playback = replay.deck(parts) || practice.deck(parts);
       if (playback) return send(res, playback.status, playback.body);
       const action = deckAction(parts, q);
@@ -1186,7 +1185,7 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     // it shows, nothing else of that folder.
     if (url.pathname === '/guide') { res.writeHead(302, { location: '/guide/' }); return res.end(); }
     if (url.pathname.startsWith('/guide/')) return sendGuide(res, decodeURIComponent(url.pathname.slice('/guide/'.length)));
-    // openapi.yaml read for the Devices tab's Links list (devices.js), which has no YAML reader of its own.
+    // openapi.yaml read for the Devices tab's Links list (devices.ts), which has no YAML reader of its own.
     if (url.pathname === '/openapi.json') return send(res, 200, openapiJson());
     // / is the Output page; results.html is the fixture page showing finished games.
     const ALIASES: Record<string, string> = { '/': 'output.html', '/results.html': 'fixtures.html' };
@@ -1202,7 +1201,7 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
   }
 };
 function handleUpgrade(req: IncomingMessage, socket: Duplex) {
-  // WebSockets: the scene's live updates for Studio's pages (scene.js). A page on another site gets
+  // WebSockets: the scene's live updates for Studio's pages (scene.ts). A page on another site gets
   // no socket (it could read the scene and the board through one; there is no CORS check on sockets).
   const url = new URL(req.url || '/', 'http://localhost');
   const refused = access.crossSite('WEBSOCKET', url.pathname, req.headers, PORT, ownHosts(), secureOrigin());
@@ -1235,7 +1234,7 @@ http.createServer(handle).on('upgrade', handleUpgrade).on('error', (err: NodeJS.
   console.log(`Debug log: ${LOG_FILE}`);
   setTimeout(() => warmTeamLists('start up'), 2000);
   securelink.start({ log, port: SECURE_PORT, handler: handle, upgrade: handleUpgrade });
-  stories.start(); // announce this Studio and copy the other Studios' game stories (stories.js)
+  stories.start(); // announce this Studio and copy the other Studios' game stories (stories.ts)
   console.log(`FirstPass Studio is running. Open ${LINK_BASE}/ for the Output page.`);
   console.log(`Competition: ${CONFIG.name} (change it at ${LINK_BASE}/setup.html). Leave this window open while streaming.`);
 });

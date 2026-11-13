@@ -1,4 +1,4 @@
-// The competition setup page's API (/api/setup..., server.js): finding the competition on PlayHQ,
+// The competition setup page's API (/api/setup..., server.ts): finding the competition on PlayHQ,
 // making, saving, switching and deleting setups, logos, and template files, through the
 // helper as setup.html uses it.
 const test = require('node:test');

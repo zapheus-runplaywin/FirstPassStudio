@@ -13,11 +13,11 @@
 //   game      the game it's of (id, teams, division, round, court)
 //   playhq    a PlayHQ answer (playhq.js gql): op, vars, tenant, data
 //   live      an answer from PlayHQ's live scoring (fetchLive): id, and data or errors
-//   action    a scoreboard action (board.js applyAction): from the control page, the Stream Deck or Studio itself
-//   scene     the scene the pages were sent (scene.js notify), when it changed
-//   board     the board the pages were sent (scene.js publishBoard), when it changed (not the clock reading)
+//   action    a scoreboard action (board.ts applyAction): from the control page, the Stream Deck or Studio itself
+//   scene     the scene the pages were sent (scene.ts notify), when it changed
+//   board     the board the pages were sent (scene.ts publishBoard), when it changed (not the clock reading)
 //   api       an answer a graphic fetched (GET /api/...), when it changed: p (the path and query) and body
-//   practice  a practice game started (on: true) or stopped (practice.js); nothing is recorded in between
+//   practice  a practice game started (on: true) or stopped (practice.ts); nothing is recorded in between
 //   end       the recording stopped: why (full time, next game, off air, recording off, too long)
 // The first two layers (playhq, live, action) are what came in, for practice games and tests; the rest (scene,
 // board, api) is what went to air, for replaying the graphics at 4K. Nothing secret is recorded: no keys,
@@ -27,16 +27,15 @@
 // Lines are kept in memory and written every few seconds as a gzip member of their own, so a recording is always
 // readable up to its last write, even if Studio stopped suddenly. A recording with no game in it (made before
 // recordings followed the game) is removed when Studio next starts, and one older than KEEP_DAYS days too.
-// The night's other games Studio follows in the background (board.js followGames) each get a recording of their own
+// The night's other games Studio follows in the background (board.ts followGames) each get a recording of their own
 // too, named "... (followed)": from Studio's first reading of the game to afterMinutes after PlayHQ says it's finished,
 // or until it's no longer followed (the scoreboard picked it, following turned off) or off air. It holds what PlayHQ
 // said (the same playhq lines as the scoreboard's recording, from the last of each already known, and that game's
 // live lines) and no scene, board or graphics, since none of it went to air; its game line says followed: true and
-// carries its date and time. A practice game (practice.js) plays it back as if live, to put graphics over someone
-// else's video of that game (server.js feeds the list each second: followGames).
+// carries its date and time. A practice game (practice.ts) plays it back as if live, to put graphics over someone
+// else's video of that game (server.ts feeds the list each second: followGames).
 // Recording can be turned off, and the minutes after full time set, on the Recordings page (recordings.json in the
 // local data folder, as the recordings are this Mac's: { record, afterMinutes }).
-
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -86,14 +85,14 @@ let gameId: string | null = null;        // the game being recorded
 let onBoard: RecBoard | null = null;       // the board as last sent: its game, scheduled time and PlayHQ status
 let finishedAt = 0;       // when PlayHQ first said the game being recorded was finished
 const done = new Set<string>();   // games whose recording has stopped (full time, too long), not started again
-let paused = false; // a practice game is running (practice.js): only its start and end are recorded
+let paused = false; // a practice game is running (practice.ts): only its start and end are recorded
 const listed = new Map<string, { mtimeMs: number; size: number; summary: Summary }>(); // name -> { mtimeMs, size, summary }
 
 const two = (n: number) => String(n).padStart(2, '0');
 const stamp = (d: Date) => `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} ${two(d.getHours())}${two(d.getMinutes())}`;
 
 // dir: the Recordings folder; settings: recordings.json; start: what the start line says ({ version, competition }),
-// or a function giving it; lead: how long before a game's scheduled start it's due (games.js leadMs).
+// or a function giving it; lead: how long before a game's scheduled start it's due (games.ts leadMs).
 function init(logger: Log | null | undefined, { dir: recordingsDir, settings, start = {}, lead }: { dir: string; settings: string; start?: StartLine | (() => StartLine); lead?: () => number }) {
   log = logger || log;
   dir = recordingsDir;
@@ -236,7 +235,7 @@ function closeOther(o: Other, why: string) {
   others.delete(o.gameId);
   log('info', 'recorder', `Recording of ${o.label} stopped (${why}): Recordings/${o.name}`);
 }
-// The night's followed games, each second (board.js followedGames): a recording starts once Studio has read a game,
+// The night's followed games, each second (board.ts followedGames): a recording starts once Studio has read a game,
 // and stops afterMinutes after it's done, or when it's no longer followed.
 function followGames(list: FollowedGame[] | null | undefined, now = Date.now()) {
   const by = new Map((list || []).map(g => [g.gameId, g]));
@@ -288,7 +287,7 @@ function board(json: RecBoard | null | undefined) {
   changed('board', 'board', { board: json }, sameness(json));
   check();
 }
-// An answer Studio sent (server.js send): kept when it's a graphic's GET /api/... read (isGraphic) that worked.
+// An answer Studio sent (server.ts send): kept when it's a graphic's GET /api/... read (isGraphic) that worked.
 function answer(req: IncomingMessage | null | undefined, status: number, body: unknown, type: string | undefined, isGraphic: (pathname: string, headers: IncomingHttpHeaders) => boolean) {
   if (!file || !req || req.method !== 'GET' || status !== 200 || (type && !/json/.test(type))) return;
   const u = new URL(req.url || '/', 'http://localhost');

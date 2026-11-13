@@ -9,11 +9,10 @@
 // sponsors/exposure/<night>.jsonl:
 //   { t: 'seen', s: sponsor, c: competition, p: place, src: source name, from, to, air, qr }
 //   { t: 'play', s: sponsor, c: competition, file, kind, at, air }        one sponsor ad starting
-//   { t: 'viewers', c: competition, at, n, by: [{ id, n }] }             live viewers (viewers.js), on air
+//   { t: 'viewers', c: competition, at, n, by: [{ id, n }] }             live viewers (viewers.ts), on air
 // air is whether a video output was on: by default the report only counts time on air, so rehearsals
 // don't count. A night runs from 4 am to 4 am, so a stream that runs past midnight stays one night.
 // Only what plays through the scene is counted (a page used on its own elsewhere can't be seen).
-
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -44,7 +43,7 @@ const SAVE_EVERY = 60 * 1000;
 let log: Log = () => {};
 let showing = (): Showing[] => [];   // the scene's sources that are on: [{ id, name, url, sponsor, air }] (air false: its output is off)
 let onAir = () => false;  // a video output is on
-let held = () => false;   // a practice game is running (practice.js): nothing is kept
+let held = () => false;   // a practice game is running (practice.ts): nothing is kept
 const given = new Map<string, { ids: string[]; place: string; qr: boolean; comp: string | null }>();  // page link -> { ids, place, qr, comp }
 const open = new Map<string, Segment>();   // sponsor|place|source -> segment
 let timer: NodeJS.Timeout | undefined;
@@ -119,7 +118,7 @@ function flash(req: IncomingMessage | null | undefined, sponsor: SponsorRef | nu
   append({ t: 'seen', s: idOf(sponsor), c: opts.competition || competitions.activeId(), p: placeOf(place), src: src.name, air: !!onAir() && src.air !== false, qr: false, from: now, to: now + Math.round(seconds * 1000) });
 }
 
-// A live viewer reading (viewers.js), taken while on air: { total, streams }.
+// A live viewer reading (viewers.ts), taken while on air: { total, streams }.
 function viewers(st: { competition?: string | null; total: number; streams: { id: string; live?: boolean; count: number }[] } | null | undefined, now = Date.now()) {
   if (!st || !st.streams || !st.streams.length) return;
   append({ t: 'viewers', c: st.competition || competitions.activeId(), at: now, air: true, n: st.total,
@@ -231,7 +230,7 @@ function report({ nights: want, competition, offAir = false, now = Date.now() }:
   const settings = compId ? competitions.get(compId) : null;
   return { competition: compId && settings ? { id: compId, name: settings.displayName || settings.competitionName || settings.name, tiers: competitions.sponsorTiers(settings) } : null,
     nights: list, offAir, sponsors: out,
-    // The live viewer readings (viewers.js): the most at once and the average while they were read.
+    // The live viewer readings (viewers.ts): the most at once and the average while they were read.
     viewers: samples.length ? { peak: Math.max(...samples.map(x => x.n)), average: Math.round(samples.reduce((n, x) => n + x.n, 0) / samples.length), readings: samples.length } : null };
 }
 

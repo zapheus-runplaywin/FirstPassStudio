@@ -1,8 +1,7 @@
 // FirstPass Studio - the games: which game night and round are "this round", the fixture, up next and the
 // end of night card, the intro and outro, the countdown, automatic game selection, and the
 // season graphics (ladder bar, head to head, form, ticker, top shooters) and the finals.
-// Moved out of server.js unchanged (review decision D6); create(deps) takes what it needs from there.
-
+// Moved out of server.ts unchanged (review decision D6); create(deps) takes what it needs from there.
 
 import { isFinished, startOf, localDate } from './playhq';
 import { errorMessage } from './errors';
@@ -404,7 +403,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // A finals game is kept until PlayHQ says it is finished, because of extra time.
   // Picking a game by hand turns autoSelect off.
   // The court is set for one night at a time (followPlan): when a night arrives (a new date, a game night picked by hand,
-  // or another competition) the court goes to the Production Planner's court for it (planner.js courtFor), else the
+  // or another competition) the court goes to the Production Planner's court for it (planner.ts courtFor), else the
   // competition's fallback court (defaultCourt), and automatic selection goes back on. courtFrom says which ('plan',
   // 'fallback', or 'hand' for a court changed on Scoreboard control). A court or game picked by hand lasts for the rest
   // of that night, restarts included (control.json): the Planner flags it rather than undoing it. A plan whose court
@@ -440,7 +439,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   function switchTo(b: Board, pick: SeasonGame, why: string) {
     log('info', 'auto', `${why} ${pick.home.name} v ${pick.away.name} (${pick.date} ${pick.time}, ${pick.court}, ${pick.division})`);
     applyAction(b, { type: 'selectGame', game: pick, auto: true });
-    if (b.takenOver !== pick.id) { // a game followed in the background carries on where it is (board.js takeOver)
+    if (b.takenOver !== pick.id) { // a game followed in the background carries on where it is (board.ts takeOver)
       applyAction(b, { type: 'period', value: 1 });
       b.clock = { ...b.clock, lengthSec: b.clock.baseSec || theBoard.quarterSec(), elapsedMs: 0, running: false, startedAt: null };
     }
@@ -587,7 +586,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   }
 
   // ─── Finals ─────────────────────────────────────────────────────────────────
-  // Each division's finals format comes from the competition setup (finals.js has the formats).
+  // Each division's finals format comes from the competition setup (finals.ts has the formats).
   // The teams come from the ladder. PlayHQ often has no finals fixtures: when it does (rounds
   // with "final" or "play-off" in their name), their games, times, courts and scores are used;
   // otherwise winners are entered on the control page and kept in control.json.
@@ -703,7 +702,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   }
 
   // The round fixture has no scores until a game is final, so live games are read one by one, through the live
-  // feed's cache (playhq.js getLive): the ticker and the fixture board (planner.js) both read here, so a game read
+  // feed's cache (playhq.js getLive): the ticker and the fixture board (planner.ts) both read here, so a game read
   // for one is not asked again for the other within maxAgeMs. Sets home.score, away.score and period ('Q2') on
   // each live game in place.
   const TICKER_LIVE_MS = 20 * 1000;
@@ -782,7 +781,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   }
 
 
-  // The competition setup changed (applyCompetition in server.js): its round lookahead and auto-select lead.
+  // The competition setup changed (applyCompetition in server.ts): its round lookahead and auto-select lead.
   function configure(c: Partial<Competitions.Settings>) {
     LOOKAHEAD_DAYS = c.roundLookaheadDays || 5;
     AUTO_LEAD_MS = (Number.isFinite(Number(c.autoSelectMinutesBefore)) ? Number(c.autoSelectMinutesBefore) : 10) * 60 * 1000;

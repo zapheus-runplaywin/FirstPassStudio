@@ -1,5 +1,5 @@
 // Hot streaks for streak.html: 3 in a row is heating up, 5 is on fire, 10 one each way is goal
-// for goal, each played once per run. Runs server.js and presses the scores like the control page.
+// for goal, each played once per run. Runs server.ts and presses the scores like the control page.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

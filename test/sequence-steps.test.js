@@ -8,7 +8,7 @@ const path = require('node:path');
 
 process.env.FIRSTPASS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-seqsteps-'));
 mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
-const scene = require('../scene');
+const scene = require('../out/scene');
 scene.init(() => {});
 
 const ok = a => assert.equal(scene.apply(a), null, JSON.stringify(a));

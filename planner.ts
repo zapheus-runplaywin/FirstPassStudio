@@ -5,8 +5,8 @@
 //   pool    the commentators to choose from: { id, name, guest, headshot } (guest: a special guest commentator; headshot:
 //           their photo's file in competitions/<id>/headshots, served at /headshots/, for the Socials tab's Commentary team)
 //   nights  by date (YYYY-MM-DD): { court, slots: { "HH:MM": { people: [id, ...], runOrder, game: { id, home, away } } } }
-//           runOrder: the id of a saved run order (the Output page's Saved…, sequences.js runOrders) that Studio
-//           loads into Output 1's run order when the scoreboard moves to that game (server.js plannerRunOrder)
+//           runOrder: the id of a saved run order (the Output page's Saved…, sequences.ts runOrders) that Studio
+//           loads into Output 1's run order when the scoreboard moves to that game (server.ts plannerRunOrder)
 // The fixture board (fixtureboard.html, fixtureBoard()) shows a night's whole fixture in the competition room or
 // backstage: the streamed court marked, who is on the mic for its games, and each game's state and score.
 // Studio streams one court a night (another court is another Mac running its own Studio), so a night's
@@ -25,21 +25,20 @@
 // run order's own controls (load, clear, add, skip) work as ever afterwards.
 //
 // When a night with a plan arrives (today, or the game night picked by hand on Scoreboard control), Studio sets
-// Scoreboard control's court to the plan's (games.js autoPick asks courtFor()), once a night and again if the
+// Scoreboard control's court to the plan's (games.ts autoPick asks courtFor()), once a night and again if the
 // plan's court changes. Changing the court there, or picking a game by hand, is never undone by the plan:
 // the Planner flags it instead, so the commentary team can be moved to match.
 //
 // create(deps). deps:
 //   log(level, source, message)      the debug log
-//   competitions, savefile           competitions.js and savefile.js
-//   getStructure(), getSeasonGames(grade)   the season's divisions and each one's games (playhq.js, games.js)
+//   competitions, savefile           competitions.ts and savefile.ts
+//   getStructure(), getSeasonGames(grade)   the season's divisions and each one's games (playhq.js, games.ts)
 //   board()                          the scoreboard in use
-//   sameCourt(court, wanted)         court name matching, as automatic game selection does it (games.js)
+//   sameCourt(court, wanted)         court name matching, as automatic game selection does it (games.ts)
 //   night()                          the game night picked by hand on Scoreboard control, or ''
 //   about()                          { competition, venue } for the fixture board, and logoFor(teamName)
-//   withLiveScores(games, maxAgeMs), isLive(game)   live scores the ticker's way (games.js)
-//   runOrders()                      the saved run orders: [{ id, name, count }] (sequences.js state().runOrders)
-
+//   withLiveScores(games, maxAgeMs), isLive(game)   live scores the ticker's way (games.ts)
+//   runOrders()                      the saved run orders: [{ id, name, count }] (sequences.ts state().runOrders)
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -169,7 +168,7 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
       games: games.map(brief) };
   }
 
-  // The plan's court for a night, for automatic game selection (games.js): { court, key } or null.
+  // The plan's court for a night, for automatic game selection (games.ts): { court, key } or null.
   // key changes when the plan does, so the court is set again then and only then.
   async function courtFor(date: string) {
     if (!active() || !isDate(date)) return null;
@@ -226,9 +225,9 @@ function create({ log, competitions, savefile, getStructure, getSeasonGames, boa
   //          'live'  being played: the game on the scoreboard once it has started, or PlayHQ says in progress
   //          'next'  the rest
   //   score  { home, away }: the scoreboard's for the game on it; live scores for the other games through the same
-  //          reader and cache as the ticker (games.js withLiveScores), so the board adds no PlayHQ requests while the
+  //          reader and cache as the ticker (games.ts withLiveScores), so the board adds no PlayHQ requests while the
   //          ticker is reading and at most one a minute per live game when it isn't; PlayHQ's result when done, else
-  //          the score the scoreboard had when it moved on (board.js lastGame)
+  //          the score the scoreboard had when it moved on (board.ts lastGame)
   //   winner 'home', 'away' or 'draw' for a done game with a score
   const BOARD_LIVE_MS = 60 * 1000;
   async function fixtureBoard(q: { date?: string } = {}) {
