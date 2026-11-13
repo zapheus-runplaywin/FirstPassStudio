@@ -30,7 +30,7 @@ import type * as Competitions from './competitions';
 import type { Client as PlayhqClient, LiveGame, LiveClock } from './playhq';
 import type { Story, Merge } from './stories';
 import type { Rules } from './games';
-import type { Config, Log, Machine } from './types';
+import type { Config, Control, Log, Machine } from './types';
 
 type Side = 'home' | 'away';
 const SIDES: readonly Side[] = ['home', 'away'];
@@ -105,7 +105,7 @@ interface Action {
 }
 // A game picked for the scoreboard.
 interface GameChoice {
-  id: string; roundId?: string | null; division?: string; court?: string; round?: string; date?: string; time?: string; venue?: string; status?: string;
+  id: string; roundId?: string | null; division?: string; court?: string; round?: string; date?: string | null; time?: string | null; venue?: string; status?: string | null;
   home: { name: string; score?: number | null }; away: { name: string; score?: number | null }; toBeDecided?: boolean;
 }
 // What board.js needs from the rest of the helper (see the top of this file).
@@ -113,7 +113,7 @@ interface Deps {
   log: Log; datadir: typeof Datadir; savefile: typeof Savefile;
   stories?: { keep(story: Story, opts?: { final?: boolean }): void; read(id: string): Story | null; useMerge?(fn: Merge): void; liveFrom?(id: string): Promise<Story[]> };
   machine: Machine; config: () => Config; competitions: typeof Competitions; scene: { publishBoard(): void }; playhq: PlayhqClient;
-  control: { get(): { boards: Record<string, Partial<Board>> }; save(): void; LASTING: string[]; exists(): boolean; markUnsaved(): void };
+  control: Control;
   logoFor(name: string): string | null; colourFor(name: string): string | null; rules(division?: string): Rules; competitionName(): string;
   warmTeamLists(why: string): unknown; record?: { action(a: Action): void };
 }

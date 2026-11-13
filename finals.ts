@@ -32,11 +32,11 @@ interface Format {
   series?: boolean; all?: boolean;
 }
 // A side of a finals game as resolve() works it out.
-interface Side { name: string | null; slot: string; placeholder?: string; seed?: number; score?: number | null; outcome?: string }
+interface Side { name: string | null; slot: string; placeholder?: string; seed?: number; score?: number | null; outcome?: string | null }
 // A PlayHQ finals game, for resolve().
 interface Played {
-  week: number; home: { name: string; score?: number | null; outcome?: string }; away: { name: string; score?: number | null; outcome?: string };
-  finished?: boolean; date?: string; time?: string; court?: string; status?: string; id?: string; round?: string;
+  week: number; home: { name: string; score?: number | null; outcome?: string | null }; away: { name: string; score?: number | null; outcome?: string | null };
+  finished?: boolean; date?: string | null; time?: string | null; court?: string; status?: string | null; id?: string; round?: string;
 }
 // A finals game as resolve() works it out.
 interface Game {

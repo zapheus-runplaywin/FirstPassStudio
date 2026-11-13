@@ -11,6 +11,9 @@ export type Gender = 'female' | 'male' | '';
 /** A division ("grade" in PlayHQ). division is its 1-based place after sorting by name. */
 export interface Grade { division: number; id: string; name: string; gender: Gender }
 
+/** A division as a page can name it: findGrade gives { id, name } alone for ?gradeId=. */
+export type GradeRef = Pick<Grade, 'id' | 'name'> & Partial<Grade>;
+
 /** The season's divisions, and the names the graphics show (getStructure). */
 export interface Structure {
   organisation: string; competition: string; season: { id: string; name: string }; grades: Grade[]; otherCompetitions: string[];
@@ -84,7 +87,7 @@ export interface Client {
   gql(operationName: string, query: string, variables: Record<string, unknown>, retried?: boolean, tenant?: string): Promise<GqlData>;
   getStructure(): Promise<Structure>;
   getLadder(gradeId: string): Promise<Ladder>;
-  findGrade(st: Structure, q: { gradeId?: string; division?: string }): Grade | { id: string; name: string } | undefined;
+  findGrade(st: Structure, q: { gradeId?: string; division?: string }): GradeRef | undefined;
   pickSeason<S extends { name: string; startDate?: string | null; endDate?: string | null; status?: unknown }>(seasons: S[]): S | undefined;
   Q_COMPETITIONS: string;
   getRounds(gradeId: string): Promise<Round[]>;

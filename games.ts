@@ -6,9 +6,31 @@
 
 import { isFinished, startOf, localDate } from './playhq';
 import { errorMessage } from './errors';
+import { isObj, str } from './check';
+import type * as Competitions from './competitions';
+import type * as Finals from './finals';
+import type { Client as PlayhqClient, FixtureGame, GameDetail, GameSide, GradeRef, Round, Structure } from './playhq';
+import type { Board, BoardApi } from './board';
+import type { Body, Config, Control, Log, Query } from './types';
 
 // A game of a division's season (getSeasonGames): a round's fixture game with its division and round.
-export type SeasonGame = import('./playhq').FixtureGame & { division: string; round: string; roundNumber: number | null };
+export type SeasonGame = FixtureGame & { division: string; round: string; roundNumber: number | null };
+// A game on a game night as boardDay finds it: a season game, or the scoreboard's own game when PlayHQ's fixture doesn't have it.
+type DayGame = Pick<SeasonGame, 'id' | 'division' | 'round' | 'venue'> & { date: string | null; time: string | null; court: string; home: { name: string }; away: { name: string } };
+// A season game with its live score read in (withLiveScores): period is 'Q2' or 'H1' while it's on.
+type LiveRow = SeasonGame & { period?: string };
+// A row of the fixture page: a round's game, or a finals game PlayHQ has no game for yet.
+type FixtureRow = { date: string | null; time: string | null; court: string; [key: string]: unknown };
+// The end of night card (endOfNight).
+type NextRound = { round: string; date: string };
+// A shooter's season totals (tallyShooters).
+interface Shooter { name: string; team: string; logo: string | null; playhqIds: string[]; games: number; goals: number; superGoals: number; shots: number; points: number }
+
+interface Deps {
+  log: Log; config: () => Config; competitions: typeof Competitions; finals: typeof Finals; playhq: PlayhqClient; board: BoardApi; control: Control;
+  logoFor(name: string): string | null; colourFor(name: string): string | null; norm(s: unknown): string; sameTeam(a: unknown, b: unknown): boolean;
+  courtPlan?(night: string): Promise<{ key: string; court: string } | null>;
+}
 
 // A division's playing rules and the competition's branding, for the pages (GET /api/rules and the board).
 export interface Rules {
@@ -17,7 +39,7 @@ export interface Rules {
   competitionLogo: string | null; competitionLogoLight: string | null; competitionLogoDark: string | null; competitionName: string;
 }
 
-function create({ log, config, competitions, finals, playhq, board: theBoard, control, logoFor, colourFor, norm, sameTeam, courtPlan = async () => null }) {
+function create({ log, config, competitions, finals, playhq, board: theBoard, control, logoFor, colourFor, norm, sameTeam, courtPlan = async () => null }: Deps) {
   const { getStructure, getLadder, findGrade, getRounds, getRoundGames, readGame, eachLimited, PLAYHQ_AT_ONCE, getLive, liveScore, PERIOD_NUMBER } = playhq;
   const { board, applyAction, saveBoards, courtShown, TICKER_SPEED } = theBoard;
 
@@ -28,7 +50,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // counting today, so a Tuesday night is picked from the Friday before), otherwise the last date
   // played. A night picked by hand on the control page is kept in control.json (blank means
   // automatic); each division's "this round" is then its round on that night.
-  const isDate = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+  const isDate = (v: unknown): v is string => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
   let nightChoice = isDate(control.get().night) ? control.get().night : '';
   if (control.get().round) {
     // Studio used to keep a round picked by hand; a round can be a different night in each division.
@@ -38,7 +60,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   }
   // A night (a date), or for older callers a round's number or name, which means the date it is played
   // in the first division that has it. Blank means automatic.
-  async function setNightChoice(value) {
+  async function setNightChoice(value: unknown) {
     let night = String(value || '').trim();
     if (night && !isDate(night)) {
       const st = await getStructure();
@@ -59,22 +81,24 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   let LOOKAHEAD_DAYS = 5;
   // A round's key in the round list: its number, or its name when the number isn't unique
   // (PlayHQ numbers finals rounds from 1 again, so "Grand Final" can share number 3 with Round 3).
-  function roundKeys(rounds) {
-    const count = {};
+  function roundKeys(rounds: Round[]) {
+    const count: Record<number, number> = {};
     for (const r of rounds) if (r.number != null) count[r.number] = (count[r.number] || 0) + 1;
-    return r => (r.number != null && count[r.number] === 1 ? String(r.number) : r.name);
+    return (r: Round) => (r.number != null && count[r.number] === 1 ? String(r.number) : r.name);
   }
-  const dayDiff = (date, today) => Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
-  const roundDatesCache = new Map();
+  const dayDiff = (date: string, today: string) => Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
+  // round id -> its first game's date; starts: round id -> its first game's start time.
+  type RoundDates = Map<string, string> & { starts?: Map<string, number> };
+  const roundDatesCache = new Map<string, { at: number; dates: RoundDates }>();
   // The first game date of each round in a division, and its first game's start time (kept for 30 minutes).
-  async function roundDates(grade) {
+  async function roundDates(grade: GradeRef): Promise<RoundDates> {
     const hit = roundDatesCache.get(grade.id);
     if (hit && Date.now() - hit.at < 30 * 60 * 1000) return hit.dates;
-    const dates = new Map(), starts = new Map();
+    const dates: RoundDates = new Map(), starts = new Map<string, number>();
     for (const r of await getRounds(grade.id)) {
       const games = (await getRoundGames(r.id, 30 * 60 * 1000)).filter(g => g.date).sort(byStart);
       if (!games.length) continue;
-      dates.set(r.id, games[0].date);
+      dates.set(r.id, games[0].date || '');
       const first = games.map(g => startOf(g)).find(t => t !== null);
       if (first) starts.set(r.id, first);
     }
@@ -82,13 +106,13 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     roundDatesCache.set(grade.id, { at: Date.now(), dates });
     return dates;
   }
-  async function pickRound(grade, night = nightChoice) {
+  async function pickRound(grade: GradeRef, night = nightChoice): Promise<Round | null> {
     const rounds = await getRounds(grade.id);
     if (!rounds.length) return null;
     if (night) {
       // The division's round on that night (none when it doesn't play then). A carnival plays several
       // rounds on one day: today, it's the last that has started (or is about to), else the first.
-      const on = [];
+      const on: { r: Round; start: number | null }[] = [];
       for (const g of await getSeasonGames(grade)) {
         if (g.date !== night) continue;
         const r = rounds.find(x => x.id === g.roundId);
@@ -106,12 +130,14 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     try {
       const dates = await roundDates(grade);
       const today = localDate();
-      const dated = rounds.filter(r => dates.has(r.id)).map(r => ({ r, diff: dayDiff(dates.get(r.id), today) }));
+      const dated = rounds.filter(r => dates.has(r.id)).map(r => ({ r, diff: dayDiff(dates.get(r.id) || '', today) }));
       // A carnival plays several rounds on one day: today, it's the last round that has started
       // (or is about to, autoSelectMinutesBefore ahead), else today's first round.
-      const todays = dated.filter(x => x.diff === 0 && dates.starts && dates.starts.has(x.r.id)).sort((a, b) => dates.starts.get(a.r.id) - dates.starts.get(b.r.id));
+      const starts = dates.starts || new Map<string, number>();
+      const startAt = (r: Round) => starts.get(r.id) ?? 0;
+      const todays = dated.filter(x => x.diff === 0 && starts.has(x.r.id)).sort((a, b) => startAt(a.r) - startAt(b.r));
       if (todays.length > 1) {
-        const started = todays.filter(x => dates.starts.get(x.r.id) - AUTO_LEAD_MS <= Date.now());
+        const started = todays.filter(x => startAt(x.r) - AUTO_LEAD_MS <= Date.now());
         return (started.length ? started[started.length - 1] : todays[0]).r;
       }
       const soon = dated.filter(x => x.diff >= 0 && x.diff < LOOKAHEAD_DAYS).sort((a, b) => a.diff - b.diff);
@@ -125,25 +151,27 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   }
   // Every date any division plays this season, with each division's round that night.
   async function gameNights() {
-    const nights = new Map();
+    type Night = { date: string; rounds: { division: string; round: string }[] };
+    const nights = new Map<string, Night>();
     for (const grade of (await getStructure()).grades) {
       for (const g of await getSeasonGames(grade)) {
         if (!g.date) continue;
-        const night = nights.get(g.date) || nights.set(g.date, { date: g.date, rounds: [] }).get(g.date);
+        let night = nights.get(g.date);
+        if (!night) nights.set(g.date, night = { date: g.date, rounds: [] });
         if (!night.rounds.some(x => x.division === grade.name && x.round === g.round)) night.rounds.push({ division: grade.name, round: g.round });
       }
     }
     return [...nights.values()].sort((a, b) => a.date.localeCompare(b.date));
   }
   // The night automatic picks: the first played in the next LOOKAHEAD_DAYS days, else the last played, else the first to come.
-  function autoNight(nights) {
+  function autoNight(nights: { date: string }[]) {
     const today = localDate();
     const dated = nights.map(n => ({ n, diff: dayDiff(n.date, today) }));
     const pick = dated.find(x => x.diff >= 0 && x.diff < LOOKAHEAD_DAYS) || dated.filter(x => x.diff < 0).pop() || dated[0];
     return pick ? pick.n.date : '';
   }
   // A night's rounds in a few words: "Round 10" when every division is on it, else each division's.
-  function nightRounds(night) {
+  function nightRounds(night: { rounds: { division: string; round: string }[] }) {
     const names = [...new Set(night.rounds.map(x => x.round))];
     return names.length === 1 ? names[0] : night.rounds.map(x => `${x.division} ${x.round}`).join(', ');
   }
@@ -162,7 +190,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // Every division's games on this game night (whatever round each is on), for the control page's game picker.
   async function getCurrentGames() {
     const night = await currentNight();
-    const out = [];
+    const out: SeasonGame[] = [];
     if (!night) return out;
     for (const grade of (await getStructure()).grades) {
       for (const g of await getSeasonGames(grade)) if (g.date === night) out.push(g);
@@ -174,11 +202,11 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // or one counted from this round (as the control page has it): "this", "next", "prev"
   // (or "previous", "last"), "+2", "-1". Blank means this round. Rounds are counted in
   // PlayHQ's order, so "next" from the last round finds nothing.
-  const ROUND_STEPS = { '': 0, this: 0, current: 0, now: 0, next: 1, prev: -1, previous: -1, last: -1 };
-  async function roundFor(grade, value) {
+  const ROUND_STEPS: Record<string, number> = { '': 0, this: 0, current: 0, now: 0, next: 1, prev: -1, previous: -1, last: -1 };
+  async function roundFor(grade: GradeRef, value: unknown) {
     const want = String(value || '').trim().toLowerCase().replace(/\s+/g, '');
     const rounds = await getRounds(grade.id);
-    const step = want in ROUND_STEPS ? ROUND_STEPS[want] : /^[+-]\d+$/.test(want) ? Number(want) : null;
+    const step = Object.hasOwn(ROUND_STEPS, want) ? ROUND_STEPS[want] : /^[+-]\d+$/.test(want) ? Number(want) : null;
     if (step === null) {
       const name = String(value).trim().toLowerCase();
       return rounds.find(r => String(r.number) === name || r.name.toLowerCase() === name) || null;
@@ -191,10 +219,10 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
 
   // A whole round for the fixture page: every division (or one), sorted by time then court.
   // ?round= picks the round (see roundFor); otherwise each division's current round.
-  async function getFixtures(q) {
+  async function getFixtures(q: Query) {
     const st = await getStructure();
-    const grades = q.division ? [findGrade(st, q)].filter(Boolean) : st.grades;
-    const games = [], roundNames = [], waiting = [];
+    const grades: GradeRef[] = q.division ? [findGrade(st, q)].filter((g): g is GradeRef => !!g) : st.grades;
+    const games: FixtureRow[] = [], roundNames: string[] = [], waiting: { division: string; round: string }[] = [];
     for (const grade of grades) {
       const round = await roundFor(grade, q.round);
       if (!round) {
@@ -216,7 +244,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
         else waiting.push({ division: grade.name, round: round.name });
       }
     }
-    const key = x => `${x.date || ''} ${String(x.time || '').padStart(5, '0')} ${x.court || ''}`;
+    const key = (x: FixtureRow) => `${x.date || ''} ${String(x.time || '').padStart(5, '0')} ${x.court || ''}`;
     games.sort((a, b) => key(a).localeCompare(key(b), 'en', { numeric: true }));
     // One round name for the heading when every division is on it; divisions on different rounds the same
     // night (one on Round 10, another on Finals Round 1) have no one name, so each game shows its own.
@@ -231,13 +259,13 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // A finals round PlayHQ has no games in yet, from the division's finals format: that week's games,
   // with the teams known so far (from the ladder and finished finals) and the rest as "Winner ...".
   // The time and court aren't known (TBC). None when it isn't a finals round or there's no format.
-  async function unplayedFinals(grade, round) {
+  async function unplayedFinals(grade: GradeRef, round: Round): Promise<FixtureRow[]> {
     if (!FINALS_ROUND.test(round.name || '') || !finalsFor(grade.name)) return [];
     const week = (await getRounds(grade.id)).filter(r => FINALS_ROUND.test(r.name || '')).findIndex(r => r.id === round.id) + 1;
     let f;
     try { f = await getFinals({ division: String(grade.division) }); }
     catch (err) { log('warn', 'fixtures', `${grade.name} ${round.name}: no finals games to show (${errorMessage(err)})`); return []; }
-    const side = t => (t.name ? { name: t.name, logo: t.logo || logoFor(t.name), score: null } : { name: t.placeholder || 'TBC', logo: null, score: null, placeholder: true });
+    const side = (t: Finals.Side & { logo?: string | null }) => (t.name ? { name: t.name, logo: t.logo || logoFor(t.name), score: null } : { name: t.placeholder || 'TBC', logo: null, score: null, placeholder: true });
     return (f.games || []).filter(g => g.week === week && !g.notNeeded).map(g => ({
       id: `finals-${grade.name}-${g.id}`, date: '', time: '', court: '', status: 'TBD', toBeDecided: true, name: g.name,
       division: grade.name, round: round.name, home: side(g.home), away: side(g.away) }));
@@ -248,11 +276,11 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // The day is the scoreboard game's own date, so it can't disagree with the game night list; with no game
   // picked it is this game night (getCurrentGames) and the game is its first. A game on the scoreboard that
   // isn't in PlayHQ's fixture (yet) still counts by its date, time and court.
-  const timeKey = g => `${g.date || ''} ${String(g.time || '').padStart(8, '0')}`;
-  async function boardDay() {
+  const timeKey = (g: { date?: string | null; time?: string | null }) => `${g.date || ''} ${String(g.time || '').padStart(8, '0')}`;
+  async function boardDay(): Promise<{ games: SeasonGame[]; current: DayGame | null }> {
     const b = board();
     const date = b.gameId && isDate(b.date) ? b.date : await currentNight();
-    const games = [];
+    const games: SeasonGame[] = [];
     if (date) for (const grade of (await getStructure()).grades) {
       for (const g of await getSeasonGames(grade)) if (g.date === date) games.push(g);
     }
@@ -268,7 +296,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // the stream is on the first timeslot and shows the game after it. With { wrap: true }, when
   // there's no later game (or with { wrap: 'force' } always) it adds the end of night card's
   // details as wrap (see endOfNight).
-  async function getUpNext({ wrap = false } = {}) {
+  async function getUpNext({ wrap = false }: { wrap?: boolean | 'force' } = {}) {
     const b = board();
     const { games, current } = await boardDay();
     if (!current) return { error: 'No games found on this game night' };
@@ -276,7 +304,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     const later = games.filter(g => g.id !== current.id && timeKey(g) > timeKey(current));
     const next = later.find(g => court && sameCourt(g.court, court)) || later[0];
     // The court's name as the scoreboard shows it (typed on Scoreboard control) for games on the court on air.
-    const shown = g => (b.court && sameCourt(g.court, b.court) ? courtShown(b) : g.court);
+    const shown = (g: { court: string }) => (b.court && sameCourt(g.court, b.court) ? courtShown(b) : g.court);
     log('info', 'upnext', `After ${current.home.name} v ${current.away.name} (${current.date} ${String(current.time || '').slice(0, 5)}, ${current.court || 'no court'}, ${[current.division, current.round].filter(Boolean).join(' ')}): ${next
       ? `${next.home.name} v ${next.away.name} (${String(next.time || '').slice(0, 5)}, ${next.court || 'no court'}, ${[next.division, next.round].filter(Boolean).join(' ')})${court && !sameCourt(next.court, court) ? `, nothing later on ${court}` : ''}`
       : 'no later game today'}`);
@@ -296,41 +324,41 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // days away, and whether it's a finals round). Without one: finals are next when the round played
   // tonight wasn't a finals round and some division has a finals format (PlayHQ often adds finals
   // fixtures late), otherwise the season is over.
-  async function endOfNight(current) {
+  async function endOfNight(current: DayGame) {
     const st = await getStructure();
-    let next = null, undated = null;
+    let next: NextRound | null = null, undated: NextRound | null = null;
     for (const grade of st.grades) {
       const rounds = await getRounds(grade.id);
-      const dates = await roundDates(grade).catch(() => new Map());
+      const dates = await roundDates(grade).catch((): RoundDates => new Map());
       const at = rounds.findIndex(r => r.name === current.round);
-      rounds.forEach((r, i) => {
+      for (const [i, r] of rounds.entries()) {
         const date = dates.get(r.id);
         if (date && current.date && date > current.date) {
           if (!next || date < next.date) next = { round: r.name, date };
         } else if (!date && at >= 0 && i > at && !undated) undated = { round: r.name, date: '' };
-      });
+      }
     }
-    next = next || undated;
+    const after: NextRound | null = next || undated;
     const r = rules();
-    const finalsNext = !next && !FINALS_ROUND.test(current.round || '') && st.grades.some(g => finalsFor(g.name));
+    const finalsNext = !after && !FINALS_ROUND.test(current.round || '') && st.grades.some(g => finalsFor(g.name));
     return { competition: st.competition || competitionName() || '', organisation: st.organisation || '', season: (st.season && st.season.name) || '',
       competitionLogoLight: r.competitionLogoLight, competitionLogoDark: r.competitionLogoDark,
       round: current.round || '', date: current.date || '', finalRound: FINALS_ROUND.test(current.round || ''),
-      next: next ? { ...next, days: next.date && current.date ? dayDiff(next.date, current.date) : null, finals: FINALS_ROUND.test(next.round) } : null,
-      finalsNext, seasonOver: !next && !finalsNext };
+      next: after ? { ...after, days: after.date && current.date ? dayDiff(after.date, current.date) : null, finals: FINALS_ROUND.test(after.round) } : null,
+      finalsNext, seasonOver: !after && !finalsNext };
   }
 
   // The intro and outro animations (introoutro.html): the competition, this round and the teams of a division
   // (?division=N, or the picked game's division; ?division=all for one team a club across the competition), and for
   // the outro, when to join again (endOfNight, as on Up next's end of night card).
-  async function getIntroOutro(q = {}) {
+  async function getIntroOutro(q: Query = {}) {
     const st = await getStructure();
     const b = board();
     const { current } = await boardDay();
     const all = String(q.division || '').toLowerCase() === 'all';
-    const grades = all ? st.grades : [q.division ? findGrade(st, q) : st.grades.find(g => g.name === (b.division || (current && current.division))) || st.grades[0]].filter(Boolean);
+    const grades: GradeRef[] = all ? st.grades : [q.division ? findGrade(st, q) : st.grades.find(g => g.name === (b.division || (current && current.division))) || st.grades[0]].filter((g): g is GradeRef => !!g);
     if (!grades.length) return { error: q.division ? `No division "${q.division}"` : 'This season has no divisions' };
-    const seen = new Map();
+    const seen = new Map<string, string>();
     for (const grade of grades) {
       for (const g of await getSeasonGames(grade)) {
         for (const name of [g.home.name, g.away.name]) {
@@ -343,7 +371,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     const teams = [...seen.values()].sort((a, c) => a.localeCompare(c)).map(name => ({ name, logo: logoFor(name), colour: colourFor(name) }));
     const r = rules();
     const round = current ? current.round : '';
-    const out = { competition: st.competition || competitionName() || '', organisation: st.organisation || '', season: (st.season && st.season.name) || '',
+    const out: Body & { division: string; wrap?: Awaited<ReturnType<typeof endOfNight>> } = { competition: st.competition || competitionName() || '', organisation: st.organisation || '', season: (st.season && st.season.name) || '',
       competitionLogoLight: r.competitionLogoLight, competitionLogoDark: r.competitionLogoDark,
       division: all ? '' : grades[0].name, round, date: current ? current.date || '' : '', venueName: config().venueName || (current && current.venue) || '',
       finalRound: FINALS_ROUND.test(round || ''), teams };
@@ -381,32 +409,34 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // of that night, restarts included (control.json): the Planner flags it rather than undoing it. A plan whose court
   // changes during the night is set again.
   let AUTO_LEAD_MS = 10 * 60 * 1000;
-  const courtKey = c => String(c || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\b0+(\d)/g, '$1').trim();
-  function sameCourt(court, wanted) {
+  const courtKey = (c: unknown) => String(c || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\b0+(\d)/g, '$1').trim();
+  function sameCourt(court: unknown, wanted: unknown) {
     const a = courtKey(court), w = courtKey(wanted);
     if (!w) return false;
     if (a === w) return true;
     // "1" or "court 1" matches "Indoor 01"
-    const num = x => (x.match(/(\d+)\s*$/) || [])[1];
+    const num = (x: string) => (x.match(/(\d+)\s*$/) || [])[1];
     const word = w.replace(/\s*\d+$/, '');
     return /^\d+$/.test(w) ? num(a) === w : !!num(a) && num(a) === num(w) && (word === 'court' || a.includes(word));
   }
   // The games to follow on a court, in date and time order: today's, or with a game night picked by hand
   // on the control page, that night's games on the court.
-  async function todaysGames(court) {
+  async function todaysGames(court: string) {
     const st = await getStructure();
     const today = localDate();
-    const games = [];
+    const games: SeasonGame[] = [];
     if (nightChoice) games.push(...(await getCurrentGames()).filter(g => sameCourt(g.court, court)));
     else for (const grade of st.grades) {
       for (const g of await getSeasonGames(grade)) if (g.date === today && sameCourt(g.court, court)) games.push(g);
     }
-    return games.filter(g => startOf(g) !== null).sort((a, b) => startOf(a) - startOf(b));
+    const at = (g: SeasonGame) => startOf(g) ?? 0;
+    return games.filter(g => startOf(g) !== null).sort((a, b) => at(a) - at(b));
   }
-  const isFinalsRound = g => /final/i.test(g.round || '');
+  const startAt = (g: SeasonGame) => startOf(g) ?? 0; // only games with a start time are followed (todaysGames)
+  const isFinalsRound = (g: { round?: string }) => /final/i.test(g.round || '');
   let autoBusy = false;
   // Put a game on the board, following PlayHQ, at Q1 with a full clock (or where it is, when it was followed in the background).
-  function switchTo(b, pick, why) {
+  function switchTo(b: Board, pick: SeasonGame, why: string) {
     log('info', 'auto', `${why} ${pick.home.name} v ${pick.away.name} (${pick.date} ${pick.time}, ${pick.court}, ${pick.division})`);
     applyAction(b, { type: 'selectGame', game: pick, auto: true });
     if (b.takenOver !== pick.id) { // a game followed in the background carries on where it is (board.js takeOver)
@@ -415,9 +445,9 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     }
     saveBoards();
   }
-  const byStart = (x, y) => `${x.date || ''} ${String(x.time || '').padStart(8, '0')}`.localeCompare(`${y.date || ''} ${String(y.time || '').padStart(8, '0')}`);
+  const byStart = (x: FixtureGame, y: FixtureGame) => `${x.date || ''} ${String(x.time || '').padStart(8, '0')}`.localeCompare(`${y.date || ''} ${String(y.time || '').padStart(8, '0')}`);
   // Tonight's court: the plan's, else the fallback, set when the night arrives; the plan's again if it changes.
-  async function followPlan(b) {
+  async function followPlan(b: Board) {
     const night = nightChoice || localDate();
     const key = `${config().id || ''}|${night}`;
     const planned = await courtPlan(night);
@@ -472,17 +502,17 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
       }
       if (pickedByHand()) return;
       const now = Date.now();
-      const due = games.filter(g => startOf(g) - AUTO_LEAD_MS <= now);
+      const due = games.filter(g => startAt(g) - AUTO_LEAD_MS <= now);
       const pick = due.length ? due[due.length - 1] : games[0];
       const next = games[games.indexOf(pick) + 1];
       const today = localDate();
-      const day = g => g.date === today ? '' : ` ${new Date(`${g.date}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}`;
-      const at = g => new Date(startOf(g) - AUTO_LEAD_MS).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
-      b.autoNote = next ? `Next: ${next.home.name} v ${next.away.name} (${next.time.slice(0, 5)}${day(next)}), switches at ${at(next)}${day(next)}.`
+      const day = (g: SeasonGame) => g.date === today ? '' : ` ${new Date(`${g.date}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}`;
+      const at = (g: SeasonGame) => new Date(startAt(g) - AUTO_LEAD_MS).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+      b.autoNote = next ? `Next: ${next.home.name} v ${next.away.name} (${String(next.time || '').slice(0, 5)}${day(next)}), switches at ${at(next)}${day(next)}.`
         : `Last game on this court ${nightChoice ? 'that night' : 'today'}.`;
       // The same in parts, for the Output page's status board: the teams on one line, the game's time and when the
       // board switches to it on the lines under (each as a time, so the page names the day when it isn't today).
-      b.autoNext = next ? { home: next.home.name, away: next.away.name, startAt: startOf(next), switchAt: startOf(next) - AUTO_LEAD_MS } : null;
+      b.autoNext = next ? { home: next.home.name, away: next.away.name, startAt: startOf(next), switchAt: startAt(next) - AUTO_LEAD_MS } : null;
       if (pick.id === b.gameId) { b.autoHold = ''; return; }
       // Keep a final on until PlayHQ says it is over (it may go to extra time).
       const current = games.find(g => g.id === b.gameId);
@@ -510,46 +540,47 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
 
   // ─── Season graphics: results, ladder bar, head to head, form, ticker, shooters ─
 
-  function isLive(g) { return /PROGRESS|LIVE|STARTED/i.test(g.status || ''); }
-  function resultFor(g, teamName) {
+  function isLive(g: { status?: string | null }) { return /PROGRESS|LIVE|STARTED/i.test(g.status || ''); }
+  function resultFor(g: FixtureGame, teamName: string) {
     const mine = sameTeam(g.home.name, teamName) ? g.home : g.away;
     const theirs = mine === g.home ? g.away : g.home;
     const o = String(mine.outcome || '').toUpperCase();
     const r = /WIN|WON/.test(o) ? 'W' : /LOS/.test(o) ? 'L' : /DRAW/.test(o) ? 'D'
-      : mine.score > theirs.score ? 'W' : mine.score < theirs.score ? 'L' : 'D';
+      : (mine.score ?? 0) > (theirs.score ?? 0) ? 'W' : (mine.score ?? 0) < (theirs.score ?? 0) ? 'L' : 'D';
     return { result: r, opponent: theirs.name, for: mine.score, against: theirs.score };
   }
 
   // Every game of a division this season (past rounds are kept for 10 minutes).
-  async function getSeasonGames(grade) {
-    const out = [];
+  async function getSeasonGames(grade: GradeRef): Promise<SeasonGame[]> {
+    const out: SeasonGame[] = [];
     for (const r of await getRounds(grade.id)) {
       for (const g of await getRoundGames(r.id, r.current ? 60 * 1000 : 10 * 60 * 1000)) {
         out.push({ ...g, roundId: g.roundId || r.id, division: grade.name, round: r.name, roundNumber: r.number });
       }
     }
-    const key = x => `${x.date || ''} ${String(x.time || '').padStart(5, '0')}`;
+    const key = (x: SeasonGame) => `${x.date || ''} ${String(x.time || '').padStart(5, '0')}`;
     return out.sort((a, b) => key(a).localeCompare(key(b)));
   }
 
   // The division of the game on the scoreboard (or ?division=).
-  async function gradeFor(b, q) {
+  async function gradeFor(b: Board, q?: Query): Promise<GradeRef | null> {
     const st = await getStructure();
-    if (q && q.division) return findGrade(st, q);
+    if (q && q.division) return findGrade(st, q) || null;
     return st.grades.find(g => g.name === b.division) || st.grades.find(g => norm(g.name) === norm(b.division)) || null;
   }
-  function teamsOf(b) {
+  function teamsOf(b: Board) {
     return { home: { name: b.home.name, logo: logoFor(b.home.name) }, away: { name: b.away.name, logo: logoFor(b.away.name) } };
   }
-  function competitionName() { const st = playhq.structureNow(); return (st && st.competition) || config().displayName || config().competitionName; }
+  function competitionName(): string { const st = playhq.structureNow(); return (st && st.competition) || config().displayName || config().competitionName || ''; }
   // The competition's rules and look, for pages that change with them. With a division, super
   // shots are that division's (a competition can play them in some divisions only).
   function rules(division?: string): Rules {
     // Light and dark mode competition logos; when only one is set it is used for both.
-    const brandUrl = f => f ? '/brand/' + encodeURIComponent(f) : null;
+    const brandUrl = (f: string | undefined) => f ? '/brand/' + encodeURIComponent(f) : null;
     const light = brandUrl(config().competitionLogo || config().competitionLogoDark), dark = brandUrl(config().competitionLogoDark || config().competitionLogo);
-    return { periodType: config().periodType, periods: config().periodType === 'halves' ? 2 : 4, periodLabel: config().periodType === 'halves' ? 'H' : 'Q',
-      periodMinutes: config().quarterMinutes, superShots: competitions.superShotsFor(config(), division), superShotMinutes: config().superShotMinutes ?? 3, finalsPlaces: (finals.byId(config().finalsFormat) || { teams: 0 }).teams,
+    const c = config();
+    return { periodType: c.periodType, periods: c.periodType === 'halves' ? 2 : 4, periodLabel: c.periodType === 'halves' ? 'H' : 'Q',
+      periodMinutes: c.quarterMinutes, superShots: competitions.superShotsFor(c, division), superShotMinutes: c.superShotMinutes ?? 3, finalsPlaces: (finals.byId(c.finalsFormat) || { teams: 0 }).teams,
       competitionLogo: light, competitionLogoLight: light, competitionLogoDark: dark,
       competitionName: competitionName() || '' };
   }
@@ -560,14 +591,14 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // with "final" or "play-off" in their name), their games, times, courts and scores are used;
   // otherwise winners are entered on the control page and kept in control.json.
   const FINALS_ROUND = finals.ROUND;
-  const finalsKey = (division, format) => `${division}|${format.id}`;
-  function finalsFor(division) { return finals.formatFor(config(), division); }
-  function finalsGrade(st, q) { return findGrade(st, q.division ? q : { division: board().division || '1' }); }
+  const finalsKey = (division: string, format: Finals.Format) => `${division}|${format.id}`;
+  function finalsFor(division: string) { return finals.formatFor(config(), division); }
+  function finalsGrade(st: Structure, q: { division?: unknown }) { return findGrade(st, q.division ? { division: str(q.division) } : { division: board().division || '1' }); }
 
-  async function getFinals(q) {
+  async function getFinals(q: { division?: unknown }) {
     const st = await getStructure();
     const grade = finalsGrade(st, q);
-    if (!grade) throw new Error(`No division "${q.division}". This season has: ${st.grades.map(g => g.name).join(', ')}`);
+    if (!grade) throw new Error(`No division "${str(q.division)}". This season has: ${st.grades.map(g => g.name).join(', ')}`);
     let format = finalsFor(grade.name);
     const base = { organisation: st.organisation, competition: st.competition, season: st.season.name, division: grade.name, divisionNumber: grade.division, rules: rules(grade.name) };
     if (!format) return { ...base, format: null, games: [], error: `${grade.name} has no finals format. Pick one on the competition setup page.` };
@@ -577,15 +608,15 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     format = finals.sized(format, rows.length);
     // Only the finals rounds, and the last home and away round, are asked for (not the whole season),
     // and a round PlayHQ doesn't answer for (a 504) is left out rather than failing the page.
-    const real = n => n && !/^(tbc|tba|bye)$/i.test(n);
+    const real = (n: string) => !!n && !/^(tbc|tba|bye)$/i.test(n);
     const rounds = await getRounds(grade.id);
     const finalsRounds = rounds.filter(r => FINALS_ROUND.test(r.name || ''));
     const lastRegular = rounds.filter(r => !FINALS_ROUND.test(r.name || '')).pop();
-    const gamesOf = async r => {
+    const gamesOf = async (r: Round) => {
       try { return await getRoundGames(r.id, r.current ? 60 * 1000 : 10 * 60 * 1000); }
       catch (err) { log('warn', 'finals', `${grade.name} ${r.name}: left out, PlayHQ didn't answer (${errorMessage(err)})`); return null; }
     };
-    const played = [];
+    const played: (FixtureGame & { round: string; week: number; finished: boolean })[] = [];
     for (const [i, r] of finalsRounds.entries()) {
       for (const g of (await gamesOf(r)) || []) {
         if (real(g.home.name) && real(g.away.name)) played.push({ ...g, round: r.name, week: i + 1, finished: isFinished(g) });
@@ -596,7 +627,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     const projected = lastGames.some(g => real(g.home.name) && real(g.away.name) && !isFinished(g));
     const manual = (control.get().finals || {})[finalsKey(grade.name, format)] || {};
     const r = finals.resolve(format, seeds, played, manual);
-    const withLogo = t => t.name ? { ...t, logo: logoFor(t.name), colour: colourFor(t.name) } : t;
+    const withLogo = (t: Finals.Side) => t.name ? { ...t, logo: logoFor(t.name), colour: colourFor(t.name) } : t;
     const marks = finals.ladderMarks(format);
     log('info', 'finals', `${grade.name}: ${format.name}, ${played.length} finals game${played.length === 1 ? '' : 's'} on PlayHQ, ${Object.keys(manual).length} entered by hand${projected ? ', season not finished' : ''}`);
     return { ...base,
@@ -609,23 +640,25 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   }
 
   // A finals winner entered by hand (winner blank clears it).
-  async function setFinalsResult(body) {
+  async function setFinalsResult(body: Body) {
     const st = await getStructure();
     const grade = finalsGrade(st, body);
-    if (!grade) throw new Error(`No division "${body.division}"`);
+    if (!grade) throw new Error(`No division "${str(body.division)}"`);
+    const gameId = str(body.game);
     // A format for every team has as many games as the ladder has pairs.
     const format = finals.sized(finalsFor(grade.name), ((await getLadder(grade.id)).pools[0] || []).length);
-    if (!format || !format.games.some(g => g.id === body.game)) throw new Error(`${grade.name} has no finals game ${body.game}`);
+    if (!format || !format.games.some(g => g.id === gameId)) throw new Error(`${grade.name} has no finals game ${gameId}`);
     const key = finalsKey(grade.name, format);
     const ctl = control.get();
     ctl.finals = ctl.finals || {};
     const all = ctl.finals[key] = ctl.finals[key] || {};
-    const score = v => (v === '' || v === null || v === undefined || !Number.isFinite(Number(v)) ? undefined : Math.max(0, Math.round(Number(v))));
-    if (!body.winner) delete all[body.game];
-    else all[body.game] = { winner: String(body.winner), homeScore: score(body.homeScore), awayScore: score(body.awayScore) };
+    const score = (v: unknown) => (v === '' || v === null || v === undefined || !Number.isFinite(Number(v)) ? undefined : Math.max(0, Math.round(Number(v))));
+    const entered: Finals.Manual = { winner: str(body.winner), homeScore: score(body.homeScore), awayScore: score(body.awayScore) };
+    if (!body.winner) delete all[gameId];
+    else all[gameId] = entered;
     if (!Object.keys(all).length) delete ctl.finals[key];
     control.save();
-    log('info', 'finals', `${grade.name} ${body.game}: ${body.winner ? `${body.winner} won${all[body.game].homeScore !== undefined ? ` ${all[body.game].homeScore}-${all[body.game].awayScore}` : ''}` : 'result cleared'} (entered by hand)`);
+    log('info', 'finals', `${grade.name} ${gameId}: ${body.winner ? `${entered.winner} won${entered.homeScore !== undefined ? ` ${entered.homeScore}-${entered.awayScore}` : ''}` : 'result cleared'} (entered by hand)`);
     return getFinals({ division: String(grade.division) });
   }
 
@@ -634,7 +667,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     const grade = await gradeFor(b);
     if (!grade) throw new Error('Pick a PlayHQ game on the control page first.');
     const rows = (await getLadder(grade.id)).pools.flat();
-    const row = name => rows.find(r => sameTeam(r.team, name)) || null;
+    const row = (name: string) => rows.find(r => sameTeam(r.team, name)) || null;
     const t = teamsOf(b);
     return { competition: competitionName(), division: grade.name, teams: rows.length,
       home: { ...t.home, ladder: row(b.home.name) }, away: { ...t.away, ladder: row(b.away.name) } };
@@ -655,13 +688,13 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
       games: games.map(g => ({ round: g.round, date: g.date, home: g.home, away: g.away })) };
   }
 
-  async function getForm(count) {
+  async function getForm(count: unknown) {
     const b = board();
     const grade = await gradeFor(b);
     if (!grade) throw new Error('Pick a PlayHQ game on the control page first.');
     const finished = (await getSeasonGames(grade)).filter(g => g.id !== b.gameId && isFinished(g));
     const n = Math.min(10, Math.max(1, Number(count) || 5));
-    const form = name => finished.filter(g => sameTeam(g.home.name, name) || sameTeam(g.away.name, name)).slice(-n)
+    const form = (name: string) => finished.filter(g => sameTeam(g.home.name, name) || sameTeam(g.away.name, name)).slice(-n)
       .map(g => ({ round: g.round, ...resultFor(g, name) }));
     const t = teamsOf(b);
     return { competition: competitionName(), division: grade.name,
@@ -673,14 +706,14 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // for one is not asked again for the other within maxAgeMs. Sets home.score, away.score and period ('Q2') on
   // each live game in place.
   const TICKER_LIVE_MS = 20 * 1000;
-  async function withLiveScores(games, maxAgeMs = TICKER_LIVE_MS) {
+  async function withLiveScores<G extends LiveRow>(games: G[], maxAgeMs = TICKER_LIVE_MS): Promise<G[]> {
     await Promise.all(games.filter(isLive).map(async g => {
       try {
         const d = await liveScore(g, maxAgeMs);
         if (!d) return;
         g.home = { ...g.home, score: d.home }; g.away = { ...g.away, score: d.away };
         const p = d.live && d.live.period;
-        if (PERIOD_NUMBER[p]) g.period = `${/HALF/.test(p) ? 'H' : 'Q'}${PERIOD_NUMBER[p]}`;
+        if (p && PERIOD_NUMBER[p]) g.period = `${/HALF/.test(p) ? 'H' : 'Q'}${PERIOD_NUMBER[p]}`;
       } catch (err) { log('warn', 'ticker', `Live score for ${g.home.name} v ${g.away.name} failed: ${errorMessage(err)}`); }
     }));
     return games;
@@ -689,22 +722,22 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // Live and finished scores from the current round, leaving out the game on the scoreboard.
   async function getTicker() {
     const b = board();
-    const games = (await getCurrentGames()).filter(g => g.id !== b.gameId && (isLive(g) || isFinished(g) || (g.home.score !== null && g.away.score !== null)));
+    const games: LiveRow[] = (await getCurrentGames()).filter(g => g.id !== b.gameId && (isLive(g) || isFinished(g) || (g.home.score !== null && g.away.score !== null)));
     await withLiveScores(games, TICKER_LIVE_MS);
     return { competition: competitionName(), speed: b.tickerSpeed || TICKER_SPEED, games: games.map(g => ({ ...g, live: isLive(g), finished: isFinished(g) })) };
   }
 
   // Each shooter's goals, super goals, shots and points from the Game Summary of the given finished games.
   // Finished games don't change, so their line ups are kept (see game-cache.json).
-  async function tallyShooters(games) {
-    const players = new Map();
+  async function tallyShooters(games: (FixtureGame & { id: string })[]) {
+    const players = new Map<string, Shooter>();
     let read = 0, failed = 0, lastError = '';
     const lineups = await eachLimited(games, PLAYHQ_AT_ONCE, g => readGame(g, 60 * 60 * 1000));
-    for (const [i, g] of games.entries()) {
-      if (lineups[i].error) { failed++; lastError = lineups[i].error.message; continue; }
+    for (const i of games.keys()) {
       const parsed = lineups[i].value;
+      if (!parsed) { failed++; lastError = errorMessage(lineups[i].error); continue; }
       read++;
-      for (const side of ['home', 'away']) {
+      for (const side of ['home', 'away'] as const) {
         for (const p of parsed[side].players) {
           const sh = p.shooting;
           if (p.private || (!sh.goals && !sh.superGoals)) continue; // "Private player" can't be told apart
@@ -724,24 +757,24 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   // Each game's line ups (read once and kept, as tallyShooters reads them): { home: { name, totals, players }, away } per
   // game, or null when PlayHQ couldn't give it. Private players are left out, since they can't be told apart. totals:
   // the team's own goals, super goals and shots (PlayHQ can credit a goal to the team only), null when it has none.
-  async function readLineups(games) {
+  async function readLineups(games: (FixtureGame & { id: string })[]) {
     const lineups = await eachLimited(games, PLAYHQ_AT_ONCE, g => readGame(g, 60 * 60 * 1000));
     return lineups.map((x, i) => {
-      if (x.error) { log('warn', 'shooters', `Game ${games[i].id} could not be read: ${x.error.message}`); return null; }
-      const side = s => ({ name: s.name, totals: s.totals || null, players: s.players.filter(p => !p.private).map(p => ({ name: p.name, position: p.position || '', playhqId: p.playhqId || '', shooting: p.shooting })) });
+      if (!x.value) { log('warn', 'shooters', `Game ${games[i].id} could not be read: ${errorMessage(x.error)}`); return null; }
+      const side = (s: GameSide) => ({ name: s.name, totals: s.totals || null, players: s.players.filter(p => !p.private).map(p => ({ name: p.name, position: p.position || '', playhqId: p.playhqId || '', shooting: p.shooting })) });
       return { home: side(x.value.home), away: side(x.value.away) };
     });
   }
 
   // Season shooting totals over every finished game in a division.
-  async function getTopShooters(q) {
+  async function getTopShooters(q: Query) {
     const st = await getStructure();
     const grade = findGrade(st, q.division ? q : { division: board().division || '1' });
     if (!grade) throw new Error(`No division "${q.division}"`);
-    const games = (await getSeasonGames(grade)).filter(isFinished);
+    const games = (await getSeasonGames(grade)).filter(g => isFinished(g));
     const { players: all, read, failed, lastError } = await tallyShooters(games);
     const limit = Math.min(20, Math.max(1, Number(q.limit) || 8));
-    const by = f => [...all].sort((a, b) => f(b) - f(a) || a.name.localeCompare(b.name)).slice(0, limit);
+    const by = (f: (p: Shooter) => number) => [...all].sort((a, b) => f(b) - f(a) || a.name.localeCompare(b.name)).slice(0, limit);
     return { competition: competitionName(), rules: rules(grade.name), division: grade.name, gamesRead: read, gamesFinished: games.length,
       error: !read && failed ? lastError : undefined,
       points: by(p => p.points), goals: by(p => p.goals), superGoals: by(p => p.superGoals) };
@@ -749,7 +782,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
 
 
   // The competition setup changed (applyCompetition in server.js): its round lookahead and auto-select lead.
-  function configure(c) {
+  function configure(c: Partial<Competitions.Settings>) {
     LOOKAHEAD_DAYS = c.roundLookaheadDays || 5;
     AUTO_LEAD_MS = (Number.isFinite(Number(c.autoSelectMinutesBefore)) ? Number(c.autoSelectMinutesBefore) : 10) * 60 * 1000;
   }
@@ -760,4 +793,8 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
     getSeasonGames, competitionName, rules, finalsFor, getFinals, setFinalsResult, getLadderBar, getHeadToHead, getForm, getTicker, withLiveScores, isLive, getTopShooters, tallyShooters, readLineups };
 }
 
+type GamesApi = ReturnType<typeof create>;
+
 export { create };
+export type { GamesApi, DayGame, LiveRow };
+

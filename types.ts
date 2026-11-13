@@ -31,3 +31,10 @@ export interface Machine {
 }
 // CONFIG in server.ts: the machine settings and the competition in use's settings together (none before one is in use).
 export type Config = Machine & Partial<import('./competitions').Settings> & { id?: string };
+
+// control.json: the lasting settings Studio keeps for this computer (the board's, the night picked, finals entered by hand).
+export interface ControlData {
+  boards: Record<string, Partial<import('./board').Board>>; night?: string; round?: string;
+  finals?: Record<string, Record<string, import('./finals').Manual>>; [key: string]: unknown;
+}
+export interface Control { get(): ControlData; save(): void; LASTING: string[]; exists(): boolean; markUnsaved(): void }
