@@ -19,3 +19,7 @@ declare function editSceneSwitcher(scene: { id: string }): void;
 declare var scene: { scenes: { id: string; switcher?: unknown[] }[] };
 // A page's own window inside the Scene View's frame.
 interface Window { studioZoom: number }
+// A Socials picture page: true once drawn, or why it can't be drawn.
+interface Window { socialReady?: true | string }
+// A page with chroma key safe graphics (chroma.js): its style fixes, which the tests check one by one.
+declare var studioChromaSafe: { solidShadows(v: string): string; solidFilter(v: string): string; noGlows(v: string): string };

@@ -213,7 +213,7 @@ test('theme.css: the setup\'s colours, font and panel opacity', () => {
   assert.match(css, /--purple-rgb: 44, 142, 62;/);
   assert.match(css, /--purple-deep: rgba\(0, 0, 0, 0\.5\);/);
   assert.match(css, /^@import url\("\/vendor\/fonts\/montserrat\/montserrat\.css"\);$/m, 'Montserrat, the fallback, from Studio itself');
-  assert.match(css, /font-family: 'Raleway';[^}]*url\("\/vendor\/fonts\/raleway\/[^}]*size-adjust/, 'Raleway from Studio itself, normalised (fonts.test.js)');
+  assert.match(css, /font-family: 'Raleway';[^}]*url\("\/vendor\/fonts\/raleway\/[^}]*size-adjust/, 'Raleway from Studio itself, normalised (fonts.test.mts)');
   assert.match(css, /--font: "Raleway", "Montserrat"/);
   assert.doesNotMatch(css, /googleapis/, 'no font comes from the internet');
 });
