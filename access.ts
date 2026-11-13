@@ -35,7 +35,31 @@ type Level = 'full' | 'scoring' | null;
 const PRIVATE = ['/api/settings/export', '/api/scene/export', '/api/athletes', '/api/log', '/api/sponsors/report', '/api/sponsors/nights', '/api/deck-key', '/api/planner'];
 function privateRead(method: string, pathname: string): boolean {
   if (method !== 'GET' && method !== 'HEAD') return false;
-  return PRIVATE.includes(pathname) || pathname.startsWith('/api/setup') || pathname.startsWith('/api/recordings') || pathname.startsWith('/api/socials/made/') || macOnly(pathname);
+  return PRIVATE.includes(pathname) || firstpass(pathname) || pathname.startsWith('/api/setup') || pathname.startsWith('/api/recordings') || pathname.startsWith('/api/socials/made/') || macOnly(pathname);
+}
+
+// FirstPass stats (/api/firstpass/...): figures a club's FirstPass HQ holds about its athletes, many of them under 18,
+// that PlayHQ never publishes. Private whatever "Only this Mac can change things" says (firstpassRefusal()): they
+// answer this Mac, and a browser allowed in Devices… only when it asks over the secure link (https) with a cookie it
+// was given over the secure link (devices.ts Device secure), so nothing on the venue Wi-Fi can read them in passing or
+// copy a cookie that lets it. They are private reads too (privateRead()), so a DNS rebinding page can't ask for them
+// and a 4K replay never records them. They never go into the board, the scene, a game story or anything else that is
+// read openly or shared (security review re-check, 13 November 2026, R1 and R2).
+const FIRSTPASS = '/api/firstpass';
+const firstpass = (pathname: string) => pathname === FIRSTPASS || pathname.startsWith(FIRSTPASS + '/');
+// The device a request came from, as far as FirstPass stats care: a paired browser and whether its cookie only ever
+// travelled over https.
+type FirstPassDevice = { kind: string; secure?: boolean } | null;
+// The 403 message for a FirstPass stats request from anywhere but this Mac or a secure paired browser over https, or
+// null when it may go ahead (or isn't one).
+function firstpassRefusal(method: string, pathname: string, remoteAddress: string | undefined, device: FirstPassDevice, encrypted: boolean,
+  own?: Set<string>): string | null {
+  if (!firstpass(pathname) || isLocal(remoteAddress, own)) return null;
+  if (device && device.kind === 'browser' && device.secure === true && encrypted) return null;
+  const how = !encrypted
+    ? 'they only go to another device over Studio\'s secure link (https), set up on the Devices tab on the Mac'
+    : 'this device was allowed over plain http, so open /pair.html by the secure link on it and press Allow on the Mac again';
+  return `FirstPass stats are private to the Mac running Studio and the devices it allows, so ${method} ${pathname} from ${strip(remoteAddress)} was refused: ${how}.`;
 }
 
 // Who may change things from another device (the Devices… window, devices.ts), and the secure phone link's settings and
@@ -181,5 +205,5 @@ function deckPress(pathname: string, proof: { keyOk?: boolean; signed?: boolean;
   return false;
 }
 
-export type { Level };
-export { changes, privateRead, PRIVATE, MAC_ONLY, ASK, notThisMac, scoring, isLocal, ownAddresses, refusal, strip, hostOf, portOf, ownHosts, foreignHost, crossSite, deckPress };
+export type { Level, FirstPassDevice };
+export { changes, privateRead, PRIVATE, FIRSTPASS, firstpass, firstpassRefusal, MAC_ONLY, ASK, notThisMac, scoring, isLocal, ownAddresses, refusal, strip, hostOf, portOf, ownHosts, foreignHost, crossSite, deckPress };

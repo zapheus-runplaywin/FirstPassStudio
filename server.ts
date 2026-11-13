@@ -42,6 +42,7 @@ import * as phonemic from './phonemic';
 import * as uploads from './uploads';
 import * as zip from './zip';
 import * as storiesLib from './stories';
+import * as firstpassLib from './firstpass';
 import { create as createPlayhq } from './playhq';
 import { create as createBoard } from './board';
 import { create as createGames } from './games';
@@ -208,6 +209,9 @@ const stories = storiesLib.create({
   bonjour: !process.env.FIRSTPASS_NO_BONJOUR, firstSync: Number(process.env.FIRSTPASS_STORIES_FIRST_SYNC_MS) || undefined,
 });
 process.on('exit', () => stories.stop()); // Bonjour's dns-sd stops announcing this Studio
+
+// ─── FirstPass stats (firstpass.ts): private, kept on this Mac only, deleted 30 days after the game ──
+const firstpass = firstpassLib.create({ log, dir: datadir.local('firstpass') });
 
 // ─── The board (board.ts): scores, clock, goals, streaks, stats and the worm ──
 const theBoard = createBoard({
@@ -875,7 +879,7 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     const asset = method === 'GET' && !/\.html$|^\/$|^\/api\/|^\/deck\//.test(url.pathname);
     if (res.statusCode >= 400 || !(polled || asset)) {
       log(res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info', 'http',
-        `${method} ${url.pathname}${url.search} ${res.statusCode} ${Date.now() - started}ms`);
+        `${method} ${url.pathname}${access.firstpass(url.pathname) ? '' : url.search} ${res.statusCode} ${Date.now() - started}ms`);
     }
   });
   try {
@@ -884,6 +888,8 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     // sponsor reports, the setup) must be asked for by one of Studio's own names, not a DNS rebinding page's; and
     // config.json "remoteChanges": false keeps changes, and those reads, to this computer and the devices allowed in
     // Devices… (devices.ts: a link set's key, a signed plugin press, a paired browser's cookie), within their level.
+    // FirstPass stats (access.firstpass()) answer only this Mac and browsers paired over the secure link, asking over it,
+    // whatever the lock says.
     const signed = devices.signed(method, req.url || '/', req.headers);
     const keyDevice = keyed ? devices.match(keyed[1]) : null;
     const device = keyDevice || (signed === 'ok' && devices.byId(str(req.headers['x-studio-device']))) || devices.fromCookie(req.headers.cookie);
@@ -891,6 +897,7 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     const refused = (access.changes(method, url.pathname) && access.crossSite(method, url.pathname, req.headers, PORT, ownHosts(), secureOrigin()))
       || (access.privateRead(method, url.pathname) && access.foreignHost(method, url.pathname, req.headers, ownHosts()))
       || notMac
+      || access.firstpassRefusal(method, url.pathname, req.socket.remoteAddress, device || null, 'encrypted' in req.socket && req.socket.encrypted === true)
       || access.refusal(MACHINE.remoteChanges, method, url.pathname, req.socket.remoteAddress, undefined, device ? device.level : null);
     if (refused) {
       const from = `${access.strip(req.socket.remoteAddress)} ${req.headers.origin || req.headers.host || ''}`;
@@ -972,13 +979,13 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     }
     const pair = /^\/api\/pair\/([^/]+)$/.exec(url.pathname);
     if (pair && method === 'GET') {
-      const collected = devices.collect(decodeURIComponent(pair[1]), req.headers['x-studio-pair']);
+      const secure = 'encrypted' in req.socket && req.socket.encrypted === true;
+      const collected = devices.collect(decodeURIComponent(pair[1]), req.headers['x-studio-pair'], secure);
       const cookie = 'cookie' in collected ? collected.cookie : undefined;
       const got: Body = Object.fromEntries(Object.entries(collected).filter(([k]) => k !== 'cookie'));
       // A browser's key goes only in its cookie: HttpOnly, so no page script can read it, and SameSite=Strict, so no
       // other site's page can send it (and Secure on the secure link, so it never goes over http from there). 400 days is
       // as long as browsers keep one; unused for 90 days it stops counting.
-      const secure = 'encrypted' in req.socket && req.socket.encrypted === true;
       const headers = cookie ? { 'set-cookie': `${devices.COOKIE}=${cookie}; Path=/; HttpOnly; SameSite=Strict; Max-Age=34560000${secure ? '; Secure' : ''}` } : {};
       return send(res, got.status === 'gone' ? 404 : 200, got.key ? { ...got, base: `${LINK_BASE}/k/${str(got.key)}` } : got, undefined, headers);
     }
@@ -1200,7 +1207,10 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     fs.readFile(file, (err, buf) => err ? send(res, 404, 'Not found', 'text/plain') : send(res, 200, buf, TYPES[path.extname(file)] || 'application/octet-stream'));
   } catch (err) {
     const stack = errorStack(err);
-    log('error', 'http', `${method} ${url.pathname}${url.search} failed: ${errorMessage(err)}`, stack ? stack.split('\n').slice(1, 4).join(' | ') : undefined);
+    // FirstPass stats' requests are logged without their query, and with anything secret scrubbed (firstpass.ts).
+    const fp = access.firstpass(url.pathname);
+    const line = `${method} ${url.pathname}${fp ? '' : url.search} failed: ${errorMessage(err)}`;
+    log('error', 'http', fp ? firstpassLib.scrub(line) : line, stack ? stack.split('\n').slice(1, 4).join(' | ') : undefined);
     send(res, 502, { error: errorMessage(err) });
   }
 };
@@ -1239,6 +1249,7 @@ http.createServer(handle).on('upgrade', handleUpgrade).on('error', (err: NodeJS.
   setTimeout(() => warmTeamLists('start up'), 2000);
   securelink.start({ log, port: SECURE_PORT, handler: handle, upgrade: handleUpgrade });
   stories.start(); // announce this Studio and copy the other Studios' game stories (stories.ts)
+  firstpass.start(); // delete FirstPass stats more than 30 days old (firstpass.ts)
   console.log(`FirstPass Studio is running. Open ${LINK_BASE}/ for the Output page.`);
   console.log(`Competition: ${CONFIG.name} (change it at ${LINK_BASE}/setup.html). Leave this window open while streaming.`);
 });

@@ -13,7 +13,7 @@
 // Only the settings Studio saves move (SETTINGS); the Mac app's folder also holds Electron's
 // own files, which never do. Some files stay on this Mac whichever folder holds the settings (LOCAL_ONLY): the debug
 // logs (written all the time), the scores and clock (saved every few seconds while a game is
-// live) and the night's other games followed in the background, caches, the Socials tab's polaroid photos, the games' stories (which stories.ts shares with the other Studio Macs itself), the app's window positions and this file. Only settings sync.
+// live) and the night's other games followed in the background, caches, the Socials tab's polaroid photos, the games' stories (which stories.ts shares with the other Studio Macs itself), FirstPass stats (firstpass.ts: private, never in iCloud or a backup), the app's window positions and this file. Only settings sync.
 //
 // Another Mac's settings can be restored onto this one (restore()): they are copied, never
 // moved, so the other Mac keeps its own.
@@ -52,7 +52,7 @@ const SETTINGS = new Set([
 // Kept in the local folder whichever folder holds the settings (saved with datadir.local()).
 const LOCAL_ONLY = new Set([
   LOCATION_FILE, 'app-settings.json', 'logs', 'backups',
-  'scoreboard-state.json', 'followed-games.json', 'game-cache.json', 'last-game-summary.json', 'stream-keys.json', 'deck-key.txt', 'devices.json', 'socials-photos', 'game-stories', 'recordings.json', 'Recordings', 'demos.json', 'replay.json', 'securelink.json',
+  'scoreboard-state.json', 'followed-games.json', 'game-cache.json', 'last-game-summary.json', 'stream-keys.json', 'deck-key.txt', 'devices.json', 'socials-photos', 'game-stories', 'recordings.json', 'Recordings', 'demos.json', 'replay.json', 'securelink.json', 'firstpass',
 ]);
 
 const PROVIDERS: Record<ProviderId, { name: string; root: () => string; contains: (p: string) => boolean }> = {
