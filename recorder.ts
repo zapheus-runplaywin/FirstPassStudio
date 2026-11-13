@@ -11,7 +11,7 @@
 // and k (its kind):
 //   start     the recording's start: Studio's version, the competition, the time zone
 //   game      the game it's of (id, teams, division, round, court)
-//   playhq    a PlayHQ answer (playhq.js gql): op, vars, tenant, data
+//   playhq    a PlayHQ answer (playhq.ts gql): op, vars, tenant, data
 //   live      an answer from PlayHQ's live scoring (fetchLive): id, and data or errors
 //   action    a scoreboard action (board.ts applyAction): from the control page, the Stream Deck or Studio itself
 //   scene     the scene the pages were sent (scene.ts notify), when it changed

@@ -66,7 +66,7 @@ test('position match ups: scoring state and line ups through a game', async t =>
   assert.match(d.error, /No PlayHQ game picked/);
 
   await post({ type: 'playhqRefresh', value: 3 });
-  // Starting now, so Studio reads it at Check PlayHQ every (playhq.js liveAge; a game with no start time is read every 5 minutes).
+  // Starting now, so Studio reads it at Check PlayHQ every (playhq.ts liveAge; a game with no start time is read every 5 minutes).
   const now = new Date(), pad = (n: number) => String(n).padStart(2, '0');
   const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`, time = `${pad(now.getHours())}:${pad(now.getMinutes())}:00`;
   await post({ type: 'selectGame', game: { id: GAME, roundId: 'r1', date, time, home: { name: 'Thunder' }, away: { name: 'Warriors' } } });

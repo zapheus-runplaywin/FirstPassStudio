@@ -512,7 +512,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   }
 
   // While a board follows PlayHQ, refresh its score from PlayHQ (every playhqRefreshSec, default 5, during the game; 30 s
-  // or 5 minutes either side of it, playhq.js liveAge). Called every second by refreshTick and by the scoreboard, goals,
+  // or 5 minutes either side of it, playhq.ts liveAge). Called every second by refreshTick and by the scoreboard, goals,
   // stats and worm requests; the live feed is cached for that long, so PlayHQ is asked once per period however often this runs.
   async function refreshFromPlayhq(b: GameBoard) {
     noteClock(b);
@@ -1198,7 +1198,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
   // So every game of the night has a story (Game stats, Score worm, moments), not only the one on the stream, Studio
   // also follows the night's other games while it's on air (followOthers, the switch on Scoreboard control, on by
   // default). Each one's live feed is read from when its scoring opens until PlayHQ says it's finished (every
-  // playhqRefreshSec during the game, every 30 s before it, playhq.js liveAge), and goes through the same goal order, quarters, clock and moments as the board, on a board of its own that
+  // playhqRefreshSec during the game, every 30 s before it, playhq.ts liveAge), and goes through the same goal order, quarters, clock and moments as the board, on a board of its own that
   // no page shows (followed: true), so nothing plays on air for it: no super shot song, no moments, no scorebench
   // warnings. Its story is kept as the board's is, marked followed. A game the scoreboard picks takes over its followed
   // board's goals (takeOver), and a game the scoreboard leaves before it ends goes on being followed from where the board
@@ -1309,7 +1309,7 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     if (goalsChanged || f.done) { saveFollowed(); pushBoard(); } // Scoreboard control lists where it's up to
   }
   // Each second (server.ts): every followed game due a reading. Each is read through the live feed's cache, so PlayHQ is
-  // asked once per playhqRefreshSec per game (or as playhq.js liveAge says), and a game still being read is left alone.
+  // asked once per playhqRefreshSec per game (or as playhq.ts liveAge says), and a game still being read is left alone.
   const reading = new Set<string>();
   function refreshFollowed() {
     for (const f of Object.values(followed)) {
@@ -1334,8 +1334,9 @@ function create({ log, datadir, savefile, stories = { keep() {}, read: () => nul
     const c = live.clock;
     if (!c) return;
     b.playhqClock = c;
-    b.playhqBreak = live.break || null;
-    const key = `${c.periodValue || c.period} ${c.status} ${c.time} ${c.lastUpdatedAt} ${live.break || ''}`;
+    const breakName = live.break ? String(live.break) : null;
+    b.playhqBreak = breakName;
+    const key = `${c.periodValue || c.period} ${c.status} ${c.time} ${c.lastUpdatedAt} ${breakName || ''}`;
     if (b.playhqClockKey === key) return;
     b.playhqClockKey = key;
     const secs = parseClock(c.time);

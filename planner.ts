@@ -32,7 +32,7 @@
 // create(deps). deps:
 //   log(level, source, message)      the debug log
 //   competitions, savefile           competitions.ts and savefile.ts
-//   getStructure(), getSeasonGames(grade)   the season's divisions and each one's games (playhq.js, games.ts)
+//   getStructure(), getSeasonGames(grade)   the season's divisions and each one's games (playhq.ts, games.ts)
 //   board()                          the scoreboard in use
 //   sameCourt(court, wanted)         court name matching, as automatic game selection does it (games.ts)
 //   night()                          the game night picked by hand on Scoreboard control, or ''

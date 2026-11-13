@@ -1,4 +1,4 @@
-// When PlayHQ goes wrong mid-game: the PlayHQ client (playhq.js) against the stand-in PlayHQ
+// When PlayHQ goes wrong mid-game: the PlayHQ client (playhq.ts) against the stand-in PlayHQ
 // (test/support/playhq.mts), in this process, so each failure can be set up exactly. Graphics keep
 // the last good reading where there is one, and every failure says what went wrong.
 import { createRequire } from 'node:module';
@@ -14,7 +14,7 @@ import { startPlayhq, createWorld, localZone, type StandIn } from './support/pla
 
 const require = createRequire(import.meta.url);
 
-// playhq.js keeps finished games in the data folder (datadir.ts reads this when it's loaded).
+// playhq.ts keeps finished games in the data folder (datadir.ts reads this when it's loaded).
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-playhq-'));
 process.env.FIRSTPASS_DATA_DIR = dataDir;
 // The stand-in's game times are wall-clock times where it's about midday, so the client reads them there: otherwise
@@ -32,7 +32,7 @@ function client(opts: { apiUrl?: string } = {}) {
   const c = (require('../out/playhq.js') as typeof import('../out/playhq.js')).create({
     log: (level: string, source: string, message: string) => logged.push(`${level} ${source} ${message}`),
     apiUrl: opts.apiUrl || playhq.url, linkBase: 'http://studio.test:8080',
-    config: () => ({ name: 'Thunder League', competitionName: 'Thunder League' }),
+    config: () => ({ name: 'Thunder League', competitionName: 'Thunder League' }) as import('../out/types.js').Config,
     leadMs: () => 10 * 60 * 1000, logoFor: () => '', positionOf: (p: { playerPosition?: { shortName?: string } }) => (p.playerPosition && p.playerPosition.shortName) || '',
   });
   c.setOrganisation(playhq.world.orgUrl);
@@ -52,7 +52,7 @@ test('the ladder keeps showing the last good one while PlayHQ is down, marked st
   assert.deepEqual(kept.pools, good.pools, 'the same standings as before PlayHQ went down');
   assert.equal(kept.updatedAt, good.updatedAt, 'still says when it was last read');
   assert.equal(kept.stale, true);
-  assert.match(kept.error, /HTTP 503/);
+  assert.match(String(kept.error), /HTTP 503/);
   playhq.world.fail = {};
   c.askAgain();
   const back = await c.getLadder('grade-div1');
@@ -66,7 +66,7 @@ test('a round\'s games (the fixtures, up next, the game list) keep the last ones
   playhq.world.fail.discoverFixtureByRound = 503;
   const kept = await c.getRoundGames('grade-div1-r3', 0);
   assert.deepEqual([...kept], good);
-  assert.match(kept.stale, /HTTP 503/, 'says why they aren\'t fresh');
+  assert.match(String(kept.stale), /HTTP 503/, 'says why they aren\'t fresh');
   assert.ok(logged.some(l => /Keeping round grade-div1-r3's games as last read: PlayHQ answered HTTP 503/.test(l)), logged.join('\n'));
   assert.equal(asked('discoverFixtureByRound').length, 2, 'PlayHQ is still asked each time, so it\'s fresh once it\'s back');
   // A round never read fails as before.
