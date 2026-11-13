@@ -52,7 +52,7 @@ const SETTINGS = new Set([
 // Kept in the local folder whichever folder holds the settings (saved with datadir.local()).
 const LOCAL_ONLY = new Set([
   LOCATION_FILE, 'app-settings.json', 'logs', 'backups',
-  'scoreboard-state.json', 'followed-games.json', 'game-cache.json', 'last-game-summary.json', 'stream-keys.json', 'deck-key.txt', 'devices.json', 'socials-photos', 'game-stories', 'recordings.json', 'Recordings', 'demos.json', 'replay.json', 'securelink.json', 'firstpass',
+  'scoreboard-state.json', 'followed-games.json', 'game-cache.json', 'last-game-summary.json', 'stream-keys.json', 'deck-key.txt', 'devices.json', 'socials-photos', 'game-stories', 'recordings.json', 'Recordings', 'demos.json', 'replay.json', 'securelink.json', 'firstpass', 'hq-signins.json', 'hq-tokens.json',
 ]);
 
 const PROVIDERS: Record<ProviderId, { name: string; root: () => string; contains: (p: string) => boolean }> = {

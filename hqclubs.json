@@ -1,0 +1,4 @@
+{
+  "about": "The clubs whose FirstPass HQ Studio can sign in to (hqauth.ts), the same list HQ's own app is built with (FirstPassHQ src/constants/clubs.ts). Each club has its own Supabase project: code (capitals and digits), name, supabaseUrl (https://<project>.supabase.co) and anonKey (the project's public key, Project Settings > API; it is meant to be public). Each project's Auth > URL Configuration must allow http://127.0.0.1:*/** as a redirect URL.",
+  "clubs": []
+}
