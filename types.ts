@@ -18,6 +18,8 @@ export interface ParentPort {
 export type Query = { [key: string]: string | undefined };
 // A request's JSON body (server.ts readBody): always an object, each value unchecked until a route reads it.
 export type Body = { [key: string]: unknown };
+// A change asked for by a page, the Stream Deck or a sequence: its type, and whatever else that kind of change takes (unchecked).
+export type Act = { type: string; [key: string]: unknown };
 // How a module's route() answers: server.ts send() (JSON for anything but a string or a Buffer) and readBody().
 export type Send = (res: import('node:http').ServerResponse, status: number, body: unknown, type?: string, headers?: import('node:http').OutgoingHttpHeaders) => void;
 export type ReadBody = (req: import('node:http').IncomingMessage) => Promise<Body>;

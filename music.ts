@@ -37,12 +37,35 @@
 import fs from 'node:fs';
 import * as datadir from './datadir';
 import * as savefile from './savefile';
+import path from 'node:path';
 import { errorCode, errorMessage } from './errors';
+import { arr, isObj, obj, str } from './check';
+import type { Act, Body, Log, Query } from './types';
+
+// A playlist (music.json).
+interface Playlist { id: string; name: string; tracks: string[]; shuffle: boolean; loop: boolean }
+type UnderVideo = 'pause' | 'leave';
+interface Settings {
+  fadeInSec: number; fadeOutSec: number; quickSec: number; volume: number; underVideo: UnderVideo; duckTo: number; superShotSong: string; superShotVolume: number;
+}
+// A fade or duck the pages follow: from, to (0 to 1), starting at (ms) over ms.
+interface Ease { from: number; to: number; at: number; ms: number }
+type After = 'stop' | 'pause' | 'video' | null;
+// The player: what's queued and where it is.
+interface Player {
+  queue: string[]; index: number; playlist: string | null; loop: boolean; status: 'stopped' | 'playing' | 'paused'; pos: { sec: number; at: number };
+  gain: Ease; playId: number; muted: boolean; ducked: string | null; duck: Ease; video: 'pause' | null; owner: string | null; after: After;
+}
+// What server.ts hands the music: each file's length, the media folder's audio files, a change to send, the mics' dip (mics.ts).
+interface Hooks { duration(file: string): number | null; files(): string[]; changed(): void; quiet?(on: boolean): void }
+// A sequence's music (sequences.ts).
+interface SeqMusic { track?: string; playlist?: string; startAtSec?: unknown; fadeInSec?: unknown }
 
 const FILE = datadir.file('music.json');
-const AUDIO_TYPES = { '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.wav': 'audio/wav', '.aif': 'audio/aiff', '.aiff': 'audio/aiff' };
+const AUDIO_TYPES: Record<string, string> = { '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.wav': 'audio/wav', '.aif': 'audio/aiff', '.aiff': 'audio/aiff' };
 // Under a video with sound the music pauses, or is left as it is (the Ducking card). An older 'lower' pauses.
-const UNDER_VIDEO = ['pause', 'leave'];
+const UNDER_VIDEO: readonly UnderVideo[] = ['pause', 'leave'];
+const isUnderVideo = (v: unknown): v is UnderVideo => (UNDER_VIDEO as readonly unknown[]).includes(v);
 // Three fade times, all in Music Settings: Fade in, Fade out, and Quick. Quick is how long the music takes to get out of
 // the way of a video's sound and to come back, and how fast a stinger with ?music=dip brings it back up as it leaves.
 // Fade out is also how long a sequence's music fades when something else stops it and its Music ends gives no time
@@ -50,41 +73,43 @@ const UNDER_VIDEO = ['pause', 'leave'];
 // A track whose length isn't known yet is checked again after this.
 const UNKNOWN_MS = 5000;
 
-let log = () => {};
-let api = null; // { duration(file), files(), changed(), quiet(on) }
-let playlists = [];
-let settings = { fadeInSec: 2, fadeOutSec: 4, quickSec: 1, volume: 80, underVideo: 'pause', duckTo: 25, superShotSong: '', superShotVolume: 80 };
+let log: Log = () => {};
+let api: Hooks = { duration: () => null, files: () => [], changed() {} }; // set by init()
+let playlists: Playlist[] = [];
+let settings: Settings = { fadeInSec: 2, fadeOutSec: 4, quickSec: 1, volume: 80, underVideo: 'pause', duckTo: 25, superShotSong: '', superShotVolume: 80 };
 // The super shot song plays as this owner; superFired is the game and quarter it last started for.
 const SUPER = 'supershot';
-let superFired = null;
+let superFired: string | null = null;
 let p = blank();
-let endTimer = null, fadeTimer = null;
+let endTimer: NodeJS.Timeout | undefined, fadeTimer: NodeJS.Timeout | undefined;
 // The song fading out under a sequence's new music (a crossfade): { track, pos, gain, playId, volume }.
-let tail = null, tailTimer = null;
+let tail: { track: string; pos: { sec: number; at: number }; gain: Ease; playId: number; volume: number } | null = null;
+let tailTimer: NodeJS.Timeout | undefined;
 
-function blank() {
+function blank(): Player {
   return { queue: [], index: 0, playlist: null, loop: false, status: 'stopped', pos: { sec: 0, at: 0 }, gain: { from: 1, to: 1, at: 0, ms: 0 },
     playId: 0, muted: false, ducked: null, duck: { from: 0, to: 0, at: 0, ms: 0 }, video: null, owner: null, after: null };
 }
 
-const clamp = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
-const slug = s => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+const clamp = (v: unknown, lo: number, hi: number, d: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
+const slug = (s: unknown) => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const newId = () => Math.random().toString(36).slice(2, 10);
-const cleanFile = f => String(f || '').split(/[\\/]/).pop().replace(/^\.+/, '');
-const isAudio = f => !!AUDIO_TYPES[require('path').extname(String(f || '')).toLowerCase()];
+const cleanFile = (f: unknown) => (String(f || '').split(/[\\/]/).pop() || '').replace(/^\.+/, '');
+const isAudio = (f: unknown) => !!AUDIO_TYPES[path.extname(String(f || '')).toLowerCase()];
 const now = () => Date.now();
 // The seconds a fade takes: the one asked for, else the player's fade in or fade out time.
-const given = v => v !== undefined && v !== null && v !== '';
-const fadeIn = v => given(v) ? clamp(v, 0, 60, settings.fadeInSec) : settings.fadeInSec;
-const fadeOut = v => given(v) ? clamp(v, 0, 60, settings.fadeOutSec) : settings.fadeOutSec;
+const given = (v: unknown) => v !== undefined && v !== null && v !== '';
+const fadeIn = (v: unknown) => given(v) ? clamp(v, 0, 60, settings.fadeInSec) : settings.fadeInSec;
+const fadeOut = (v: unknown) => given(v) ? clamp(v, 0, 60, settings.fadeOutSec) : settings.fadeOutSec;
 
 // ─── Saving ──────────────────────────────────────────────────────────────
-function cleanPlaylist(pl, existing = {}) {
-  const s = { ...existing, ...pl };
-  const out = {
+// A playlist as given (a save from the Output page, or music.json), made safe.
+function cleanPlaylist(pl: unknown, existing: Partial<Playlist> = {}): Playlist {
+  const s: Body = { ...existing, ...obj(pl) };
+  const out: Playlist = {
     id: String(existing.id || s.id || newId()).replace(/[^a-z0-9]/gi, '').slice(0, 20) || newId(),
     name: '',
-    tracks: (Array.isArray(s.tracks) ? s.tracks : []).map(cleanFile).filter(isAudio).slice(0, 500),
+    tracks: arr(s.tracks).map(cleanFile).filter(isAudio).slice(0, 500),
     shuffle: !!s.shuffle,
     loop: s.loop === undefined ? true : !!s.loop,
   };
@@ -94,15 +119,15 @@ function cleanPlaylist(pl, existing = {}) {
   for (let i = 2; taken.has(slug(out.name)) || !slug(out.name); i++) out.name = `${base} ${i}`;
   return out;
 }
-function cleanSettings(v) {
-  const s = { ...settings, ...(v && typeof v === 'object' ? v : {}) };
+function cleanSettings(v: unknown): Settings {
+  const s: Body = { ...settings, ...obj(v) };
   return {
     // A music.json from before fade in and out were separate has one fadeSec: fade in over it, out over twice it.
     fadeInSec: clamp(s.fadeInSec ?? s.fadeSec, 0, 30, 2),
     fadeOutSec: clamp(s.fadeOutSec ?? (s.fadeSec === undefined ? undefined : Number(s.fadeSec) * 2), 0, 30, 4),
     quickSec: clamp(s.quickSec, 0, 10, 1),
     volume: Math.round(clamp(s.volume, 0, 100, 80)),
-    underVideo: UNDER_VIDEO.includes(s.underVideo) ? s.underVideo : 'pause',
+    underVideo: isUnderVideo(s.underVideo) ? s.underVideo : 'pause',
     duckTo: Math.round(clamp(s.duckTo, 0, 100, 25)),
     // An older music.json's lowerTo (Lower the music, now pause) and duckHalf (Duck over half the fade times) are dropped.
     superShotSong: cleanFile(s.superShotSong),
@@ -115,7 +140,7 @@ function load() {
     const saved = JSON.parse(fs.readFileSync(FILE, 'utf8'));
     settings = cleanSettings(saved.settings);
     playlists = [];
-    for (const pl of Array.isArray(saved.playlists) ? saved.playlists : []) if (pl && typeof pl === 'object') playlists.push(cleanPlaylist(pl));
+    for (const pl of arr(saved.playlists)) if (isObj(pl)) playlists.push(cleanPlaylist(pl));
   } catch (err) {
     if (errorCode(err) !== 'ENOENT') log('warn', 'music', `Could not read music.json, starting with no playlists: ${errorMessage(err)}`);
   }
@@ -125,12 +150,12 @@ function save() {
   catch (err) { log('error', 'music', `Could not save music.json: ${errorMessage(err)}`); }
 }
 
-function findPlaylist(ref) {
+function findPlaylist(ref: unknown) {
   const r = String(ref || '');
   return playlists.find(x => x.id === r) || playlists.find(x => slug(x.name) === slug(r)) || null;
 }
 // A track by file name, or by its name as a link spells it (pre-game-bed for "Pre-game bed.mp3").
-function findTrack(ref, files) {
+function findTrack(ref: unknown, files: string[]) {
   const r = cleanFile(ref);
   if (files.includes(r)) return r;
   return files.find(f => slug(f.replace(/\.[^.]+$/, '')) === slug(r)) || files.find(f => slug(f) === slug(r)) || null;
@@ -141,17 +166,17 @@ const track = () => p.queue[p.index] || null;
 const position = () => p.status === 'playing' ? p.pos.sec + (now() - p.pos.at) / 1000 : p.pos.sec;
 // Where a fade or duck is now. Fades ease in and out (scene.html uses the same curve), so one that
 // changes part way carries on from where it is heard.
-const ease = x => x * x * (3 - 2 * x);
-function along(e) {
+const ease = (x: number) => x * x * (3 - 2 * x);
+function along(e: Ease) {
   if (!e.ms || now() >= e.at + e.ms) return e.to;
   return e.from + (e.to - e.from) * ease(Math.max(0, (now() - e.at) / e.ms));
 }
 const gainNow = () => along(p.gain);
-function fadeTo(to, sec) { p.gain = { from: gainNow(), to, at: now(), ms: Math.round(sec * 1000) }; }
+function fadeTo(to: number, sec: number) { p.gain = { from: gainNow(), to, at: now(), ms: Math.round(sec * 1000) }; }
 const duckNow = () => along(p.duck);
 // Ducks (why: 'hand' or 'quiet') over the fade out time, or brings the music back up (null) over the fade in
 // time, unless told otherwise.
-function setDuck(why, fade) {
+function setDuck(why: string | null, fade?: unknown) {
   p.ducked = why;
   const to = why ? 1 : 0;
   if (p.duck.to === to) return;
@@ -160,11 +185,11 @@ function setDuck(why, fade) {
 }
 
 // After a fade out: stop or pause once it's silent.
-function afterFade(sec, then) {
+function afterFade(sec: number, then: After) {
   clearTimeout(fadeTimer);
-  fadeTimer = null;
+  fadeTimer = undefined;
   p.after = then;
-  if (sec > 0) fadeTimer = setTimeout(() => { fadeTimer = null; finishFade(); api.changed(); }, sec * 1000);
+  if (sec > 0) fadeTimer = setTimeout(() => { fadeTimer = undefined; finishFade(); api.changed(); }, sec * 1000);
   else finishFade();
 }
 function finishFade() {
@@ -176,7 +201,7 @@ function finishFade() {
 function halt() {
   clearTimeout(endTimer);
   clearTimeout(fadeTimer);
-  fadeTimer = null;
+  fadeTimer = undefined;
   p.status = 'stopped';
   p.pos = { sec: 0, at: now() };
   p.after = null;
@@ -187,9 +212,10 @@ function halt() {
 // When the track playing ends: the next in the queue, round again if it loops, else stop.
 function scheduleEnd() {
   clearTimeout(endTimer);
-  endTimer = null;
-  if (p.status !== 'playing' || !track()) return;
-  const len = api.duration(track());
+  endTimer = undefined;
+  const now_ = track();
+  if (p.status !== 'playing' || !now_) return;
+  const len = api.duration(now_);
   const id = p.playId;
   if (!len) { endTimer = setTimeout(() => { if (p.playId === id) scheduleEnd(); }, UNKNOWN_MS); return; }
   endTimer = setTimeout(() => { if (p.playId === id) { trackEnded(); api.changed(); } }, Math.max(0, (len - position()) * 1000));
@@ -200,9 +226,9 @@ function trackEnded() {
   log('info', 'music', `${track()} finished, music stopped`);
   halt();
 }
-function start(fromSec, fadeIn) {
+function start(fromSec: number, fadeIn: number) {
   clearTimeout(fadeTimer);
-  fadeTimer = null;
+  fadeTimer = undefined;
   p.after = null;
   p.playId++;
   p.status = 'playing';
@@ -211,26 +237,26 @@ function start(fromSec, fadeIn) {
   log('info', 'music', `Playing ${track()}${fromSec ? ` from ${Math.round(fromSec)} s` : ''}${fadeIn ? `, fading in over ${fadeIn} s` : ''}`);
   scheduleEnd();
 }
-function shuffled(list) {
+function shuffled(list: string[]) {
   const a = [...list];
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
   return a;
 }
-function loadTrack(file, owner = null, loop = false) {
+function loadTrack(file: string, owner: string | null = null, loop = false) {
   halt();
   Object.assign(p, { queue: [file], index: 0, playlist: null, loop, owner });
 }
-function loadPlaylist(pl, owner = null) {
+function loadPlaylist(pl: Playlist, owner: string | null = null) {
   halt();
   Object.assign(p, { queue: pl.shuffle ? shuffled(pl.tracks) : [...pl.tracks], index: 0, playlist: pl.id, loop: pl.loop, owner });
 }
 
-function play(fade, fromSec = 0) {
+function play(fade?: unknown, fromSec = 0) {
   if (!track()) return 'Load a track or a playlist first.';
   start(fromSec, fadeIn(fade));
   return null;
 }
-function stop(fade) {
+function stop(fade?: unknown) {
   if (p.status === 'stopped') return null;
   const sec = p.status === 'paused' ? 0 : fadeOut(fade);
   // Already fading out to a stop: a second stop can make it sooner, never later (the fade it's in keeps its time).
@@ -240,19 +266,19 @@ function stop(fade) {
   afterFade(sec, 'stop');
   return null;
 }
-function pause(fade) {
+function pause(fade?: unknown) {
   if (p.status !== 'playing') return p.status === 'paused' ? null : 'No music is playing.';
   const sec = fadeOut(fade);
   fadeTo(0, sec);
   afterFade(sec, 'pause');
   return null;
 }
-function resume(fade) {
+function resume(fade?: unknown) {
   if (p.status === 'playing' && !p.after) return null;
   if (p.status === 'stopped') return play(fade);
   const sec = fadeIn(fade);
   clearTimeout(fadeTimer);
-  fadeTimer = null;
+  fadeTimer = undefined;
   p.after = null;
   p.video = null; // carried on by hand: a video's sound no longer brings it back
   if (p.status === 'paused') { p.status = 'playing'; p.pos = { sec: p.pos.sec, at: now() }; }
@@ -261,7 +287,7 @@ function resume(fade) {
   scheduleEnd();
   return null;
 }
-function skip(by, fade) {
+function skip(by: number, fade?: unknown) {
   if (!p.queue.length) return 'Load a playlist first.';
   let i = p.index + by;
   if (i < 0 || i >= p.queue.length) {
@@ -280,7 +306,7 @@ const stopFadeSec = () => settings.fadeOutSec;
 
 // ─── What else changes the music ─────────────────────────────────────────
 // A video with its sound on is showing (or not any more).
-function videoSound(on) {
+function videoSound(on: unknown) {
   if (on) {
     if (p.video || p.status !== 'playing' || p.after) return false;
     if (settings.underVideo === 'leave') return false;
@@ -295,7 +321,7 @@ function videoSound(on) {
   log('info', 'music', 'The video with sound is off: music comes back');
   if (was === 'pause' && (p.status === 'paused' || p.after === 'video')) {
     clearTimeout(fadeTimer);
-    fadeTimer = null;
+    fadeTimer = undefined;
     p.after = null;
     if (p.status === 'paused') { p.status = 'playing'; p.pos = { sec: p.pos.sec, at: now() }; }
     fadeTo(1, settings.quickSec);
@@ -305,7 +331,7 @@ function videoSound(on) {
 }
 
 // A stinger with ?music=quiet or dip came on (on true, sec: how long it takes to cover the frame) or went off.
-function stinger(mode, on, sec) {
+function stinger(mode: string, on: boolean, sec?: number) {
   if (on) {
     if (p.status === 'stopped' || p.ducked) return false;
     setDuck(mode === 'dip' ? 'stinger' : 'quiet', sec);
@@ -319,7 +345,7 @@ function stinger(mode, on, sec) {
 }
 
 // A scene or sequence with "Ducks the music" ticked started (quiet true), or one without it (false).
-function quiet(on) {
+function quiet(on: unknown) {
   api?.quiet?.(!!on); // the mics dip with it (mics.js)
   if (on) {
     // A stinger's dip becomes this scene's quiet, so the music stays down when the stinger ends.
@@ -335,7 +361,7 @@ function quiet(on) {
 
 // A sequence's music: { track | playlist, startAtSec, fadeInSec } starting now (fading in over fadeSec instead, when
 // given: started under the end of a video, it fades in for what's left of the video).
-function playFor(seqId, m, fadeSec) {
+function playFor(seqId: string, m: SeqMusic, fadeSec?: number) {
   const files = api.files();
   const pl = m.playlist ? findPlaylist(m.playlist) : null;
   const file = !pl && m.track ? findTrack(m.track, files) : null;
@@ -344,11 +370,11 @@ function playFor(seqId, m, fadeSec) {
   if (p.status === 'playing' && !p.after && (pl ? p.playlist === pl.id : p.playlist === null && track() === file)) { p.owner = seqId; return; }
   // The music before is fading out (its sequence ended or was cut away from): it fades on under this one.
   if (p.status === 'playing' && p.after === 'stop' && p.gain.to === 0) startTail();
-  if (pl) loadPlaylist(pl, seqId); else loadTrack(file, seqId, true);
+  if (pl) loadPlaylist(pl, seqId); else if (file) loadTrack(file, seqId, true);
   start(Number(m.startAtSec) || 0, fadeSec ?? (Number(m.fadeInSec) || 0));
 }
 // The sequence that owns the music ended or stopped: fade (sec) or cut (0).
-function stopFor(seqId, sec) {
+function stopFor(seqId: string, sec?: number) {
   if (!p.owner || p.owner !== seqId || p.status === 'stopped') return false;
   stop(sec);
   return true;
@@ -356,20 +382,21 @@ function stopFor(seqId, sec) {
 // The song fading out now carries on as the tail, to the end of its fade, while the new music starts.
 function startTail() {
   const left = p.gain.at + p.gain.ms - now();
-  if (left <= 0 || !track()) return;
-  clearTimeout(tailTimer);
-  tail = { track: track(), pos: { sec: position(), at: now() }, gain: p.gain, playId: p.playId,
+  const playing = track();
+  if (left <= 0 || !playing) return;
+  if (tailTimer) clearTimeout(tailTimer);
+  tail = { track: playing, pos: { sec: position(), at: now() }, gain: p.gain, playId: p.playId,
     volume: p.owner === SUPER ? settings.superShotVolume : settings.volume };
-  tailTimer = setTimeout(() => { tailTimer = null; tail = null; api.changed(); }, left);
-  log('info', 'music', `${tail.track} fades out under the new music`);
+  tailTimer = setTimeout(() => { tailTimer = undefined; tail = null; api.changed(); }, left);
+  log('info', 'music', `${playing} fades out under the new music`);
 }
 // The music carries on into the next sequence.
-function handOver(fromId, toId) { if (p.owner === fromId) p.owner = toId; }
+function handOver(fromId: string, toId: string) { if (p.owner === fromId) p.owner = toId; }
 
 // The scoreboard each second: { id, period, superShot (in the super shot period now), running }. The super shot
 // song cuts in once the period's clock is running (once per quarter, so stopping it by hand keeps it stopped)
 // and fades out when the period ends. Returns whether the music changed.
-function superShotPeriod(g) {
+function superShotPeriod(g: { id: string | null; period: number; superShot: boolean; running: boolean } | null) {
   const key = g ? `${g.id}:${g.period}` : null;
   if (g && g.superShot) {
     if (!g.running || superFired === key || !settings.superShotSong) return false;
@@ -389,7 +416,7 @@ function superShotPeriod(g) {
 
 // ─── Changes from the Output page and the Stream Deck ────────────────────
 // Returns an error, null when done, or undefined when it isn't a music change.
-function apply(a) {
+function apply(a: Act): string | null | undefined {
   const files = () => api.files();
   switch (a.type) {
     case 'musicLoad': {
@@ -430,7 +457,7 @@ function apply(a) {
     case 'musicVolume': settings = cleanSettings({ ...settings, volume: a.value }); save(); return null;
     case 'musicSettings': settings = cleanSettings(a.settings); save(); return null;
     case 'playlistAdd': {
-      const pl = cleanPlaylist({ ...(a.changes || {}), id: undefined }, { id: newId() });
+      const pl = cleanPlaylist({ ...obj(a.changes), id: undefined }, { id: newId() });
       playlists.push(pl);
       save();
       log('info', 'music', `Made playlist "${pl.name}"`);
@@ -439,7 +466,7 @@ function apply(a) {
     case 'playlistUpdate': {
       const pl = findPlaylist(a.playlist);
       if (!pl) return `No playlist "${a.playlist || ''}".`;
-      const { id, ...changes } = a.changes || {};
+      const { id, ...changes } = obj(a.changes);
       playlists[playlists.indexOf(pl)] = cleanPlaylist(changes, pl);
       save();
       return null;
@@ -464,13 +491,13 @@ function apply(a) {
 
 // /deck/music/load/<track>, /deck/music/playlist/<name>, /deck/music/play|stop|pause|resume|toggle|next|prev|fade,
 // /deck/music/mute/on|off|toggle and /deck/music/duck/on|off|toggle; ?fade=N (seconds, 0 cuts) on any of them.
-function deck(parts, q = {}) {
+function deck(parts: string[], q: Query = {}) {
   const [what, verb, arg] = parts;
   if (what !== 'music' || !verb) return null;
   const fade = q.fade !== undefined && q.fade !== '' ? Number(q.fade) : undefined;
-  const SIMPLE = { play: 'musicPlay', stop: 'musicStop', pause: 'musicPause', resume: 'musicResume', toggle: 'musicToggle', next: 'musicNext', prev: 'musicPrev', previous: 'musicPrev', fade: 'musicFade' };
-  let action = null;
-  if (SIMPLE[verb] && !arg) action = { type: SIMPLE[verb], fade };
+  const SIMPLE: Record<string, string> = { play: 'musicPlay', stop: 'musicStop', pause: 'musicPause', resume: 'musicResume', toggle: 'musicToggle', next: 'musicNext', prev: 'musicPrev', previous: 'musicPrev', fade: 'musicFade' };
+  let action: Act | null = null;
+  if (Object.hasOwn(SIMPLE, verb) && !arg) action = { type: SIMPLE[verb], fade };
   else if (verb === 'load' && arg) action = { type: 'musicLoad', track: arg, fade, play: q.play !== undefined };
   else if (verb === 'playlist' && arg) action = { type: 'musicPlaylist', playlist: arg, fade, play: q.play !== undefined };
   else if ((verb === 'mute' || verb === 'duck') && ['on', 'off', 'toggle'].includes(arg || 'toggle')) action = { type: verb === 'mute' ? 'musicMute' : 'musicDuck', value: arg || 'toggle', fade };
@@ -481,14 +508,15 @@ function deck(parts, q = {}) {
 }
 
 function state() {
+  const playing = track();
   return {
     music: {
-      track: track(), queue: p.queue, index: p.index, playlist: p.playlist, loop: p.loop,
+      track: playing, queue: p.queue, index: p.index, playlist: p.playlist, loop: p.loop,
       // Paused for a video's sound counts as playing for the buttons: it comes back by itself.
       status: p.status, after: p.after, pos: p.pos, gain: p.gain, playId: p.playId,
       muted: p.muted, ducked: !!p.ducked, duckedBy: p.ducked || null, duck: p.duck, video: p.video, owner: p.owner, tail,
       volume: p.owner === SUPER ? settings.superShotVolume : settings.volume, duckTo: settings.duckTo,
-      length: track() ? api.duration(track()) : null,
+      length: playing ? api.duration(playing) : null,
     },
     playlists,
     musicSettings: settings,
@@ -497,30 +525,32 @@ function state() {
 
 // A file the Output page's Media list is removing from the media folder: where the player uses it (onAir while
 // it's the song playing or paused), and taking it out of the playlists, the super shot song and the queue.
-function uses(file) {
-  const out = playlists.filter(pl => pl.tracks.includes(file)).map(pl => ({ type: 'playlist', name: pl.name }));
+function uses(file: string) {
+  const out: { type: string; name: string; onAir?: boolean }[] = playlists.filter(pl => pl.tracks.includes(file)).map(pl => ({ type: 'playlist', name: pl.name }));
   if (settings.superShotSong === file) out.push({ type: 'superShot', name: 'Super shot song' });
   if (p.queue.includes(file)) out.push({ type: 'player', name: 'The music player', onAir: p.status !== 'stopped' && track() === file });
   return out;
 }
-function forget(file) {
+function forget(file: string) {
   for (const pl of playlists) pl.tracks = pl.tracks.filter(t => t !== file);
   if (settings.superShotSong === file) settings.superShotSong = '';
   if (p.queue.includes(file)) {
     const cur = track();
     const at = p.queue.slice(0, p.index).filter(t => t !== file).length;
     p.queue = p.queue.filter(t => t !== file);
-    p.index = cur !== file ? p.queue.indexOf(cur) : Math.min(at, Math.max(0, p.queue.length - 1));
+    p.index = cur !== file && cur ? p.queue.indexOf(cur) : Math.min(at, Math.max(0, p.queue.length - 1));
     if (cur === file) p.pos = { sec: 0, at: now() };
     if (!p.queue.length) p.playlist = null;
   }
   save();
 }
 
-function init(logger, hooks) {
+function init(logger: Log | null | undefined, hooks: Hooks) {
   log = logger || log;
   api = hooks;
   load();
 }
 
-export { init, apply, uses, forget, deck, state, videoSound, quiet, stinger, playFor, stopFor, handOver, superShotPeriod, isAudio, AUDIO_TYPES, stopFadeSec };
+export type { SeqMusic, Hooks as MusicHooks };
+export { init,
+ apply, uses, forget, deck, state, videoSound, quiet, stinger, playFor, stopFor, handOver, superShotPeriod, isAudio, AUDIO_TYPES, stopFadeSec };
