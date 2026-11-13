@@ -14,6 +14,8 @@ export interface ParentPort {
   postMessage(message: unknown): void;
 }
 
+// A request's query (?a=1&b=2), each value as given: Object.fromEntries(url.searchParams).
+export type Query = { [key: string]: string | undefined };
 // A request's JSON body (server.ts readBody): always an object, each value unchecked until a route reads it.
 export type Body = { [key: string]: unknown };
 // How a module's route() answers: server.ts send() (JSON for anything but a string or a Buffer) and readBody().

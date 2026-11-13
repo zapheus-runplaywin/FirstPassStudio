@@ -7,6 +7,9 @@
 import { isFinished, startOf, localDate } from './playhq';
 import { errorMessage } from './errors';
 
+// A game of a division's season (getSeasonGames): a round's fixture game with its division and round.
+export type SeasonGame = import('./playhq').FixtureGame & { division: string; round: string; roundNumber: number | null };
+
 // A division's playing rules and the competition's branding, for the pages (GET /api/rules and the board).
 export interface Rules {
   periodType: 'quarters' | 'halves' | undefined; periods: number; periodLabel: 'Q' | 'H'; periodMinutes: number | undefined;

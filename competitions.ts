@@ -175,10 +175,10 @@ function clubOf(team: unknown): string {
   }
   return words.join(' ') || String(team || '').trim();
 }
-type ClubSettings = Pick<Settings, 'clubs' | 'teamClubs'> | null | undefined;
+type ClubSettings = Partial<Pick<Settings, 'clubs' | 'teamClubs'>> | null | undefined;
 const clubKey = (s: ClubSettings, club: unknown) => Object.keys((s && s.clubs) || {}).find(k => k.toLowerCase() === String(club || '').toLowerCase());
 function clubFor(s: ClubSettings, team: string): string { return ((s && s.teamClubs) || {})[team] || clubOf(team); }
-function clubEntry(s: ClubSettings, club: unknown): Club { const k = clubKey(s, club); return s && k ? s.clubs[k] : {}; }
+function clubEntry(s: ClubSettings, club: unknown): Club { const k = clubKey(s, club); return (s && k && s.clubs && s.clubs[k]) || {}; }
 
 // Setups saved before clubs had a logo (logoAliases) and colour (teamColours) per team.
 // Each team's goes to its club; a team whose club already has a different one keeps it
