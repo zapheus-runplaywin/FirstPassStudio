@@ -1,12 +1,16 @@
 // Open on your phone: the Socials tab's QR code opens the pair page by the Mac's network link, which goes on to the
 // Socials tab once the phone is paired, at once when it already is. Only Studio's own pages can be the next stop.
 // The browser: Playwright's own, or STUDIO_TEST_CHROMIUM; skipped without one (except in the Tests check).
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio.mts');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { startStudio } from './support/studio.mts';
+import type { BrowserType } from 'playwright';
+import { createRequire } from 'node:module';
 
-let chromium = null;
-try { ({ chromium } = require('playwright')); } catch { /* not installed */ }
+const require = createRequire(import.meta.url);
+
+let chromium: BrowserType | null = null;
+try { ({ chromium } = require('playwright') as typeof import('playwright')); } catch { /* not installed */ }
 
 test('the phone link is the pair page going on to the page, as a QR code; only Studio pages', async t => {
   const studio = await startStudio(t, { competition: 'Thunder League' });
@@ -35,15 +39,15 @@ test('Open on your phone shows the QR code on the Mac, and a paired phone goes s
   await mac.waitForSelector('#phone:not([hidden])');
   await mac.click('#phone');
   await mac.waitForSelector('#phoneBox[open] .code svg');
-  assert.match(await mac.textContent('#phoneBox code'), /\/pair\.html\?then=%2Fsocials\.html$/);
-  assert.match(await mac.textContent('#phoneBox'), /press Allow everything/);
+  assert.match((await mac.textContent('#phoneBox code'))!, /\/pair\.html\?then=%2Fsocials\.html$/);
+  assert.match((await mac.textContent('#phoneBox'))!, /press Allow everything/);
   // The Remote has its own QR code.
   await mac.click('#phoneBox .fp-seg label >> nth=1');
-  await mac.waitForFunction(() => /then=%2Fremote\.html$/.test(document.querySelector('#phoneBox code').textContent));
+  await mac.waitForFunction(() => /then=%2Fremote\.html$/.test(document.querySelector('#phoneBox code')!.textContent));
   // And the Commentator mic.
   await mac.click('#phoneBox .fp-seg label >> nth=2');
-  await mac.waitForFunction(() => /then=%2Fcommentator\.html$/.test(document.querySelector('#phoneBox code').textContent));
-  assert.match(await mac.textContent('#phoneBox'), /backup commentator headset/);
+  await mac.waitForFunction(() => /then=%2Fcommentator\.html$/.test(document.querySelector('#phoneBox code')!.textContent));
+  assert.match((await mac.textContent('#phoneBox'))!, /backup commentator headset/);
 
   // The phone: not this Mac, and paired already.
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true });

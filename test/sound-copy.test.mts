@@ -3,24 +3,29 @@
 // commentators' mixer, is a sound copy with only the mics ticked for it. The Mac app opens a copy only while its
 // output is on; the copy's window finds the device by name and plays everything there (never on the Mac's own
 // speakers), opens only its own mics, and says how it's doing for the Output page.
-// The browser: as in mics-mixing.test.js (Chromium's stand-in devices: Fake Audio Output 1 and 2).
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { startStudio } = require('./support/studio.mts');
+// The browser: as in mics-mixing.test.mts (Chromium's stand-in devices: Fake Audio Output 1 and 2).
+import { createRequire } from 'node:module';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { startStudio, type Json } from './support/studio.mts';
+import type { BrowserType, Page } from 'playwright';
+import type { TestContext } from 'node:test';
 
-let chromium = null;
-try { ({ chromium } = require('playwright')); } catch { /* not installed */ }
+const require = createRequire(import.meta.url);
 
-async function launch(t) {
+let chromium: BrowserType | null = null;
+try { ({ chromium } = require('playwright') as typeof import('playwright')); } catch { /* not installed */ }
+
+async function launch(t: TestContext) {
   let browser = null, why = 'playwright is not installed';
   if (chromium) {
     try {
       browser = await chromium.launch({ executablePath: process.env.STUDIO_TEST_CHROMIUM || undefined,
         args: ['--autoplay-policy=no-user-gesture-required', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] });
-    } catch (err) { why = err.message.split('\n')[0]; }
+    } catch (err) { why = (err as Error).message.split('\n')[0]; }
   }
   if (!browser) {
     if (process.env.STUDIO_TEST_REQUIRE_BROWSER) assert.fail(`no browser to test the pages in: ${why}`);
@@ -37,8 +42,8 @@ test('the first destination is the output\'s own route; a named one is a copy se
   fs.writeFileSync(path.join(process.env.FIRSTPASS_DATA_DIR, 'outputs.json'), JSON.stringify({ outputs: [
     { id: 'main', slot: 1, name: 'Output 1', mode: 'decklink', decklinkSound: 'both', copySound: 'PodTrak P8', copyMics: ['abc'] }] }));
   const outputs = require('../out/outputs');
-  const logged = [];
-  outputs.init((level, area, text) => logged.push(text));
+  const logged: string[] = [];
+  outputs.init((level: Json, area: Json, text: string) => logged.push(text));
   outputs.message({ type: 'displays', displays: [{ id: 1, label: 'Built-in', primary: true }, { id: 2, label: 'HDMI' }] });
   const main = () => outputs.state().outputs[0];
   assert.deepEqual(main().sound, [{ device: 'own', mics: [] }, { device: 'mac', mics: [] }, { device: 'PodTrak P8', mics: ['abc'] }], 'the older settings as one list');
@@ -46,15 +51,15 @@ test('the first destination is the output\'s own route; a named one is a copy se
   assert.equal(outputs.apply({ sound: [{ device: 'own' }, { device: '  PodTrak P8\n', mics: ['abc', 'abc', 'd-e f', ''] }, { device: 'PodTrak P8' }] }), null);
   assert.deepEqual(main().sound, [{ device: 'own', mics: [] }, { device: 'PodTrak P8', mics: ['abc', 'def'] }], 'mic ids once each; a device once');
   assert.deepEqual(outputs.copies(), [], 'Output 1 is off: no copy');
-  assert.deepEqual(main().soundState.map(s => s.state), ['off', 'off']);
+  assert.deepEqual(main().soundState.map((s: Json) => s.state), ['off', 'off']);
 
   outputs.apply({ mode: 'chroma', chromaDisplay: '2', on: true });
   assert.equal(outputs.windows()[0].sound, 'mac', 'its own window plays to the Mac\'s sound output');
   assert.deepEqual(outputs.copies(), [{ output: 'main', device: 'PodTrak P8', mics: ['abc', 'def'], main: false }]);
-  assert.deepEqual(main().soundState.map(s => s.state), ['sending', 'waiting'], 'nothing heard from the copy\'s window yet');
+  assert.deepEqual(main().soundState.map((s: Json) => s.state), ['sending', 'waiting'], 'nothing heard from the copy\'s window yet');
 
-  const r = { send: (res, code, body) => Object.assign(res, { code, body }) };
-  const post = body => outputs.route({ method: 'POST' }, {}, new URL('http://x/api/outputs/copy'), { ...r, readBody: async () => body });
+  const r = { send: (res: Json, code: Json, body: Json) => Object.assign(res, { code, body }) };
+  const post = (body: Json) => outputs.route({ method: 'POST' }, {}, new URL('http://x/api/outputs/copy'), { ...r, readBody: async () => body });
   return (async () => {
     await post({ output: 'main', device: 'PodTrak P8', error: '' });
     assert.equal(main().soundState[1].state, 'sending');
@@ -96,7 +101,7 @@ test('the copy\'s window plays to its device only, opens only its own mics (or e
   t.after(() => context.close());
   await context.grantPermissions(['microphone'], { origin: studio.base });
   await context.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '', contentType: 'text/css' }));
-  const act = async a => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); return r.json; };
+  const act = async (a: Json) => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); return r.json; };
   await act({ type: 'micAdd', changes: { name: 'Commentator mic', device: '' } });
   const crowd = (await act({ type: 'micAdd', changes: { name: 'Crowd mic', device: 'Fake Audio Input 1' } })).mics.mics[1].id;
 
@@ -131,29 +136,29 @@ test('the copy\'s window plays to its device only, opens only its own mics (or e
   await studio.request('POST', '/api/outputs', { mode: 'chroma' });
   const page = await context.newPage();
   await page.goto(`${studio.base}/output.html`, { waitUntil: 'load' });
-  await page.waitForFunction(() => [...document.querySelectorAll('#outSound select')].length === 1 && !document.getElementById('outSoundAdd').disabled, null, { timeout: 10000 });
-  assert.equal(await page.evaluate(() => document.querySelector('#outSound select').value), 'own');
-  await page.evaluate(() => document.getElementById('outSoundAdd').click());
+  await page.waitForFunction(() => [...document.querySelectorAll('#outSound select')].length === 1 && !document.querySelector<HTMLInputElement>('#outSoundAdd')!.disabled, null, { timeout: 10000 });
+  assert.equal(await page.evaluate(() => document.querySelector<HTMLSelectElement>('#outSound select')!.value), 'own');
+  await page.evaluate(() => document.getElementById('outSoundAdd')!.click());
   await studio.until(async () => (await studio.get('/api/outputs')).sound[1]?.device === 'Fake Audio Output 1');
   await page.waitForFunction(() => document.querySelectorAll('#outSound .soundDest:nth-child(2) input').length === 2, null, { timeout: 5000 });
-  await page.evaluate(() => { const c = document.querySelectorAll('#outSound .soundDest:nth-child(2) input')[1]; c.checked = true; c.dispatchEvent(new Event('change')); });
+  await page.evaluate(() => { const c = document.querySelectorAll<HTMLInputElement>('#outSound .soundDest:nth-child(2) input')[1]; c.checked = true; c.dispatchEvent(new Event('change')); });
   await studio.until(async () => (await studio.get('/api/outputs')).sound[1].mics.join() === crowd);
-  assert.match(await page.textContent('#outSound .soundDest:nth-child(2) .sdStatus'), /Starts when this output is on/);
+  assert.match((await page.textContent('#outSound .soundDest:nth-child(2) .sdStatus'))!, /Starts when this output is on/);
   // Its device can be changed to the other one, and the first destination lists the Mac's sound output only (no SDI: not a Blackmagic output).
-  await page.evaluate(() => { const s = document.querySelectorAll('#outSound select')[1]; s.value = 'Fake Audio Output 2'; s.dispatchEvent(new Event('change')); });
+  await page.evaluate(() => { const s = document.querySelectorAll<HTMLSelectElement>('#outSound select')[1]; s.value = 'Fake Audio Output 2'; s.dispatchEvent(new Event('change')); });
   await studio.until(async () => (await studio.get('/api/outputs')).sound[1].device === 'Fake Audio Output 2');
-  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#outSound select')[0].options].map(o => o.value).slice(0, 2)), ['own', 'Fake Audio Output 1']);
+  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll<HTMLSelectElement>('#outSound select')[0].options].map(o => o.value).slice(0, 2)), ['own', 'Fake Audio Output 1']);
   // Removed: back to the one.
-  await page.evaluate(() => document.querySelector('#outSound .soundDest:nth-child(2) button').click());
+  await page.evaluate(() => document.querySelector<HTMLElement>('#outSound .soundDest:nth-child(2) button')!.click());
   await studio.until(async () => (await studio.get('/api/outputs')).sound.length === 1);
   // No sound, last in the first destination's list: nothing to add, and it says so.
-  assert.equal(await page.evaluate(() => [...document.querySelectorAll('#outSound select')[0].options].at(-1).textContent), 'No sound');
-  await page.evaluate(() => { const s = document.querySelector('#outSound select'); s.value = 'none'; s.dispatchEvent(new Event('change')); });
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll<HTMLSelectElement>('#outSound select')[0].options].at(-1)!.textContent), 'No sound');
+  await page.evaluate(() => { const s = document.querySelector<HTMLSelectElement>('#outSound select'); s!.value = 'none'; s!.dispatchEvent(new Event('change')); });
   await studio.until(async () => (await studio.get('/api/outputs')).sound.length === 0);
-  await page.waitForFunction(() => document.getElementById('outSoundAdd').disabled && /plays no sound/.test(document.querySelector('#outSound .sdStatus')?.textContent || ''), null, { timeout: 5000 });
-  assert.match(await page.textContent('#outSound .sdStatus'), /music and the mics go out on Output 1 only, they're silent too/);
+  await page.waitForFunction(() => document.querySelector<HTMLInputElement>('#outSoundAdd')!.disabled && /plays no sound/.test(document.querySelector('#outSound .sdStatus')?.textContent || ''), null, { timeout: 5000 });
+  assert.match((await page.textContent('#outSound .sdStatus'))!, /music and the mics go out on Output 1 only, they're silent too/);
   // Picking a device again starts the list again.
-  await page.evaluate(() => { const s = document.querySelector('#outSound select'); s.value = 'own'; s.dispatchEvent(new Event('change')); });
+  await page.evaluate(() => { const s = document.querySelector<HTMLSelectElement>('#outSound select'); s!.value = 'own'; s!.dispatchEvent(new Event('change')); });
   await studio.until(async () => (await studio.get('/api/outputs')).sound[0]?.device === 'own');
 });
 
@@ -164,16 +169,16 @@ test('the copy plays a video\'s sound the way the output does, to its device, an
   if (!browser) return;
   const studio = await startStudio(t);
   fs.mkdirSync(path.join(studio.dataDir, 'media'), { recursive: true });
-  fs.copyFileSync(path.join(__dirname, 'fixtures', 'clip-sound.webm'), path.join(studio.dataDir, 'media', 'Ad.webm'));
+  fs.copyFileSync(path.join(import.meta.dirname, 'fixtures', 'clip-sound.webm'), path.join(studio.dataDir, 'media', 'Ad.webm'));
   const context = await browser.newContext();
   t.after(() => context.close());
   await context.grantPermissions(['microphone'], { origin: studio.base });
-  const act = async a => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); return r.json; };
+  const act = async (a: Json) => { const r = await studio.request('POST', '/api/scene', a); assert.equal(r.status, 200, JSON.stringify(r.json)); return r.json; };
   const id = (await act({ type: 'add', sources: [{ type: 'video', name: 'Ad', file: 'Ad.webm', sound: true, loop: true }] })).sources[0].id;
-  const playing = page => page.waitForFunction(() => [...sceneSound().layers.values()].some(L => {
+  const playing = (page: Page) => page.waitForFunction(() => [...sceneSound().layers.values()].some(L => {
     const v = L.el.querySelector('video');
     return v && v.tagName === 'VIDEO' && !v.paused && !v.muted && v.currentTime > 0.3 && sceneSound().playCtx && sceneSound().playCtx.sinkId === sceneSound().sinkId;
-  }), null, { timeout: 10000 }).catch(async err => {
+  }), null, { timeout: 10000 }).catch(async (err: Json) => {
     console.log(await page.evaluate(() => [...sceneSound().layers.values()].map(L => { const v = L.el.querySelector('video'); return v && { tag: v.tagName, paused: v.paused, muted: v.muted, t: v.currentTime, sink: sceneSound().playCtx?.sinkId, want: sceneSound().sinkId, err: v.error && v.error.message, vis: L.src.visible }; })));
     throw err;
   });

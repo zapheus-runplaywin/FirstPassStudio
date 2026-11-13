@@ -1,6 +1,6 @@
 # Runs the tests on every pull request (and on main after a merge), so a change that breaks
 # something shows as a red check on the pull request before it's merged.
-#   Studio: npm test (test/*.test.js and test/*.test.mts, type checked first), the helper, scenes, sequences, music, packing, every page in a browser, and the
+#   Studio: npm test (test/*.test.mts, type checked first), the helper, scenes, sequences, music, packing, every page in a browser, and the
 #   Mac app itself (Electron, on a virtual display); and FirstPass's own packages in packages/ (@firstpass/playhq):
 #   built, their tests, type check, and the built files loaded as Studio loads them.
 #   Stream Deck plugin: plugins/studio-deck's type check and tests.
@@ -52,7 +52,7 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
       # Chromium for the page test (test/pages.test.mts), which fails here rather than skipping without it.
       - run: npx playwright install --with-deps chromium
-      # Electron's own binary, for the Mac app's test (test/app.test.js), which runs the app on a virtual display.
+      # Electron's own binary, for the Mac app's test (test/app.test.mts), which runs the app on a virtual display.
       # From GitHub releases, which sometimes answer 504 for a while: a copy is kept under its version (a newer
       # Electron isn't found and is downloaded fresh), and the download tries again after 30 s, 1 and 2 minutes.
       - name: Electron's version

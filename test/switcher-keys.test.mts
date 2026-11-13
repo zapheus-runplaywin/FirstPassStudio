@@ -2,19 +2,22 @@
 // up and says what doesn't suit the output (switcher.ts keyChecks), sends nothing to the switcher until Set up this
 // key for me is pressed, and then changes only the key's inputs, type and Pre Multiplied Key. Against the stand-in
 // switcher (test/support/atem.mts), which keeps each key's settings as ATEM Software Control would.
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio.mts');
-const { startAtem } = require('./support/atem.mts');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { startStudio } from './support/studio.mts';
+import { startAtem } from './support/atem.mts';
+import type { Json } from './support/studio.mts';
+import type { Studio } from './support/studio.mts';
+import type { TestContext } from 'node:test';
 
 const SETUP = ['CDsF', 'CDsC', 'CDsG', 'CKTp', 'CKeF', 'CKeC', 'CKLm'];
-const keyFor = async (studio, output, ok = c => c) => studio.until(async () => {
+const keyFor = async (studio: Studio, output: Json, ok = (c: Json) => c) => studio.until(async () => {
   const s = await studio.get('/api/switcher');
-  const c = s.state === 'connected' && (s.keys || []).find(k => k.output === output);
+  const c = s.state === 'connected' && (s.keys || []).find((k: Json) => k.output === output);
   return c && ok(c) ? c : null;
 }, 5000, 50);
 
-async function setUp(t, opts) {
+async function setUp(t: TestContext, opts: Json) {
   const atem = await startAtem(opts);
   t.after(() => atem.close());
   const studio = await startStudio(t);
@@ -64,7 +67,7 @@ test('a chroma output on an upstream key, a Straight fill, and what the switcher
   const { atem, studio } = await setUp(t, { model: 'MiniExtreme' });
   await studio.post('/api/outputs', { mode: 'fillkey', swFill: 5, swKey: 6 });
   const added = await studio.post('/api/outputs', { add: true });
-  const two = added.outputs.find(o => o.slot === 2).id;
+  const two = added.outputs.find((o: Json) => o.slot === 2).id;
   await studio.post('/api/outputs', { output: two, mode: 'ndi', ndiSignal: 'chroma', swFill: 7 });
   let c = await keyFor(studio, two, x => !x.problems.length);
   assert.equal(c.keyer, 'usk2', 'Output 2 comes into upstream key 2 unless picked');
@@ -97,7 +100,7 @@ test('a chroma output on an upstream key, a Straight fill, and what the switcher
     'Studio\'s Straight fill is on, should be off (it leaves a light edge round logos and text)']);
   await studio.post('/api/switcher', { type: 'keySetup', output: two });
   assert.deepEqual(atem.state.uskKeys[1], { type: 0, fill: 7, cut: 8, preMultiplied: true });
-  assert.equal((await studio.get('/api/outputs')).outputs.find(o => o.id === two).decklinkStraight, false, 'Straight unticked');
+  assert.equal((await studio.get('/api/outputs')).outputs.find((o: Json) => o.id === two).decklinkStraight, false, 'Straight unticked');
   await keyFor(studio, two, x => !x.fixes.length);
   assert.match(studio.log(), /set up upstream key 2 for Output 2: .*Pre Multiplied Key on, Studio's Straight fill off/);
   // Not keyed by the switcher: nothing to check.
@@ -110,7 +113,7 @@ test('a chroma output on an upstream key, a Straight fill, and what the switcher
 test('an ATEM Mini Pro: a key it hasn\'t got is said plainly, and nothing is set up while it isn\'t answering', async t => {
   const { atem, studio } = await setUp(t, { model: 'MiniPro' });
   const added = await studio.post('/api/outputs', { add: true });
-  const two = added.outputs.find(o => o.slot === 2).id;
+  const two = added.outputs.find((o: Json) => o.slot === 2).id;
   await studio.post('/api/outputs', { output: two, mode: 'fillkey', swFill: 3, swKey: 4 });
   let c = await keyFor(studio, two, x => x.problems.length);
   assert.match(c.problems[0], /The ATEM Mini Pro has one upstream key, so there's no upstream key 2: pick another/);

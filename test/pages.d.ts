@@ -23,3 +23,21 @@ interface Window { studioZoom: number }
 interface Window { socialReady?: true | string }
 // A page with chroma key safe graphics (chroma.js): its style fixes, which the tests check one by one.
 declare var studioChromaSafe: { solidShadows(v: string): string; solidFilter(v: string): string; noGlows(v: string): string };
+
+// The scene (scene.js) and its test hooks: whether its sound plays, its two music players, and its sound internals.
+declare function soundState(): { videos: number; pages: number; blocked: boolean; music: boolean };
+declare function musicPlayers(): Record<string, { src: string; playing: boolean; volume: number; at: number }>;
+// any: the scene's sound internals (mixers, mic chains, phone connections, layers), which the sound tests reach deep into
+declare function sceneSound(): any;
+declare function setSilent(on: boolean): void;
+// The Commentator page: how loud what comes back from Studio is, in dB.
+declare function backLevel(): number;
+// The Output page: the outputs' sound out list, and the output the Scene View draws (and whether it is switching).
+declare function loadOut(): Promise<void>;
+declare var previewOutput: string;
+declare function previewSwitching(): boolean;
+// The same hooks, as the Scene View's frame on the Output page has them (a frame may still be loading: no hooks yet).
+interface Window {
+  musicPlayers?: () => Record<string, { src: string; playing: boolean; volume: number; at: number }>;
+  standbyReady?: () => boolean;
+}

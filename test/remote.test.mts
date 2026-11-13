@@ -3,12 +3,16 @@
 // do; each sequence's key plays it and lights while it plays, and a second press stops it. A phone that isn't allowed
 // to change things is pointed at pairing.
 // The browser: Playwright's own, or STUDIO_TEST_CHROMIUM; skipped without one (except in the Tests check).
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { startStudio } = require('./support/studio.mts');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { startStudio, type Json } from './support/studio.mts';
+import type { BrowserType } from 'playwright';
+import { createRequire } from 'node:module';
 
-let chromium = null;
-try { ({ chromium } = require('playwright')); } catch { /* not installed */ }
+const require = createRequire(import.meta.url);
+
+let chromium: BrowserType | null = null;
+try { ({ chromium } = require('playwright') as typeof import('playwright')); } catch { /* not installed */ }
 
 test('the Remote shows the status, plays and stops sequences by their keys and drives the run order', async t => {
   let browser = null;
@@ -20,7 +24,7 @@ test('the Remote shows the status, plays and stops sequences by their keys and d
   }
   t.after(() => browser.close());
   const studio = await startStudio(t);
-  const post = a => studio.post('/api/scene', a);
+  const post = (a: Json) => studio.post('/api/scene', a);
   // Two sequences of two steps that each wait for Next, so they stay on until stopped, and nothing after them.
   for (const name of ['Pre-game', 'Quarter break']) {
     await post({ type: 'seqAdd', changes: { name, colour: name === 'Pre-game' ? 'green' : 'purple', then: { type: 'off' }, steps: [{ sources: [], length: { type: 'next' } }, { sources: [], length: { type: 'next' } }] } });
@@ -32,7 +36,7 @@ test('the Remote shows the status, plays and stops sequences by their keys and d
   await page.goto(`${studio.base}/remote.html`);
   await page.waitForSelector('#keys button');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390, 'nothing sticks out sideways');
-  await page.waitForFunction(() => /Off air/.test(document.getElementById('status').textContent));
+  await page.waitForFunction(() => /Off air/.test(document.getElementById('status')!.textContent));
   assert.deepEqual(await page.$$eval('#keys button', bs => bs.map(b => b.textContent)), ['Pre-game', 'Quarter break']);
   assert.equal(await page.isDisabled('#seqStop'), true, 'nothing to stop');
 
@@ -40,12 +44,12 @@ test('the Remote shows the status, plays and stops sequences by their keys and d
   await page.click('#keys button >> text=Quarter break');
   await page.waitForSelector('#keys button.on');
   const playing = async () => (await studio.get('/api/scene')).playing;
-  assert.equal((await playing()).id, seqs.find(s => s.name === 'Quarter break').id);
-  assert.match(await page.textContent('#keys button.on'), /ON · 1\/2/);
+  assert.equal((await playing()).id, seqs.find((s: Json) => s.name === 'Quarter break').id);
+  assert.match((await page.textContent('#keys button.on'))!, /ON · 1\/2/);
   await page.click('#seqNext');
   await page.waitForFunction(() => /2\/2/.test(document.querySelector('#keys button.on')?.textContent || ''));
   await page.click('#seqPause');
-  await page.waitForFunction(() => document.getElementById('seqPause').textContent === 'Carry on');
+  await page.waitForFunction(() => document.getElementById('seqPause')!.textContent === 'Carry on');
   assert.equal((await playing()).paused, true);
   await page.click('#seqPause');
   await page.click('#keys button.on');
@@ -54,14 +58,14 @@ test('the Remote shows the status, plays and stops sequences by their keys and d
 
   // The run order: Play next plays its head, Skip drops one without playing it.
   for (const s of seqs) await post({ type: 'roAdd', kind: 'sequence', sequence: s.id, output: 'main' });
-  await page.waitForFunction(() => /▶ Pre-game/.test(document.getElementById('roHead').textContent));
-  assert.match(await page.textContent('#roHead'), /then Quarter break/);
+  await page.waitForFunction(() => /▶ Pre-game/.test(document.getElementById('roHead')!.textContent));
+  assert.match((await page.textContent('#roHead'))!, /then Quarter break/);
   await page.click('#roNext');
   await page.waitForFunction(() => /Pre-game/.test(document.querySelector('#keys button.on')?.textContent || ''));
-  await page.waitForFunction(() => /▶ Quarter break/.test(document.getElementById('roHead').textContent));
+  await page.waitForFunction(() => /▶ Quarter break/.test(document.getElementById('roHead')!.textContent));
   await page.click('#roSkip');
-  await page.waitForFunction(() => /^Empty/.test(document.getElementById('roHead').textContent));
-  await page.waitForFunction(() => /Pre-game/.test(document.getElementById('status').textContent));
+  await page.waitForFunction(() => /^Empty/.test(document.getElementById('roHead')!.textContent));
+  await page.waitForFunction(() => /Pre-game/.test(document.getElementById('status')!.textContent));
   if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT, fullPage: true });
 
   // Refused (a phone that isn't paired, with the lock on): it says how to pair, and comes back here after.
@@ -83,13 +87,13 @@ test('on Manual the Remote has the scores, clock and quarter keys, and hides the
   t.after(() => browser.close());
   const studio = await startStudio(t, { competition: 'Thunder League' });
   const g = studio.world.divisions[0].rounds[0].games[0];
-  const sb = a => studio.post('/api/scoreboard', a);
+  const sb = (a: Json) => studio.post('/api/scoreboard', a);
   await sb({ type: 'selectGame', game: { id: g.id, roundId: g.roundId, division: g.division, court: g.court, date: g.date, time: g.time, home: { name: g.home }, away: { name: g.away } } });
   await sb({ type: 'source', value: 'playhq' });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await page.route(url => !String(url).startsWith(studio.base), route => route.fulfill({ status: 200, body: '' }));
   await page.goto(`${studio.base}/remote.html`);
-  await page.waitForFunction(() => /Following PlayHQ|PlayHQ/.test(document.getElementById('status').textContent));
+  await page.waitForFunction(() => /Following PlayHQ|PlayHQ/.test(document.getElementById('status')!.textContent));
   assert.equal(await page.isHidden('#scoreCard'), true, 'no scoring keys while following PlayHQ');
 
   await sb({ type: 'source', value: 'manual' });
@@ -99,27 +103,27 @@ test('on Manual the Remote has the scores, clock and quarter keys, and hides the
   await page.waitForSelector('#scoreCard .super:not([hidden])'); // Thunder League's super shots are worth 2
   const board = () => studio.get('/api/scoreboard');
   // A tap sends its request without waiting, so read the scoreboard until the change lands.
-  const until = async (ok, what) => {
+  const until = async (ok: Json, what: string) => {
     let b;
     for (let i = 0; i < 50; i++) { b = await board(); if (ok(b)) return b; await new Promise(r => setTimeout(r, 100)); }
     assert.fail(`${what}: the scoreboard is ${JSON.stringify({ home: b.home.score, away: b.away.score, clock: b.clock, period: b.period })}`);
   };
   await page.click('#scoreCard [data-side=home][data-delta="2"]');
-  await until(b => Number(b.home.score) === 2, 'home super shot');
+  await until((b: Json) => Number(b.home.score) === 2, 'home super shot');
   await page.click('#scoreCard [data-side=away][data-delta="1"]');
-  await until(b => Number(b.away.score) === 1, 'away goal');
+  await until((b: Json) => Number(b.away.score) === 1, 'away goal');
   await page.click('#scoreCard [data-side=away][data-delta="1"]');
-  await until(b => Number(b.away.score) === 2, 'second away goal');
+  await until((b: Json) => Number(b.away.score) === 2, 'second away goal');
   await page.click('#scoreCard [data-side=away][data-delta="-1"]');
-  await until(b => Number(b.home.score) === 2 && Number(b.away.score) === 1, 'away goal taken off');
-  await page.waitForFunction(() => document.getElementById('homePts').textContent === '2');
+  await until((b: Json) => Number(b.home.score) === 2 && Number(b.away.score) === 1, 'away goal taken off');
+  await page.waitForFunction(() => document.getElementById('homePts')!.textContent === '2');
   await page.click('#clockToggle');
-  await until(b => b.clock.running === true, 'clock started');
-  await page.waitForFunction(() => document.getElementById('clockToggle').textContent === 'Stop clock');
+  await until((b: Json) => b.clock.running === true, 'clock started');
+  await page.waitForFunction(() => document.getElementById('clockToggle')!.textContent === 'Stop clock');
   await page.click('#clockToggle');
-  const was = (await until(b => b.clock.running === false, 'clock stopped')).period;
+  const was = (await until((b: Json) => b.clock.running === false, 'clock stopped')).period;
   await page.click('#nextPeriod');
-  await until(b => b.period === was + 1, 'next quarter');
+  await until((b: Json) => b.period === was + 1, 'next quarter');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 390, 'nothing sticks out sideways');
   if (process.env.SHOT2) await page.screenshot({ path: process.env.SHOT2, fullPage: true });
 

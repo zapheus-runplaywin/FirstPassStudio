@@ -2,13 +2,13 @@
 // (and switched on), as only a downstream key covers the whole picture; each output keeps its own line-up (NDI reaches the switcher later
 // than HDMI), and only the stinger's own output's report times the cut. An older switcher.json's one line-up becomes
 // Output 1's.
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { startStudio, wait } = require('./support/studio.mts');
-const { startAtem } = require('./support/atem.mts');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { startStudio, wait, type Json } from './support/studio.mts';
+import { startAtem } from './support/atem.mts';
 
 test('the stinger plays on the output on a downstream key, with that output\'s line-up, and only its report times the cut', async t => {
   const atem = await startAtem({ model: 'MiniExtreme', names: ['Wide', 'Court', 'Bench'] });
@@ -24,7 +24,7 @@ test('the stinger plays on the output on a downstream key, with that output\'s l
   // Output 1 goes on upstream key 1 (a chroma screen, say) and a second output, NDI, takes downstream key 1.
   await studio.post('/api/outputs', { mode: 'chroma', keyer: 'usk1', on: true });
   const added = await studio.post('/api/outputs', { add: true, name: 'Over all' });
-  const two = added.outputs.find(o => o.slot === 2).id;
+  const two = added.outputs.find((o: Json) => o.slot === 2).id;
   await studio.post('/api/outputs', { output: two, mode: 'ndi', ndiSignal: 'fillkey', keyer: 'dsk1' });
   s = await studio.get('/api/switcher');
   // A new output starts switched off: the stinger stays on Output 1, which is on, until it's turned on.
@@ -48,8 +48,8 @@ test('the stinger plays on the output on a downstream key, with that output\'s l
 
   // A stinger: it goes on for Over all (not Output 1), and Output 1's own report of it is no cue to cut.
   const play = studio.request('POST', '/api/switcher', { type: 'stinger', input: 2 });
-  await studio.until(async () => (await studio.get('/api/scene')).sources.find(x => x.name === 'Stinger').out?.[two], 3000, 10);
-  const src = (await studio.get('/api/scene')).sources.find(x => x.name === 'Stinger');
+  await studio.until(async () => (await studio.get('/api/scene')).sources.find((x: Json) => x.name === 'Stinger').out?.[two], 3000, 10);
+  const src = (await studio.get('/api/scene')).sources.find((x: Json) => x.name === 'Stinger');
   assert.equal(src.visible, false, 'not on Output 1');
   await studio.post('/api/switcher', { type: 'stingerStarted', cover: [0.22, 1.22], output: 'main' });
   await wait(1000);
@@ -58,7 +58,7 @@ test('the stinger plays on the output on a downstream key, with that output\'s l
   await studio.post('/api/switcher', { type: 'stingerStarted', cover: [0.22, 1.22], output: two });
   const answered = Date.now();
   await play;
-  const cut = atem.received.filter(c => c.name === 'DCut').at(-1).at;
+  const cut = atem.received.filter(c => c.name === 'DCut').at(-1)!.at;
   assert.equal(atem.state.program, 2);
   // 720 ms plus 4 frames at 50 fps (80 ms), timed from when Studio got the report, which is
   // somewhere between sending it and its answer (a slow runner can take a while to answer).
