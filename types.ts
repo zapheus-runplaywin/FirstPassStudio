@@ -27,7 +27,7 @@ export type ReadRaw = (req: import('node:http').IncomingMessage, max: number) =>
 
 // config.json: this computer's settings (the app's defaults, then the data folder's own).
 export interface Machine {
-  port?: number; securePort?: number; linkHost?: string; cacheSeconds?: number; logMaxMB?: number; playhqRefreshSeconds?: number;
+  port?: number; securePort?: number; linkHost?: string; logMaxMB?: number; playhqRefreshSeconds?: number;
   remoteChanges?: boolean; ffmpegPath?: string; apiBaseUrl?: string; gameSummaryPath?: string;
   [key: string]: unknown;
 }

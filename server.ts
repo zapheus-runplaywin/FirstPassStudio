@@ -85,7 +85,6 @@ const secureOrigin = () => (securelink.host() ? { host: securelink.host(), port:
 // asked, since the Devices… window can give it a new one.
 const deckBase = () => `${LINK_BASE}/k/${devices.linkKey()}`;
 const API_URL = process.env.PLAYHQ_API_URL || 'https://api.playhq.com/graphql';
-const CACHE_MS = Math.max(15, Number(MACHINE.cacheSeconds || 60)) * 1000;
 // The exit code when the port is already taken, so the Mac app says so instead of restarting the helper.
 const EXIT_PORT_IN_USE = 3;
 
@@ -166,7 +165,7 @@ mics.useSwitcher({ inputs: switcher.micInputs, set: switcher.setMicFader, level:
 // ─── PlayHQ ─────────────────────────────────────────────────────────────────
 // Everything that talks to PlayHQ is in playhq.js; this is the client for the competition in use.
 const playhq = createPlayhq({
-  log, apiUrl: API_URL, cacheMs: CACHE_MS, linkBase: LINK_BASE, record: recorder, practice,
+  log, apiUrl: API_URL, linkBase: LINK_BASE, record: recorder, practice,
   config: () => CONFIG, leadMs: () => theGames.leadMs(), logoFor: name => logoFor(name), positionOf: p => positionOf(p),
 });
 const { competitions: playhqCompetitions, getStructure, getLadder, findGrade, pickSeason, getGame, getLive, scoringNotYet, lastLive, liveSeenFor } = playhq;
@@ -305,7 +304,7 @@ const socials = createSocials({
 });
 
 // Studio reads the live score itself, every second through the cache (so PlayHQ is asked once
-// per playhqRefreshSec), whatever windows are open. Before this the reading only happened inside
+// per playhqRefreshSec during the game, every 30 s or 5 minutes either side of it: playhq.js liveAge), whatever windows are open. Before this the reading only happened inside
 // a page's request for the scoreboard, goals, stats or worm, so with the scoreboard source hidden
 // (unloaded) and the control page closed the score froze, and the game triggers ("It's full time",
 // quarter breaks), the super shot song, streaks and the goal order all waited on a page that
@@ -323,7 +322,7 @@ setInterval(refreshTick, 1000);
 // The night's other games, followed in the background so each has a story (board.ts followGames, refreshFollowed): the
 // game night's games are looked at every FOLLOW_LIST_MS (PlayHQ's fixture, through its cache; FIRSTPASS_FOLLOW_LIST_MS for
 // tests), and each followed game is read each second through the live feed's cache, so PlayHQ is asked once per
-// playhqRefreshSec per game while its scoring is open. Not while a practice game runs: PlayHQ isn't asked then.
+// playhqRefreshSec per game while it's played (30 s from its scoring opening until then, playhq.js liveAge). Not while a practice game runs: PlayHQ isn't asked then.
 const FOLLOW_LIST_MS = Number(process.env.FIRSTPASS_FOLLOW_LIST_MS) || 15 * 1000;
 let followListBusy = false;
 async function followNight() {
@@ -443,10 +442,12 @@ function health() {
   const now = Date.now();
   const following = b.source === 'playhq' && !!b.gameId;
   const waiting = following ? scoringNotYet(b) : '';
-  const refreshMs = (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000;
+  // How often this game is read now: Check PlayHQ every during the game, longer either side of it (playhq.js liveAge).
+  const refreshMs = playhq.liveAge(b.gameId || '', (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000);
   const finished = following && /COMPLETE|FINAL|RESULT|FORFEIT|CLOSED|FINISH|ENDED/i.test(b.playhqStatus || '');
   // The game itself (by PlayHQ or by hand): upcoming, live, ended (within the hour) or over. Studio keeps asking PlayHQ after
-  // full time, so the state below (the link) is judged the same way whether or not the game is finished.
+  // full time (every 5 minutes from 2 minutes after it), so the state below (the link) is judged the same way whether or
+  // not the game is finished, against how often it's read now.
   const phase = theBoard.gamePhase(b);
   // The last answer about this game (a reading, or "not electronically scored"), not another game's: the fixture
   // board reads the other courts' games too, which kept this looking fresh while this game's feed wasn't live.
@@ -481,7 +482,7 @@ function health() {
     version: pageVersion(), serverNow: now, competition: competitionName(), competitionSetup: CONFIG.name,
     game: b.gameId ? { id: b.gameId, label: `${b.home.name} v ${b.away.name}`, court: b.court || '', division: b.division || '', time: b.time || '', phase, ended: phase === 'ended' || phase === 'over' } : null,
     source: b.source, autoSelect: !!b.autoSelect,
-    playhq: { state: playhqState, following, waiting, finished, status: b.playhqStatus || '', readAgoMs, refreshSec: refreshMs / 1000,
+    playhq: { state: playhqState, following, waiting, finished, status: b.playhqStatus || '', readAgoMs, refreshSec: refreshMs / 1000, pace: b.gameId ? playhq.pace(b.gameId) : 'gentle',
       error: lastLive.error && lastLive.errorAt > answeredAt ? lastLive.error : (b.playhqError || ''),
       trouble, troubleSays: theBoard.troubleSays(trouble),
       // Back to Follow PlayHQ from a hand score that PlayHQ hasn't caught up with yet: the board keeps it (board.ts holdHandScore).
@@ -533,7 +534,7 @@ function pageVersion() {
 // Puts the competition picked on the setup page to use. A different competition (or a
 // different PlayHQ link) clears everything cached from PlayHQ; switching competition also
 // sets the game night back to automatic and puts that competition's first game on every board.
-const MACHINE_KEYS = ['port', 'cacheSeconds', 'playhqRefreshSeconds', 'logMaxMB', 'apiBaseUrl', 'gameSummaryPath', 'remoteChanges'];
+const MACHINE_KEYS = ['port', 'playhqRefreshSeconds', 'logMaxMB', 'apiBaseUrl', 'gameSummaryPath', 'remoteChanges'];
 function applyCompetition(why: string) {
   const id = competitions.activeId();
   const prev = CONFIG;
@@ -1072,7 +1073,8 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     }
     if (url.pathname === '/api/teams') return send(res, 200, withPhotos(await getTeamSheets()));
     if (url.pathname.startsWith('/api/athletes')) return await athletesRoute(req, res, url, q);
-    if (url.pathname === '/api/games') return send(res, 200, await getCurrentGames());
+    // ?fresh=1 (Refresh list on Scoreboard control): read from PlayHQ now, not from what was kept (playhq.js askAgain).
+    if (url.pathname === '/api/games') { if (q.fresh) playhq.askAgain(); return send(res, 200, await getCurrentGames()); }
     // A saved plan can change tonight's court, so automatic game selection looks again straight away.
     if (url.pathname.startsWith('/api/planner') && await planner.route(req, res, url, { send, readBody, readRaw, changed: () => autoPick() })) return;
     if (stories.route(req, res, url, { send })) return;
