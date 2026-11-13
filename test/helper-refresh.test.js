@@ -15,7 +15,8 @@ test.before(async () => {
 });
 test.after(() => studio && studio.stop());
 
-const liveCalls = () => studio.world.calls.filter(c => c.spectator).length;
+// Only this game's readings: Studio also follows the night's other games in the background (follow-others.test.js).
+const liveCalls = () => studio.world.calls.filter(c => c.spectator && c.variables.id === game.id).length;
 
 test('the score and goal order follow PlayHQ while nothing asks Studio for the scoreboard', async () => {
   const before = liveCalls();

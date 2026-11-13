@@ -11,15 +11,18 @@ test('a PlayHQ reading that lands after switching to Manual leaves the hand scor
   const act = a => studio.post('/api/scoreboard', a);
   await studio.until(async () => (await board()).gameId);
   await act({ type: 'playhqRefresh', value: 3 });
-  const live = studio.world.live[(await board()).gameId];
+  const gameId = (await board()).gameId;
+  const live = studio.world.live[gameId];
   live.home = 20; live.homeGoals = 20; live.away = 15; live.awayGoals = 15;
   await studio.until(async () => (await board()).home.score === 20, 8000, 250);
 
   // The next reading is held back 2 seconds; while it's on its way, scoring goes to Manual and starts again from 0-0.
   studio.world.delay.live = 2000;
   live.home = 30; live.homeGoals = 30;
-  const asked = studio.world.calls.filter(c => c.spectator).length;
-  await studio.until(() => studio.world.calls.filter(c => c.spectator).length > asked, 8000, 50);
+  // This game's readings only: the night's other games are read in the background too.
+  const readings = () => studio.world.calls.filter(c => c.spectator && c.variables.id === gameId).length;
+  const asked = readings();
+  await studio.until(() => readings() > asked, 8000, 50);
   await act({ type: 'source', value: 'manual' });
   await act({ type: 'resetScores' });
   await act({ type: 'score', side: 'home', delta: 1 });
