@@ -189,7 +189,7 @@ test('what\'s on for an output isn\'t saved run by run, and goes when the output
 });
 
 test('scene.html draws another output\'s sources with their sound, without the music and mics (Output 1\'s); the pop-out and Output page know outputs', () => {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'scene.html'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'scene.ts'), 'utf8');
   assert.match(html, /params\.get\('output'\)/);
   assert.doesNotMatch(html, /alwaysSilent/);
   assert.match(html, /renderMusic\(primary \? scene\.music : null\)/);

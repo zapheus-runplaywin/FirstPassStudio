@@ -46,9 +46,9 @@ test('an output\'s window mixes the mics that go to it, a Scene View and the key
   // The output window opens the Mac's input and hears the beep.
   const heard = await studio.until(async () => { const l = await studio.get('/api/scene/mics/live'); return l.mixing && l.levels[id] > -60 && l; }, 15000);
   assert.ok(heard.levels[id] <= 0);
-  assert.equal(await output.evaluate('micChains.size'), 1);
-  assert.equal(await view.evaluate('micChains.size + micDevices.size'), 0, 'a Scene View never opens the mics');
-  assert.equal(await key.evaluate('micChains.size + micDevices.size'), 0, 'nor does the key output');
+  assert.equal(await output.evaluate('sceneSound().micChains.size'), 1);
+  assert.equal(await view.evaluate('sceneSound().micChains.size + sceneSound().micDevices.size'), 0, 'a Scene View never opens the mics');
+  assert.equal(await key.evaluate('sceneSound().micChains.size + sceneSound().micDevices.size'), 0, 'nor does the key output');
 
   // Another output's window never opens the mics: they're Output 1's.
   const added2 = await studio.request('POST', '/api/outputs', { add: true });
@@ -57,21 +57,21 @@ test('an output\'s window mixes the mics that go to it, a Scene View and the key
   const other = await context.newPage();
   await other.goto(`${studio.base}/scene.html?fit=1&bg=000000&output=${two}`, { waitUntil: 'load' });
   await other.waitForTimeout(500);
-  assert.equal(await other.evaluate('micChains.size + micDevices.size'), 0, 'the mics are Output 1\'s');
-  assert.equal(await output.evaluate('micChains.size'), 1, 'Output 1 keeps them');
+  assert.equal(await other.evaluate('sceneSound().micChains.size + sceneSound().micDevices.size'), 0, 'the mics are Output 1\'s');
+  assert.equal(await output.evaluate('sceneSound().micChains.size'), 1, 'Output 1 keeps them');
   await other.close();
 
   // Its level follows the mute and the level.
-  const gain = () => output.evaluate(m => micChains.get(m).gain.gain.value, id);
-  await output.waitForFunction(m => micChains.get(m).gain.gain.value > .9, id, { timeout: 5000 });
+  const gain = () => output.evaluate(m => sceneSound().micChains.get(m).gain.gain.value, id);
+  await output.waitForFunction(m => sceneSound().micChains.get(m).gain.gain.value > .9, id, { timeout: 5000 });
   await act({ type: 'micMute', mic: id, value: 'on' });
-  await output.waitForFunction(m => micChains.get(m).gain.gain.value < .01, id, { timeout: 5000 });
+  await output.waitForFunction(m => sceneSound().micChains.get(m).gain.gain.value < .01, id, { timeout: 5000 });
   await act({ type: 'micMute', mic: id, value: 'off' });
   await act({ type: 'micsLevel', value: 50 });
-  await output.waitForFunction(m => Math.abs(micChains.get(m).gain.gain.value - .5) < .02, id, { timeout: 5000 });
+  await output.waitForFunction(m => Math.abs(sceneSound().micChains.get(m).gain.gain.value - .5) < .02, id, { timeout: 5000 });
   // Dipped by hand to 30%: half of that.
   await act({ type: 'micsDip', value: 'on' });
-  await output.waitForFunction(m => Math.abs(micChains.get(m).gain.gain.value - .15) < .02, id, { timeout: 8000 });
+  await output.waitForFunction(m => Math.abs(sceneSound().micChains.get(m).gain.gain.value - .15) < .02, id, { timeout: 8000 });
   await act({ type: 'micsDip', value: 'off' });
   assert.ok(await gain() < .5);
 

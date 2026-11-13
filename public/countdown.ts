@@ -47,7 +47,9 @@ function fitMini() {
   box.style.scale = String(Math.floor(Math.min(MINI_SCALE, MINI_MAX_WIDTH / box.offsetWidth) * 1000) / 1000);
   box.hidden = was;
 }
-if (mini && document.fonts) document.fonts.ready.then(() => fitMini());
+// Fitted again whenever its size changes (a team name, or its face loading late: on 13 Nov a name drawn before its
+// font loaded left it too wide). Its scale doesn't change the size it's laid out at, so this never loops.
+if (mini) new ResizeObserver(() => fitMini()).observe($('mini'));
 
 function clock(time?: string) {
   const [h, m] = String(time || '').split(':').map(Number);

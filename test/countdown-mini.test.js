@@ -50,9 +50,10 @@ test('mini countdown: the title banner\'s size, in each of the nine spots', asyn
   // Long team names scale it down further, no wider than 600px, so at the top it still fits between the branding logos.
   names = ['Travis\' Disciples Reserves', 'The Mighty Blizzardz United'];
   const long = await open('size=mini');
-  names = null;
   assert.equal(await long.page.textContent('#miniTeams'), 'Travis\' Disciples Reserves v The Mighty Blizzardz United');
   assert.ok((await box(long.page, 'mini')).width <= 600.5, 'long names: no wider than 600px');
+  names = null;
+  await long.page.close();
 
   const spots = {
     'top-left': b => Math.abs(b.left - 100) <= 1 && Math.abs(b.mid - 95) <= 1,
