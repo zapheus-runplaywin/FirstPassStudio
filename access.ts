@@ -63,8 +63,8 @@ function firstpassRefusal(method: string, pathname: string, remoteAddress: strin
 }
 
 // Who may change things from another device (the Devices… window, devices.ts), the secure phone link's settings and
-// key (securelink.ts), and the AI captions' provider, keys and spend (captions.ts): read and changed only on this Mac, whether or not "Only this Mac can change things" is ticked, so another device can never let itself in.
-const MAC_ONLY = ['/api/devices', '/api/securelink', '/api/phonemic/offers', '/api/captions'];
+// key (securelink.ts), signing in to each club's FirstPass HQ (hqauth.ts), and the AI captions' provider, keys and spend (captions.ts): read and changed only on this Mac, whether or not "Only this Mac can change things" is ticked, so another device can never let itself in.
+const MAC_ONLY = ['/api/devices', '/api/securelink', '/api/phonemic/offers', '/api/firstpass/clubs', '/api/captions'];
 const macOnly = (pathname: string) => MAC_ONLY.some(p => pathname === p || pathname.startsWith(p + '/'));
 // The 403 message for one of those asked for from another address, or null.
 function notThisMac(method: string, pathname: string, remoteAddress: string | undefined, own?: Set<string>): string | null {

@@ -73,6 +73,7 @@
       "!out/**/*.map",
       "config.json",
       "captionprices.json",
+      "hqclubs.json",
       "public/**/*",
       "!public/**/*.ts",
       "!public/**/tsconfig.json",
