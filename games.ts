@@ -702,7 +702,7 @@ function create({ log, config, competitions, finals, playhq, board: theBoard, co
   }
 
   // The round fixture has no scores until a game is final, so live games are read one by one, through the live
-  // feed's cache (playhq.js getLive): the ticker and the fixture board (planner.ts) both read here, so a game read
+  // feed's cache (playhq.ts getLive): the ticker and the fixture board (planner.ts) both read here, so a game read
   // for one is not asked again for the other within maxAgeMs. Sets home.score, away.score and period ('Q2') on
   // each live game in place.
   const TICKER_LIVE_MS = 20 * 1000;

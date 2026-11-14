@@ -169,7 +169,7 @@ switcher.init(log, { changed: () => { scene.publishSwitcher(); mics.switcherChan
   unstraight: id => outputs.apply({ output: id, decklinkStraight: false }), mics: () => mics.switcherChanged() });
 mics.useSwitcher({ inputs: switcher.micInputs, set: switcher.setMicFader, level: switcher.micLevel });
 // ─── PlayHQ ─────────────────────────────────────────────────────────────────
-// Everything that talks to PlayHQ is in playhq.js; this is the client for the competition in use.
+// Everything that talks to PlayHQ is in playhq.ts; this is the client for the competition in use.
 const playhq = createPlayhq({
   log, apiUrl: API_URL, linkBase: LINK_BASE, record: recorder, practice,
   config: () => CONFIG, leadMs: () => theGames.leadMs(), logoFor: name => logoFor(name), positionOf: p => positionOf(p),
@@ -330,7 +330,7 @@ const captions = createCaptions({
 });
 
 // Studio reads the live score itself, every second through the cache (so PlayHQ is asked once
-// per playhqRefreshSec during the game, every 30 s or 5 minutes either side of it: playhq.js liveAge), whatever windows are open. Before this the reading only happened inside
+// per playhqRefreshSec during the game, every 30 s or 5 minutes either side of it: playhq.ts liveAge), whatever windows are open. Before this the reading only happened inside
 // a page's request for the scoreboard, goals, stats or worm, so with the scoreboard source hidden
 // (unloaded) and the control page closed the score froze, and the game triggers ("It's full time",
 // quarter breaks), the super shot song, streaks and the goal order all waited on a page that
@@ -348,7 +348,7 @@ setInterval(refreshTick, 1000);
 // The night's other games, followed in the background so each has a story (board.ts followGames, refreshFollowed): the
 // game night's games are looked at every FOLLOW_LIST_MS (PlayHQ's fixture, through its cache; FIRSTPASS_FOLLOW_LIST_MS for
 // tests), and each followed game is read each second through the live feed's cache, so PlayHQ is asked once per
-// playhqRefreshSec per game while it's played (30 s from its scoring opening until then, playhq.js liveAge). Not while a practice game runs: PlayHQ isn't asked then.
+// playhqRefreshSec per game while it's played (30 s from its scoring opening until then, playhq.ts liveAge). Not while a practice game runs: PlayHQ isn't asked then.
 const FOLLOW_LIST_MS = Number(process.env.FIRSTPASS_FOLLOW_LIST_MS) || 15 * 1000;
 let followListBusy = false;
 async function followNight() {
@@ -468,7 +468,7 @@ function health() {
   const now = Date.now();
   const following = b.source === 'playhq' && !!b.gameId;
   const waiting = following ? scoringNotYet(b) : '';
-  // How often this game is read now: Check PlayHQ every during the game, longer either side of it (playhq.js liveAge).
+  // How often this game is read now: Check PlayHQ every during the game, longer either side of it (playhq.ts liveAge).
   const refreshMs = playhq.liveAge(b.gameId || '', (b.playhqRefreshSec || DEFAULT_REFRESH_SEC) * 1000);
   const finished = following && /COMPLETE|FINAL|RESULT|FORFEIT|CLOSED|FINISH|ENDED/i.test(b.playhqStatus || '');
   // The game itself (by PlayHQ or by hand): upcoming, live, ended (within the hour) or over. Studio keeps asking PlayHQ after
@@ -1118,7 +1118,7 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     }
     if (url.pathname === '/api/teams') return send(res, 200, withPhotos(await getTeamSheets()));
     if (url.pathname.startsWith('/api/athletes')) return await athletesRoute(req, res, url, q);
-    // ?fresh=1 (Refresh list on Scoreboard control): read from PlayHQ now, not from what was kept (playhq.js askAgain).
+    // ?fresh=1 (Refresh list on Scoreboard control): read from PlayHQ now, not from what was kept (playhq.ts askAgain).
     if (url.pathname === '/api/games') { if (q.fresh) playhq.askAgain(); return send(res, 200, await getCurrentGames()); }
     // A saved plan can change tonight's court, so automatic game selection looks again straight away.
     if (url.pathname.startsWith('/api/planner') && await planner.route(req, res, url, { send, readBody, readRaw, changed: () => autoPick() })) return;

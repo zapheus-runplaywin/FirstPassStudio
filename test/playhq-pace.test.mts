@@ -1,4 +1,4 @@
-// Being kind to PlayHQ (playhq.js "Being kind to PlayHQ"): a game is read at Check PlayHQ every only while it's played,
+// Being kind to PlayHQ (playhq.ts "Being kind to PlayHQ"): a game is read at Check PlayHQ every only while it's played,
 // from 2 minutes before its start until 2 minutes after PlayHQ finishes it; every 30 s once its scoring opens before
 // that; every 5 minutes otherwise. The fixtures and ladders are read every minute while a game is on, every 5 minutes
 // when none is, and afresh when Refresh list asks. The PlayHQ client against the stand-in PlayHQ, in this process.
@@ -30,7 +30,7 @@ test.beforeEach(() => {
 function client() {
   const c = (require('../out/playhq.js') as typeof import('../out/playhq.js')).create({
     log: () => {}, apiUrl: playhq.url, linkBase: 'http://studio.test:8080',
-    config: () => ({ name: 'Thunder League', competitionName: 'Thunder League' }),
+    config: () => ({ name: 'Thunder League', competitionName: 'Thunder League' }) as import('../out/types.js').Config,
     leadMs: () => 10 * MIN, logoFor: () => '', positionOf: () => '',
   });
   c.setOrganisation(playhq.world.orgUrl);

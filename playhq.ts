@@ -3,8 +3,7 @@
 // PlayHQ's public data (what www.playhq.com shows) comes from https://api.playhq.com/graphql. It
 // needs no API key, but only answers requests that look like they come from playhq.com and carry
 // a guest session cookie. The asking and the reading are FirstPass's shared PlayHQ package,
-// @firstpass/playhq (built in the FirstPassVisionVantage repo, packages/playhq, and installed from
-// GitHub Packages): the guest session, the GraphQL queries, the live scoring feed from
+// @firstpass/playhq (in this repo's packages/playhq, published to npm): the guest session, the GraphQL queries, the live scoring feed from
 // spectator.playhq.com, and the parsers that turn the answers into games, line ups and ladders.
 // Vantage and HQ use the same package, so a change in how PlayHQ answers is fixed once.
 //
@@ -12,41 +11,103 @@
 // PlayHQ fails, finished games' line ups kept in game-cache.json in the local data folder (so a
 // restart doesn't ask for the whole season again), the competition from the setup page, the
 // electronic scoring window, the live feed's health for the status board, the PlayHQ traffic
-// counter (playhqnet.js), the debug log, the game recording (recorder.js) and practice games
-// (practice.js), which answer instead of PlayHQ while one runs.
+// counter (playhqnet.ts), the debug log, the game recording (recorder.ts) and practice games
+// (practice.ts), which answer instead of PlayHQ while one runs.
 //
 // create(deps) gives one client for the competition in use. deps:
 //   log(level, source, message, extra)   the debug log
 //   apiUrl, linkBase                     from config.json (the link is only for error messages)
-//   config()                             the competition settings in use (CONFIG in server.js)
+//   config()                             the competition settings in use (CONFIG in server.ts)
 //   leadMs()                             how long before a game electronic scoring opens (autoSelectMinutesBefore)
 //   logoFor(teamName), positionOf(player) the competition's team logo and the netball position code
-//   record, practice                     recorder.js and practice.js (optional)
+//   record, practice                     recorder.ts and practice.ts (optional)
 // setOrganisation(url) points it at a PlayHQ organisation (tenant and id from the link); resetCaches()
 // forgets everything cached when the competition changes; askAgain() makes the next read of the fixtures and ladders
 // fresh (Refresh list on Scoreboard control). How often PlayHQ is asked is set here: see "Being kind to PlayHQ". The pure helpers (parsePlayhqUrl,
 // isFinished, startOf, localDate) are exported on their own as well.
 
-'use strict';
 
-const fs = require('fs');
-const {
-  createTransport, createPlayhqApi, createKeeper, parseCompetitions, parseOrganisationLink, pickSeason: pickSeasonOf,
-  isFinished, saysFinished, startOf, localDate, POSITION_RANK, PERIOD_NUMBER, Q_COMPETITIONS,
-} = require('@firstpass/playhq');
-const datadir = require('./datadir');
-const savefile = require('./savefile');
-const net = require('./playhqnet');
+import fs from 'node:fs';
+import {
+  createTransport, createPlayhqApi, createKeeper, parseCompetitions, parseOrganisationLink, pickSeason as pickSeasonOf,
+  isFinished, saysFinished, startOf, localDate, POSITION_RANK, PERIOD_NUMBER, Q_COMPETITIONS, PlayhqError,
+} from '@firstpass/playhq';
+import type * as Phq from '@firstpass/playhq';
+import * as datadir from './datadir';
+import * as savefile from './savefile';
+import * as net from './playhqnet';
+import { errorCode, errorMessage } from './errors';
+import { isObj, obj } from './check';
+import type { Config, Log } from './types';
 
-function create(deps) {
+// What the client hands over: the package's own shapes, with Studio's additions (a team's logo, a kept answer's age).
+export type {
+  Gender, Grade, LadderRow, Round, FixtureSide, FixtureGame, Shooting, Player, TeamTotals, LiveSide, LiveClock, LiveGame,
+} from '@firstpass/playhq';
+
+/** A division as a page can name it: findGrade gives { id, name } alone for ?gradeId=. */
+export type GradeRef = Pick<Phq.Grade, 'id' | 'name'> & Partial<Phq.Grade>;
+
+/** The season's divisions, and the names the graphics show (getStructure). */
+export interface Structure {
+  organisation: string; competition: string; season: { id: string; name: string }; grades: Phq.Grade[]; otherCompetitions: string[];
+}
+
+/** A ladder: one list of rows per pool (most divisions have one pool). stale and error: the last good one, kept while PlayHQ fails. */
+export interface Ladder extends Phq.Ladder { updatedAt: string; stale?: boolean; error?: string }
+
+/** A round's games; stale says why they're the last ones read rather than fresh. */
+export type RoundGames = Phq.FixtureGame[] & { stale?: string };
+
+/** A side of a game in detail, with the competition's logo for its team. */
+export interface GameSide extends Phq.GameSide { logo: string | null }
+/** One game in detail (line ups and player stats), as playhq.com's game page reads it. */
+export interface GameDetail extends Omit<Phq.GameDetail, 'home' | 'away'> { home: GameSide; away: GameSide }
+
+/** A live score for any game (liveScore): the live feed's when it has one (live), else the game page's. */
+export interface LiveScore { home: number; away: number; status: string | null; live?: Phq.LiveGame }
+/** What a game's live feed last said (board.ts playhqTrouble). */
+export interface LiveSeen { okAt: number; notScoredAt: number; changedAt: number; sig: string; live?: Phq.LiveGame }
+
+/** A game as the time helpers read it: a fixture game, or anything with a status, a day and a time. */
+export interface Timed { status?: string | null; date?: string | null; time?: string | null }
+
+/** A game as isFinished reads it. */
+export interface Scored extends Timed { home?: { score?: number | null }; away?: { score?: number | null } }
+
+/** One item's outcome from eachLimited. */
+export type Each<T> = { value: T; error?: undefined } | { value?: undefined; error: unknown };
+
+/** How often a game is read now: 'game' (Check PlayHQ every), 'warmup' (30 s) or 'gentle' (5 minutes). */
+export type Pace = 'game' | 'warmup' | 'gentle';
+
+export interface Deps {
+  log: Log; apiUrl: string; linkBase: string;
+  config(): Config; leadMs(): number;
+  logoFor(teamName: string): string | null; positionOf(player: unknown): string;
+  record?: { playhq(operationName: string, variables: unknown, tenant: string, json: unknown): void; live(gameId: string, json: unknown): void };
+  practice?: { active(): boolean; answer?(operationName: string, variables: unknown): unknown; live?(gameId: string): unknown };
+}
+
+/** An error from the live feed: PlayHQ's own, or notYet when electronic scoring hasn't opened, so it wasn't asked. */
+type LiveError = Error & { notYet?: boolean; notScored?: boolean; graphql?: { message: string }[] };
+const liveError = (err: unknown): LiveError => (err instanceof Error ? err : new Error(errorMessage(err)));
+
+// A finished game read back from game-cache.json: one with both sides' line ups.
+const keptGame = (g: unknown): g is GameDetail => isObj(g) && typeof g.id === 'string'
+  && isObj(g.home) && Array.isArray(g.home.players) && isObj(g.away) && Array.isArray(g.away.players);
+
+export type Client = ReturnType<typeof create>;
+
+function create(deps: Deps) {
   const { log, apiUrl, linkBase, config, leadMs, logoFor, positionOf } = deps;
   // recorder.js, for the game recording: every answer PlayHQ gives (record.playhq, record.live).
   const record = deps.record || { playhq() {}, live() {} };
   // practice.js: while a practice game runs, its recording answers instead of PlayHQ (practice.answer, practice.live);
   // a demo game's recording leaves what it doesn't have (the client's competition) to PlayHQ.
-  const practice = deps.practice || { active: () => false };
+  const practice: NonNullable<Deps['practice']> = deps.practice || { active: () => false };
 
-  let ORG_ID = null;
+  let ORG_ID: string | null = null;
 
   // Finished games' line ups don't change, so they are kept in game-cache.json in the data folder, with the
   // player gender field PlayHQ accepted: after a restart the team lists' squads, top shooters and the athletes
@@ -55,22 +116,24 @@ function create(deps) {
   const GAME_CACHE_MAX = 3000, GAME_CACHE_DAYS = 120;
   // Bumped when what is kept for a game changes (2: each team's own counts, totals), so older copies are read again once.
   const GAME_CACHE_VERSION = 2;
-  const finishedSummaries = new Map(); // game id -> parsed game
-  const finishedAt = new Map();        // game id -> when it was kept
-  let savedGenderField;
+  const finishedSummaries = new Map<string, GameDetail>(); // game id -> parsed game
+  const finishedAt = new Map<string, number>();            // game id -> when it was kept
+  let savedGenderField: string | undefined;
   try {
-    const saved = JSON.parse(fs.readFileSync(GAME_CACHE_FILE, 'utf8'));
+    const saved: unknown = JSON.parse(fs.readFileSync(GAME_CACHE_FILE, 'utf8'));
+    if (!isObj(saved)) throw new Error('not a list of games');
     if (typeof saved.genderField === 'string') savedGenderField = saved.genderField;
     const oldest = Date.now() - GAME_CACHE_DAYS * 24 * 60 * 60 * 1000;
-    for (const [id, e] of Object.entries(saved.version === GAME_CACHE_VERSION ? saved.games || {} : {})) {
-      if (e && e.game && e.at > oldest) { finishedSummaries.set(id, e.game); finishedAt.set(id, e.at); }
+    for (const [id, e] of Object.entries(saved.version === GAME_CACHE_VERSION && isObj(saved.games) ? saved.games : {})) {
+      // Written by this Mac (saveGameCache), so a game that looks like one is taken as one.
+      if (isObj(e) && keptGame(e.game) && typeof e.at === 'number' && e.at > oldest) { finishedSummaries.set(id, e.game); finishedAt.set(id, e.at); }
     }
     log('info', 'playhq', `${finishedSummaries.size} finished games' line ups loaded from game-cache.json`);
-  } catch (err) { if (err.code !== 'ENOENT') log('warn', 'playhq', `game-cache.json not read: ${err.message}`); }
+  } catch (err) { if (errorCode(err) !== 'ENOENT') log('warn', 'playhq', `game-cache.json not read: ${errorMessage(err)}`); }
 
   // ─── Asking PlayHQ (@firstpass/playhq) ──────────────────────────────────────
   // Every request is counted for the status board's PlayHQ line and written to the debug log.
-  function noteRequest(r) {
+  function noteRequest(r: Phq.RequestInfo) {
     const source = r.kind === 'live' ? 'live' : 'playhq';
     if (r.error && r.error.unreachable) {
       net.failed();
@@ -82,13 +145,13 @@ function create(deps) {
     net.note({ ms: r.ms, bytes: net.answerBytes(r.response, r.kind === 'session' ? '' : r.text), ...(r.kind === 'live' ? { live: true } : {}) });
     if (r.kind === 'session') return;
     const ok = r.status >= 200 && r.status < 300;
-    const what = r.kind === 'live' ? `game ${r.variables.id}` : r.operationName;
+    const what = r.kind === 'live' ? `game ${String(r.variables.id)}` : r.operationName;
     log(ok ? 'info' : 'warn', source, `${what} HTTP ${r.status} ${r.ms}ms ${r.length}B`, r.kind === 'live' ? undefined : r.variables);
     if (!ok) log('warn', source, r.kind === 'live' ? 'answer' : `${r.operationName} answer`, String(r.text || '').slice(0, 500));
     else if (r.kind === 'api' && String(r.text || '').includes('"errors"')) {
       try {
-        const errors = JSON.parse(r.text).errors;
-        if (errors && errors.length) log('error', 'playhq', `${r.operationName} GraphQL errors`, errors);
+        const errors: unknown = obj(JSON.parse(String(r.text))).errors;
+        if (Array.isArray(errors) && errors.length) log('error', 'playhq', `${r.operationName} GraphQL errors`, errors);
       } catch { /* not JSON: the package says so */ }
     }
   }
@@ -99,10 +162,10 @@ function create(deps) {
     spectatorUrl: process.env.PLAYHQ_SPECTATOR_URL || undefined,
     unreachableHint: 'Is this Mac connected to the internet?',
     onRequest: noteRequest,
-    onAnswer: a => (a.kind === 'live' ? record.live(a.variables.id, a.data) : record.playhq(a.operationName, a.variables, a.tenant, a.data)),
+    onAnswer: a => (a.kind === 'live' ? record.live(String(a.variables.id), a.data) : record.playhq(a.operationName, a.variables, a.tenant, a.data)),
     answer: (op, vars) => {
       if (!practice.active()) return undefined;
-      return op === 'live' ? practice.live(vars.id) : practice.answer(op, vars); // undefined: a demo game asks PlayHQ
+      return op === 'live' ? practice.live?.(String(vars.id)) : practice.answer?.(op, vars); // undefined: a demo game asks PlayHQ
     },
   });
   const api = createPlayhqApi(transport, {
@@ -110,34 +173,35 @@ function create(deps) {
     learned: savedGenderField === undefined ? undefined : { genderField: savedGenderField },
     // What PlayHQ refused (a ladder column, a spelling of a player's gender): said in the log, and the gender
     // spelling kept in game-cache.json so a restart doesn't ask the refused ones again.
-    onLearn: (learned, why) => { log('info', 'playhq', why); saveGameCache(); },
+    onLearn: (_learned, why) => { log('info', 'playhq', why); saveGameCache(); },
   });
 
   // ─── Finding the competition, season and divisions ──────────────────────────
-  const pickSeason = seasons => pickSeasonOf(seasons, config().seasonName);
+  const pickSeason = <S extends Phq.Season>(seasons: readonly S[]) => pickSeasonOf(seasons, config().seasonName);
 
   // An organisation's competitions and their seasons, for the setup page (tenant: the sport in its link).
-  async function competitions(orgId, tenant) {
-    const data = await transport.gql('discoverCompetitions', Q_COMPETITIONS, { organisationID: orgId }, { tenant });
+  async function competitions(orgId: string, tenant: string) {
+    const data = await transport.gql<{ discoverCompetitions?: Phq.RawCompetition[] | null }>('discoverCompetitions', Q_COMPETITIONS, { organisationID: orgId }, { tenant });
     return parseCompetitions(data.discoverCompetitions);
   }
 
-  let structure = null, structureAt = 0;
+  let structure: Structure | null = null, structureAt = 0;
   // The season's divisions (kept for 30 minutes). If PlayHQ fails when they're due to be read again, the last ones
   // read are kept (and read again on the next ask), so every graphic doesn't fail with it.
-  async function getStructure() {
+  async function getStructure(): Promise<Structure> {
     if (structure && Date.now() - structureAt < 30 * 60 * 1000) return structure;
     if (!structure) return readStructure();
     const kept = structure;
     try { return await readStructure(); }
     catch (err) {
-      log('warn', 'playhq', `Keeping the divisions read ${Math.round((Date.now() - structureAt) / 60000)} minutes ago: ${err.message}`);
+      log('warn', 'playhq', `Keeping the divisions read ${Math.round((Date.now() - structureAt) / 60000)} minutes ago: ${errorMessage(err)}`);
       return kept;
     }
   }
-  async function readStructure() {
-    let seasonId = config().seasonId || null;
-    let orgName = config().organisationName, compName = config().competitionName, allCompetitions = [];
+  async function readStructure(): Promise<Structure> {
+    const configured = config().seasonId; // an older config.json's season, picked by id
+    let seasonId = typeof configured === 'string' && configured ? configured : null;
+    let orgName = config().organisationName, compName = config().competitionName, allCompetitions: Phq.Competition[] = [];
     if (!seasonId) {
       if (!ORG_ID) throw new Error(`Add the organisation's PlayHQ link for ${config().name} on the competition setup page (${linkBase}/setup.html).`);
       allCompetitions = await api.competitions(ORG_ID);
@@ -152,21 +216,22 @@ function create(deps) {
       if (comp.organisation && comp.organisation.name) orgName = config().organisationName || comp.organisation.name;
     }
     const s = await api.season(seasonId); // the divisions in name order, each with its gender ('female', 'male' or '')
-    structure = {
-      organisation: config().organisationName || (s.organisation && s.organisation.name) || orgName,
-      competition: config().displayName || config().competitionName || compName || (s.competition && s.competition.name),
+    const read: Structure = {
+      organisation: config().organisationName || s.organisation?.name || orgName,
+      competition: config().displayName || config().competitionName || compName || s.competition?.name || '',
       season: s.season,
       grades: s.grades,
       otherCompetitions: allCompetitions.map(c => c.name),
     };
+    structure = read;
     structureAt = Date.now();
-    return structure;
+    return read;
   }
 
   // A division's ladder (kept a minute during a game, else 5 minutes, see dataAge; the last good one, marked stale,
   // while PlayHQ fails). A column PlayHQ doesn't have for the sport is left out, and the page leaves it out too.
-  const ladders = createKeeper();
-  async function getLadder(gradeId) {
+  const ladders = createKeeper<string, Ladder>();
+  async function getLadder(gradeId: string): Promise<Ladder> {
     const kept = await ladders.get(gradeId, dataAge(DURING_GAME_MS, ladders.peek(gradeId), `ladder:${gradeId}`), async () => {
       const l = await api.ladder(gradeId);
       return { grade: l.grade, pools: l.pools, updatedAt: new Date().toISOString() };
@@ -174,10 +239,11 @@ function create(deps) {
     return kept.stale ? { ...kept.value, stale: true, error: kept.stale.message } : kept.value; // keep showing the last good ladder
   }
 
-  function findGrade(st, q) {
+  function findGrade(st: Structure, q: { gradeId?: string; division?: string }): GradeRef | undefined {
     if (q.gradeId) return { id: q.gradeId, name: q.gradeId };
     if (q.division && /^\d+$/.test(q.division)) return st.grades[Number(q.division) - 1];
-    if (q.division) return st.grades.find(g => g.name.toLowerCase().includes(q.division.toLowerCase()));
+    const division = q.division?.toLowerCase();
+    if (division) return st.grades.find(g => g.name.toLowerCase().includes(division));
     return st.grades[0];
   }
 
@@ -185,8 +251,8 @@ function create(deps) {
   // A round's games, read again once older than maxAgeMs (at least 5 minutes while no game is on, see dataAge). If PlayHQ fails then, the last ones read are given, with
   // .stale saying why (the fixtures, countdown, up next and the game list keep showing), and PlayHQ is asked again
   // next time.
-  const roundGames = createKeeper();
-  async function getRoundGames(roundId, maxAgeMs) {
+  const roundGames = createKeeper<string, Phq.FixtureGame[]>();
+  async function getRoundGames(roundId: string, maxAgeMs: number): Promise<RoundGames> {
     const kept = await roundGames.get(roundId, dataAge(maxAgeMs, roundGames.peek(roundId), `round:${roundId}`), async () => {
       const games = await api.roundGames(roundId);
       for (const g of games) noteStart(g);
@@ -200,35 +266,36 @@ function create(deps) {
   // ─── One game in detail (live score, line-ups, player stats) ────────────────
   // The same request the playhq.com game page makes. Unlike the round fixture, it has the score while the game is
   // being scored. Each side gets the competition's logo for its team.
-  const gameCache = new Map();
-  const gameInFlight = new Map();
-  const withLogos = g => ({ ...g, home: { ...g.home, logo: logoFor(g.home.name) }, away: { ...g.away, logo: logoFor(g.away.name) } });
+  const gameCache = new Map<string, { at: number; game: GameDetail }>();
+  const gameInFlight = new Map<string, Promise<GameDetail>>();
+  const withLogos = (g: Phq.GameDetail): GameDetail => ({ ...g, home: { ...g.home, logo: logoFor(g.home.name) }, away: { ...g.away, logo: logoFor(g.away.name) } });
 
-  let gameCacheTimer = null;
+  let gameCacheTimer: NodeJS.Timeout | null = null;
   function saveGameCache() {
     if (gameCacheTimer) return;
     gameCacheTimer = setTimeout(() => {
       gameCacheTimer = null;
       const games = Object.fromEntries([...finishedSummaries].map(([id, game]) => [id, { at: finishedAt.get(id) || Date.now(), game }]));
       savefile.writeFile(GAME_CACHE_FILE, JSON.stringify({ version: GAME_CACHE_VERSION, genderField: api.learned().genderField, games }), err => {
-        if (err) log('warn', 'playhq', `game-cache.json not saved: ${err.message}`);
+        if (err) log('warn', 'playhq', `game-cache.json not saved: ${errorMessage(err)}`);
       });
     }, 2000);
   }
-  function keepFinished(gameId, parsed) {
+  function keepFinished(gameId: string, parsed: GameDetail) {
     if (practice.active()) return; // a practice game's answers aren't kept
     finishedSummaries.set(gameId, parsed);
     finishedAt.set(gameId, Date.now());
     while (finishedSummaries.size > GAME_CACHE_MAX) {
       const first = finishedSummaries.keys().next().value;
+      if (first === undefined) break;
       finishedSummaries.delete(first); finishedAt.delete(first);
     }
     saveGameCache();
   }
   // Runs fn on each item, a few at a time (gentle on PlayHQ, much quicker than one by one).
   // Gives { value } or { error } for each item, in order.
-  async function eachLimited(items, limit, fn) {
-    const out = new Array(items.length);
+  async function eachLimited<I, T>(items: I[], limit: number, fn: (item: I, i: number) => Promise<T>): Promise<Each<T>[]> {
+    const out = new Array<Each<T>>(items.length);
     let next = 0;
     const worker = async () => {
       while (next < items.length) {
@@ -241,7 +308,7 @@ function create(deps) {
   }
   const PLAYHQ_AT_ONCE = 4;
   // A game's line up, from the kept finished games when there, else from PlayHQ (kept if finished).
-  async function readGame(g, maxAgeMs) {
+  async function readGame(g: Phq.FixtureGame | (Timed & { id: string; home: { score: number | null }; away: { score: number | null } }), maxAgeMs: number): Promise<GameDetail> {
     const kept = finishedSummaries.get(g.id);
     if (kept) return kept;
     let parsed = await getGame(g.id, maxAgeMs);
@@ -254,99 +321,108 @@ function create(deps) {
     if (!parsed.home.totals || !parsed.away.totals) {
       try {
         const l = await fetchLive(g.id);
-        const totals = k => (l[k].goals == null && l[k].superGoals == null ? null : { goals: l[k].goals || 0, superGoals: l[k].superGoals || 0, shots: l[k].shots });
+        const totals = (k: 'home' | 'away') => (l[k].goals == null && l[k].superGoals == null ? null : { goals: l[k].goals || 0, superGoals: l[k].superGoals || 0, shots: l[k].shots });
         parsed = { ...parsed, home: { ...parsed.home, totals: parsed.home.totals || totals('home') }, away: { ...parsed.away, totals: parsed.away.totals || totals('away') } };
-      } catch (err) { log('info', 'playhq', `No team counts for game ${g.id} from the live feed: ${err.message}`); }
+      } catch (err) { log('info', 'playhq', `No team counts for game ${g.id} from the live feed: ${errorMessage(err)}`); }
     }
     // A finished game with no line up at all may still get one entered, so it isn't kept.
     if (parsed.home.players.length || parsed.away.players.length) keepFinished(g.id, parsed);
     return parsed;
   }
   // Read again once older than maxAgeMs: as the live feed is (liveAge) for a game being played, else as the fixtures are.
-  async function getGame(gameId, maxAgeMs) {
+  async function getGame(gameId: string, maxAgeMs: number): Promise<GameDetail> {
     const hit = gameCache.get(gameId);
     const age = pace(gameId) === 'game' ? maxAgeMs : dataAge(maxAgeMs, hit, `game:${gameId}`);
     if (hit && Date.now() - hit.at < age) return hit.game;
-    if (!gameInFlight.has(gameId)) {
-      gameInFlight.set(gameId, api.game(gameId)
+    let asking = gameInFlight.get(gameId);
+    if (!asking) {
+      asking = api.game(gameId)
         .then(g => { const game = withLogos(g); gameCache.set(gameId, { at: Date.now(), game }); return game; })
-        .finally(() => gameInFlight.delete(gameId)));
+        .finally(() => gameInFlight.delete(gameId));
+      gameInFlight.set(gameId, asking);
     }
-    return gameInFlight.get(gameId);
+    return asking;
   }
 
   // ─── Live scoring feed ──────────────────────────────────────────────────────
   // playhq.com's game page reads the running score and the scorer's game clock from spectator.playhq.com while a
   // game is on. Before the scorer starts it says the game isn't being scored (err.notScored), which is expected,
   // so it is logged once per game.
-  async function fetchLive(gameId) {
+  async function fetchLive(gameId: string) {
     try { return await api.live(gameId); }
     catch (err) {
-      if (err.notScored) {
-        if (!notScoredLogged.has(gameId)) { notScoredLogged.add(gameId); log('info', 'live', `game ${gameId} isn't being scored in PlayHQ yet (${err.graphql.map(e => e.message).join('; ')}); still checking`); }
-      } else if (err.graphql) log('error', 'live', 'GraphQL errors', err.graphql);
+      if (err instanceof PlayhqError && err.notScored) {
+        if (!notScoredLogged.has(gameId)) { notScoredLogged.add(gameId); log('info', 'live', `game ${gameId} isn't being scored in PlayHQ yet (${(err.graphql || []).map(e => e.message).join('; ')}); still checking`); }
+      } else if (err instanceof PlayhqError && err.graphql) log('error', 'live', 'GraphQL errors', err.graphql);
       throw err;
     }
   }
   // Electronic scoring starts scoringMinutesBefore (autoSelectMinutesBefore on the setup page,
   // default 10) minutes before a game. Before then PlayHQ's live feed only answers "game could
   // not be found or was not electronically scored", so it isn't asked at all.
-  const gameStarts = new Map(); // game id -> { date, time, status } from the fixtures
-  function noteStart(g) {
+  const gameStarts = new Map<string, Timed>(); // game id -> { date, time, status } from the fixtures
+  function noteStart(g: (Timed & { id?: string }) | null | undefined) {
     if (!g || !g.id) return;
     if (g.date && g.time) gameStarts.set(g.id, { date: g.date, time: g.time, status: g.status });
     noteFinished(g.id, g.status);
   }
-  function scoringOpensAt(game) {
-    const g = game && game.date && game.time ? game : gameStarts.get(game && game.id ? game.id : game);
+  function scoringOpensAt(game: (Timed & { id?: string }) | string) {
+    const g = typeof game === 'object' && game.date && game.time ? game : gameStarts.get(typeof game === 'string' ? game : game.id || '');
     if (!g || /PROGRESS|LIVE|STARTED|COMPLETE|FINAL|RESULT|FORFEIT|CLOSED|FINISH|ENDED/i.test(g.status || '')) return null;
     const start = startOf(g);
     return start === null ? null : start - leadMs();
   }
   // Why the live feed isn't asked yet ('' once the window is open, or when the start time isn't known).
-  function scoringNotYet(game) {
+  function scoringNotYet(game: (Timed & { id?: string }) | string) {
     const at = scoringOpensAt(game);
     if (at === null || at <= Date.now()) return '';
     const when = new Date(at);
     const day = localDate(when) === localDate() ? '' : ` on ${when.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}`;
     return `Electronic scoring starts ${leadMs() / 60000} minutes before the game, so PlayHQ is checked from ${when.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })}${day}.`;
   }
-  const notScoredLogged = new Set(); // games already logged as not being scored yet
-  const liveCache = new Map();
-  const liveInFlight = new Map();
+  const notScoredLogged = new Set<string>(); // games already logged as not being scored yet
+  const liveCache = new Map<string, { at: number; live?: Phq.LiveGame; error?: LiveError }>();
+  const liveInFlight = new Map<string, Promise<Phq.LiveGame>>();
   // The last answer from PlayHQ's live feed, for /api/health: when, and the error if it failed.
   const lastLive = { at: 0, error: '', errorAt: 0 };
   // Per game, what its live feed last said, for spotting a scorebench that has dropped off line (board.js
   // playhqTrouble): okAt the last reading, notScoredAt the last "not electronically scored", changedAt when a
   // reading last differed from the one before (the score, the counts, the clock or the break).
-  const liveSeen = new Map();
-  const seenOf = id => liveSeen.get(id) || liveSeen.set(id, { okAt: 0, notScoredAt: 0, changedAt: 0, sig: '' }).get(id);
-  function noteLive(id, live) {
+  const liveSeen = new Map<string, LiveSeen>();
+  const seenOf = (id: string): LiveSeen => {
+    let s = liveSeen.get(id);
+    if (!s) liveSeen.set(id, s = { okAt: 0, notScoredAt: 0, changedAt: 0, sig: '' });
+    return s;
+  };
+  function noteLive(id: string, live: Phq.LiveGame) {
     const s = seenOf(id), now = Date.now(), sig = JSON.stringify(live);
     if (sig !== s.sig) { s.sig = sig; s.changedAt = now; }
     s.okAt = now;
     s.live = live;
   }
-  const liveSeenFor = id => ({ ...seenOf(id) });
+  const liveSeenFor = (id: string): LiveSeen => ({ ...seenOf(id) });
   // A game's live feed, read again once older than liveAge(maxAgeMs): maxAgeMs is Check PlayHQ every (playhqRefreshSec),
   // or longer for a caller that needs it less often (the ticker's 20 s). "Not electronically scored" is kept as long as
   // a reading, so a game the scorer hasn't started isn't asked every second.
-  async function getLive(gameId, maxAgeMs) {
+  async function getLive(gameId: string, maxAgeMs: number): Promise<Phq.LiveGame> {
     const hit = liveCache.get(gameId);
-    if (hit && Date.now() - hit.at < liveAge(gameId, maxAgeMs)) { if (hit.error) throw hit.error; return hit.live; }
+    if (hit && Date.now() - hit.at < liveAge(gameId, maxAgeMs)) { if (hit.error) throw hit.error; if (hit.live) return hit.live; }
     const wait = scoringNotYet(gameId);
     if (wait) throw Object.assign(new Error(wait), { notYet: true });
-    if (!liveInFlight.has(gameId)) {
-      liveInFlight.set(gameId, fetchLive(gameId)
+    let asking = liveInFlight.get(gameId);
+    if (!asking) {
+      asking = fetchLive(gameId)
         .then(live => { liveCache.set(gameId, { at: Date.now(), live }); lastLive.at = Date.now(); lastLive.error = ''; noteLive(gameId, live); noteFinished(gameId, live.status); return live; })
-        .catch(err => {
+        .catch((thrown: unknown) => {
+          const err = liveError(thrown);
           if (err.notScored) { seenOf(gameId).notScoredAt = Date.now(); liveCache.set(gameId, { at: Date.now(), error: err }); }
           else { lastLive.error = err.message; lastLive.errorAt = Date.now(); }
           throw err;
         })
-        .finally(() => liveInFlight.delete(gameId)));
+        .finally(() => liveInFlight.delete(gameId));
+      liveInFlight.set(gameId, asking);
     }
-    return liveInFlight.get(gameId);
+    return asking;
   }
 
   // ─── Being kind to PlayHQ ───────────────────────────────────────────────────
@@ -363,10 +439,10 @@ function create(deps) {
   // DURING_GAME_MS (a minute) or what the caller asks while any game is at 'game' or 'warmup' pace, else every 5 minutes.
   const SOON_MS = 2 * 60 * 1000, AFTER_MS = 2 * 60 * 1000, WARMUP_MS = 30 * 1000, GENTLE_MS = 5 * 60 * 1000;
   const LONGEST_MS = 3 * 60 * 60 * 1000, DURING_GAME_MS = 60 * 1000;
-  const finishedSeen = new Map(); // game id -> when PlayHQ first said it was finished
-  function noteFinished(id, status) { if (saysFinished(status || '') && !finishedSeen.has(id)) finishedSeen.set(id, Date.now()); }
+  const finishedSeen = new Map<string, number>(); // game id -> when PlayHQ first said it was finished
+  function noteFinished(id: string, status: string | null | undefined) { if (saysFinished(status || '') && !finishedSeen.has(id)) finishedSeen.set(id, Date.now()); }
   const UNDER_WAY = /PROGRESS|LIVE|STARTED/i;
-  function pace(id, now = Date.now()) {
+  function pace(id: string, now = Date.now()): Pace {
     const done = finishedSeen.get(id);
     if (done !== undefined) return now - done < AFTER_MS ? 'game' : 'gentle';
     const hit = liveCache.get(id);
@@ -381,7 +457,7 @@ function create(deps) {
     return 'gentle';
   }
   // How old a game's live reading may get: maxAgeMs during the game, longer either side of it.
-  function liveAge(id, maxAgeMs) {
+  function liveAge(id: string, maxAgeMs: number) {
     const p = pace(id);
     return p === 'game' ? maxAgeMs : Math.max(maxAgeMs, p === 'warmup' ? WARMUP_MS : GENTLE_MS);
   }
@@ -395,45 +471,46 @@ function create(deps) {
   // by its key, rather than by comparing times: a read finishing in the same millisecond as the press would otherwise
   // count as before it and be read again on every ask until the clock moved on.
   let askedAgainAt = 0;
-  const readAgain = new Set(); // the keys read afresh since the last askAgain
-  function dataAge(maxAgeMs, kept, key) {
+  const readAgain = new Set<string>(); // the keys read afresh since the last askAgain
+  function dataAge(maxAgeMs: number, kept: { at: number } | undefined, key: string) {
     if (kept && kept.at <= askedAgainAt && !readAgain.has(key)) { readAgain.add(key); return 0; }
     return gameOn() ? maxAgeMs : Math.max(maxAgeMs, GENTLE_MS);
   }
   // A game known some other way than the fixtures (picked for the scoreboard with its day and time): its start, for its
   // pace, unless the fixtures have said already.
-  function noteGame(g) { if (g && g.id && !gameStarts.has(g.id)) noteStart(g); }
+  function noteGame(g: (Timed & { id?: string }) | null | undefined) { if (g && g.id && !gameStarts.has(g.id)) noteStart(g); }
   function askAgain() { askedAgainAt = Date.now(); readAgain.clear(); }
 
   // Live score for any game: the live feed first, then the game page data, then the round fixture.
-  async function liveScore(game, maxAgeMs) {
+  async function liveScore(game: { id: string }, maxAgeMs: number): Promise<LiveScore | null> {
     try {
       const l = await getLive(game.id, maxAgeMs);
       if (l.home.score != null || l.away.score != null) return { home: l.home.score ?? 0, away: l.away.score ?? 0, status: l.status, live: l };
-    } catch (err) {
+    } catch (thrown) {
+      const err = liveError(thrown);
       if (err.notYet) return null; // not scored yet, so nothing to find on the game page either
       if (!err.notScored) log('warn', 'live', `Live feed failed for ${game.id}: ${err.message}`);
     }
     try {
       const d = await getGame(game.id, liveAge(game.id, maxAgeMs));
       if (d.home.score != null || d.away.score != null) return { home: d.home.score ?? 0, away: d.away.score ?? 0, status: d.status };
-    } catch (err) { log('warn', 'live', `Game detail failed for ${game.id}: ${err.message}`); }
+    } catch (err) { log('warn', 'live', `Game detail failed for ${game.id}: ${errorMessage(err)}`); }
     return null;
   }
 
   // A division's rounds (kept for 5 minutes; the last ones read while PlayHQ is failing).
-  const rounds = createKeeper();
-  async function getRounds(gradeId) {
+  const rounds = createKeeper<string, Phq.Round[]>();
+  async function getRounds(gradeId: string) {
     const kept = await rounds.get(gradeId, 5 * 60 * 1000, () => api.rounds(gradeId));
     if (kept.stale) log('warn', 'playhq', `Keeping the rounds as last read: ${kept.stale.message}`); // and asked again next time
     return kept.value;
   }
 
   // The competition in use changed: its PlayHQ organisation, and forget what was cached.
-  function setOrganisation(url) {
-    const u = parseOrganisationLink(url) || {};
-    transport.setTenant(u.tenant || 'netball-australia');
-    ORG_ID = u.orgId || null;
+  function setOrganisation(url: string | null | undefined) {
+    const u = parseOrganisationLink(url);
+    transport.setTenant(u?.tenant || 'netball-australia');
+    ORG_ID = u?.orgId || null;
     structure = null; // names may have changed
     return { tenant: transport.tenant(), orgId: ORG_ID };
   }
@@ -445,12 +522,19 @@ function create(deps) {
   return {
     setOrganisation, resetCaches,
     organisation: () => ({ tenant: transport.tenant(), orgId: ORG_ID }),
-    structureNow: () => structure,
+    structureNow: (): Structure | null => structure,
     competitions, getStructure, getLadder, findGrade, pickSeason,
     getRounds, getRoundGames, getGame, readGame, eachLimited, PLAYHQ_AT_ONCE, POSITION_RANK,
     getLive, liveScore, scoringNotYet, PERIOD_NUMBER, lastLive, liveSeenFor,
-    liveAge, pace: id => pace(id), gameOn: () => gameOn(), askAgain, noteGame,
+    liveAge, pace: (id: string) => pace(id), gameOn: () => gameOn(), askAgain, noteGame,
   };
 }
 
-module.exports = { create, parsePlayhqUrl: parseOrganisationLink, isFinished, startOf, localDate };
+// An organisation link's tenant and id (the setup page's PlayHQ link), null when it isn't one.
+const parsePlayhqUrl = (url: unknown) => parseOrganisationLink(typeof url === 'string' ? url : null);
+
+// Whether a game is over: PlayHQ says so, or both sides have scores and its day has passed. A side with no score
+// given counts as none yet.
+const isGameFinished = (g: Scored): boolean => isFinished({ ...g, home: { score: g.home?.score ?? null }, away: { score: g.away?.score ?? null } });
+
+export { create, parsePlayhqUrl, isGameFinished as isFinished, startOf, localDate };

@@ -1,6 +1,6 @@
 // FirstPass Studio - practice games: a recorded game (recorder.ts) played back as if it were live.
 //
-// While a practice game runs, PlayHQ isn't asked anything (but see a followed game below): playhq.js asks this module instead (answer() for the
+// While a practice game runs, PlayHQ isn't asked anything (but see a followed game below): playhq.ts asks this module instead (answer() for the
 // GraphQL API, live() for live scoring), which gives what PlayHQ said at the same point of the recorded night.
 // Everything else in Studio runs as on a real night (the scoreboard follows the score and clock, sequences and
 // game triggers fire, afresh each start and jump with Run game-timed sequences again, the outputs can be on), so
@@ -194,7 +194,7 @@ function at<A extends { t: number }>(list: A[]): A {
   return pick;
 }
 
-// ─── What playhq.js asks while a practice game runs ─────────────────────────
+// ─── What playhq.ts asks while a practice game runs ─────────────────────────
 // The GraphQL answer's data. When the recording never asked that: an error, or, in a demo game, undefined, and
 // PlayHQ is asked (the client's competition, seasons and divisions). A followed game's recording (recorder.ts: a game
 // Studio followed in the background) has only what Studio asked PlayHQ that night, not what the graphics would have,

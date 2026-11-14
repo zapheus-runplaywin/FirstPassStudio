@@ -1087,7 +1087,7 @@ is stopped, a jump is scrubbing; between changes it runs on. The helper asks aga
 
 **Practice games** (`practice.ts`): *Practise* beside a game on the Recordings tab plays it back as if live
 (`POST /api/practice` `{ start: { recording, game, from, lead, rerun } }`, `{ pause }`, `{ jump }`, `{ stop }`; `GET` for where it is).
-While it runs `playhq.js` asks `practice.answer()` and `practice.live()` instead of PlayHQ: the answer recorded last before
+While it runs `playhq.ts` asks `practice.answer()` and `practice.live()` instead of PlayHQ: the answer recorded last before
 the same point of the night, with every date and time moved by the gap to now (a game's `date` with its `time` or
 `allocation.time` as one moment, ISO times, `...At` millisecond times), so the game starts `lead` minutes from now (the Recordings tab's *A practice game starts in*, 0 to 60, 5 by
 default, also sent with `{ jump: 'start', lead }`). Paused, the

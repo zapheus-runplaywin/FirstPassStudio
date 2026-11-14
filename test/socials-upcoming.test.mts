@@ -113,7 +113,7 @@ test('finals race: in, out or still a chance from the points and the games left'
   // One round left (two games), top 2 play finals, a win worth 4: A can't be caught, B and C can still miss out (or tie),
   // D can reach 8 at most, short of the 12 in second place.
   const season = [g(day(4), 'A', 'B', false), g(day(4), 'C', 'D', false), g(day(4), 'E', 'F', true)];
-  const rows = ([['A', 20], ['B', 12], ['C', 12], ['D', 4], ['E', 4], ['F', 0]] as [string, number][]).map(([team, points], i) => ({ team, position: i + 1, points, won: points / 4, played: 4 }));
+  const rows = ([['A', 20], ['B', 12], ['C', 12], ['D', 4], ['E', 4], ['F', 0]] as [string, number][]).map(([team, points], i) => ({ team, teamId: null, position: i + 1, points, won: points / 4, played: 4 }));
   const r = stats.race(season, day(4), 'D', rows, 2).rows;
   assert.deepEqual(r.map(x => [x.team, x.status, x.left]), [['A', 'in', 1], ['B', 'chance', 1], ['C', 'chance', 1], ['D', 'out', 1], ['E', 'out', 0], ['F', 'out', 0]]);
   assert.deepEqual(stats.raceOn(season, day(4), ['D']), [{ division: 'D', left: 1 }]);

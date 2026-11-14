@@ -3,7 +3,7 @@
 // (the ping, timed on a real request), the download over the last minute, and everything downloaded since Studio
 // went on air (server.ts runs only while on air, so the count starts again each time).
 //
-// Every request to PlayHQ goes through note() (playhq.js: the guest session, every GraphQL query and the live feed;
+// Every request to PlayHQ goes through note() (playhq.ts: the guest session, every GraphQL query and the live feed;
 // teams.ts: the Game Summary), so a new kind of request is counted by calling it too. A practice game asks PlayHQ
 // nothing, so it adds nothing.
 const WINDOW_MS = 60 * 1000;
@@ -56,7 +56,7 @@ function create(now = Date.now) {
   return { note, failed, snapshot };
 }
 
-// The one Studio uses, shared by playhq.js and teams.ts.
+// The one Studio uses, shared by playhq.ts and teams.ts.
 const shared = create();
 const { note, failed, snapshot } = shared;
 export { create, answerBytes, note, failed, snapshot };
