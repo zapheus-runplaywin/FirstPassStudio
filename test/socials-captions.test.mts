@@ -51,24 +51,52 @@ test('the Captions card sets up the AI on this Mac, and a picture\'s caption is 
   const key = await card.getAttribute('data-key');
   const name = await card.locator('h3').textContent();
   const pic = () => page.locator(`.pic[data-key="${key}"]`);
-  await pic().locator('.caption summary').click();
+  await pic().locator('.caption > summary').click();
   await pic().locator('.caption label:has-text("Hype")').click();
   ai.calls.length = 0;
   await pic().locator('.caption button:text("Write caption")').click();
-  await page.waitForFunction(k => document.querySelector<HTMLTextAreaElement>(`.pic[data-key="${k}"] .caption textarea`)!.value.includes('#ThunderLeague'), key);
-  const box = () => pic().locator('.caption textarea');
+  await page.waitForFunction(k => document.querySelector<HTMLTextAreaElement>(`.pic[data-key="${k}"] .caption > textarea`)!.value.includes('#ThunderLeague'), key);
+  const box = () => pic().locator('.caption > textarea');
   assert.equal(await box().inputValue(), 'What a night of netball! 🏐 Well played everyone.\n\n#ThunderLeague @thunderleague');
   assert.match(ai.calls.find(x => x.path === '/anthropic/v1/messages')!.body.messages[0].content, /Style: Hype/);
   assert.equal(await pic().locator('.caption .note').textContent(), 'Claude claude-haiku-5-5: about US$0.0005 (3000 tokens in, 400 out).');
-  assert.equal(await pic().locator('.caption summary').textContent(), 'Caption ✓');
+  assert.equal(await pic().locator('.caption > summary').textContent(), 'Caption ✓');
   await page.waitForFunction(() => /US\$0\.0005 for 1 caption/.test(document.getElementById('capBody')!.textContent), null);
 
   // Changed by hand, then written again: Undo brings the hand-made one back.
   await box().fill('Our own words.');
   await pic().locator('.caption button:text("Again")').click();
-  await page.waitForFunction(k => document.querySelector<HTMLTextAreaElement>(`.pic[data-key="${k}"] .caption textarea`)!.value.startsWith('What a night'), key);
+  await page.waitForFunction(k => document.querySelector<HTMLTextAreaElement>(`.pic[data-key="${k}"] .caption > textarea`)!.value.startsWith('What a night'), key);
   await pic().locator('.caption button:text("Undo")').click();
   assert.equal(await box().inputValue(), 'Our own words.');
+  // Show prompt: what was sent, to change and Rewrite this caption from; the rules and writing guide only to read.
+  await pic().locator('.caption .asked > summary').click();
+  const asked = pic().locator('.caption .asked > textarea');
+  assert.match(await asked.inputValue(), /The picture: "/);
+  assert.match((await pic().locator('.caption .asked pre').textContent())!, /Never mention or highlight negative statistics/);
+  await asked.fill(`${await asked.inputValue()}\nKeep it to ten words.`);
+  ai.calls.length = 0;
+  await pic().locator('.caption button:text("Rewrite")').click();
+  await page.waitForFunction(k => document.querySelector<HTMLTextAreaElement>(`.pic[data-key="${k}"] .caption > textarea`)!.value.startsWith('What a night'), key);
+  assert.match(ai.calls.find(x => x.path === '/anthropic/v1/messages')!.body.messages[0].content, /Keep it to ten words\.$/);
+  await pic().locator('.caption button:text("Undo")').click();
+  assert.equal(await box().inputValue(), 'Our own words.');
+
+  // The prompt on the Captions card: About us, the writing guide and the styles to change, the rules to read, and Reset.
+  await page.click('#capBody .prompt summary');
+  assert.match((await page.textContent('#capBody .prompt .rules'))!, /Never invent/);
+  await page.fill('#capBody textarea#cap-about-us', 'Mixed netball in Perth.');
+  await page.press('#capBody textarea#cap-about-us', 'Tab');
+  await studio.until(async () => (await studio.get('/api/socials')).settings.captionAbout === 'Mixed netball in Perth.');
+  assert.match(await page.inputValue('#capBody textarea#cap-writing-guide'), /^- Write like the competition's own social media person/);
+  await page.fill('#capBody textarea[aria-label="Fun style"]', 'Fun: daft puns welcome.');
+  await page.press('#capBody textarea[aria-label="Fun style"]', 'Tab');
+  await studio.until(async () => (await studio.get('/api/socials')).settings.captionStyles.fun === 'Fun: daft puns welcome.');
+  await page.click('#capBody button:text("Reset to Studio\'s")');
+  await studio.until(async () => !Object.keys((await studio.get('/api/socials')).settings.captionStyles).length);
+  await page.waitForFunction(() => document.querySelector<HTMLTextAreaElement>('#capBody textarea[aria-label="Fun style"]')!.value.startsWith('Fun: playful'));
+  assert.equal(await page.inputValue('#capBody textarea#cap-about-us'), 'Mixed netball in Perth.', 'Reset leaves About us');
+
   // The next picture starts in the style last picked.
   assert.equal(await page.locator('.pic[data-key]').nth(1).locator('.caption input[value=hype]').isChecked(), true);
 

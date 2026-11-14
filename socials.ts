@@ -11,11 +11,12 @@
 //
 // Saved per competition in competitions/<id>/socials.json: { mark, pivt, sponsor: { <kind>: true|false }, colours,
 // colourSets: [{ id, name, ground, highlight, accent }], template, favourites: [<template id>], favouritesOnly, movers,
-// pictureSets: [{ id, name, kinds: [<kind>] }], pictureSet: <set id or '' for all>, hashtags }: the
+// pictureSets: [{ id, name, kinds: [<kind>] }], pictureSet: <set id or '' for all>, hashtags, captionAbout, captionWriting,
+// captionStyles: { <style>: words } }: the
 // FirstPass Studio mark and the PIVT logo in the corners, which graphics carry the sponsor strip, the colour set in use
 // and the ones made by hand, the template set, and the template sets starred (and whether the tab lists only those),
 // and the picture sets (which kinds of picture the tab shows, picked on its Show row), and the hashtags and @handles
-// on the end of every AI caption (captions.ts), kept week to week. Photos dropped on a polaroid stay
+// on the end of every AI caption (captions.ts) with the club's About us, writing guide and styles for them, kept week to week. Photos dropped on a polaroid stay
 // on this Mac only (socials-photos/ in the local folder, never in a backup or iCloud); the oldest go after PHOTOS_KEPT.
 //
 // Routes (server.ts hands every /api/socials and /socials/ request here):
@@ -86,6 +87,7 @@ import { TEMPLATE_FONTS } from './fonts';
 import { ROUND as FINALS_ROUND } from './finals';
 import * as stats from './socialstats';
 import { errorMessage } from './errors';
+import { STYLES as CAPTION_STYLES, WRITING, MAX_WRITING, MAX_ABOUT, MAX_STYLE } from './captions';
 import { arr, isObj, num, obj, own, str } from './check';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type * as Competitions from './competitions';
@@ -129,6 +131,7 @@ interface PictureSet { id: string; name: string; kinds: string[] }
 interface Settings {
   mark: boolean; pivt: boolean; sponsor: Record<string, boolean>; colours: string; colourSets: ColourSet[]; template: string;
   favourites: string[]; favouritesOnly: boolean; movers: boolean; pictureSets: PictureSet[]; pictureSet: string; hashtags: string;
+  captionAbout: string; captionWriting: string; captionStyles: Record<string, string>;
 }
 // The competition, as the pictures name it (server.ts about).
 interface About { competition: string; venue: string; logo: string | null; runningShooters: string; finalsWinners: string }
@@ -302,10 +305,19 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     const pictureSets = pictureSetsOf(d.pictureSets);
     const pictureSet = str(d.pictureSet);
     return { mark: d.mark !== false, pivt: d.pivt !== false, sponsor, colours, colourSets, template, favourites: favouritesOf(d.favourites), favouritesOnly: d.favouritesOnly === true,
-      movers: d.movers !== false, pictureSets, pictureSet: pictureSets.some(x => x.id === pictureSet) ? pictureSet : '', hashtags: hashtagsOf(d.hashtags) };
+      movers: d.movers !== false, pictureSets, pictureSet: pictureSets.some(x => x.id === pictureSet) ? pictureSet : '', hashtags: hashtagsOf(d.hashtags),
+      captionAbout: textOf(d.captionAbout, MAX_ABOUT), captionWriting: textOf(d.captionWriting, MAX_WRITING), captionStyles: stylesOf(d.captionStyles) };
   }
   // The hashtags and @handles put on the end of every AI caption (captions.ts), as typed: one line, at most MAX_HASHTAGS characters.
   const hashtagsOf = (v: unknown) => str(v).replace(/\s+/g, ' ').trim().slice(0, MAX_HASHTAGS);
+  // What the club typed on the Captions card for the AI captions (captions.ts): About us, its own writing guide ('' for
+  // Studio's) and its own words for a style (only the styles changed).
+  const textOf = (v: unknown, max: number) => str(v).replace(/\r\n?/g, '\n').trim().slice(0, max);
+  const stylesOf = (v: unknown) => {
+    const out: Record<string, string> = {};
+    for (const k of Object.keys(CAPTION_STYLES)) { const t = textOf(obj(v)[k], MAX_STYLE); if (t && t !== CAPTION_STYLES[k]) out[k] = t; }
+    return out;
+  };
   // Starred template sets, in the list's order; a retired one counts as the set it is now drawn as.
   const favouritesOf = (list: unknown) => TEMPLATES.map(t => t.id).filter(id => arr(list).some(x => templateOf(x)?.id === id));
   // The picture sets made on the tab, each { id: pset-N, name, kinds: [<kind>] } with the kinds in KIND_NAMES' order; a
@@ -349,6 +361,9 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     if (typeof body.favouritesOnly === 'boolean') now.favouritesOnly = body.favouritesOnly;
     if (typeof body.movers === 'boolean') now.movers = body.movers;
     if (typeof body.hashtags === 'string') now.hashtags = hashtagsOf(body.hashtags);
+    if (typeof body.captionAbout === 'string') now.captionAbout = textOf(body.captionAbout, MAX_ABOUT);
+    if (typeof body.captionWriting === 'string') now.captionWriting = textOf(body.captionWriting, MAX_WRITING) === WRITING ? '' : textOf(body.captionWriting, MAX_WRITING);
+    if (body.captionStyles && typeof body.captionStyles === 'object') now.captionStyles = stylesOf(body.captionStyles);
     if (Array.isArray(body.pictureSets)) {
       if (body.pictureSets.length > MAX_PICTURE_SETS) throw new Error(`Keep it to ${MAX_PICTURE_SETS} picture sets.`);
       const sets = body.pictureSets.map(obj);
