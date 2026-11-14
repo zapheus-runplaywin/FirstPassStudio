@@ -13,13 +13,20 @@
 //      follows on is kept; a gap (one missed while reconnecting) is filled by another catch-up. A catch-up also runs
 //      every CATCH_UP_EVERY while following, and whenever the channel comes back, so nothing is missed for long.
 //
+// Revocation: every catch-up first checks the Studio role again (hqauth.ts checkRole()), so a role removed or paused in
+// HQ, or a member stood down or deleted, stops Studio within a minute, not at the next half-hourly refresh. Whenever HQ
+// refuses one of these calls (an answer of 400 to 499 but 408 and 429), Studio stops following the game at once, drops
+// what it held of it from memory and from the store, and checks the role: when the role is gone the club is signed out
+// and all its stats deleted; when only the game is refused (no longer a live or finished PlayHQ game) just that game
+// goes. When HQ can't be reached nothing is dropped and the next look tries again.
+//
 // What is kept goes in firstpass.ts's store (this Mac only, deleted 30 days after the game or at sign-out): { game,
 // snapshot, events, lineup }. Nothing here is logged but club codes, ids and counts. Nothing goes into the board, the
 // scene or a game story: the graphics will ask for only the figures they show (private routes, /api/firstpass/...).
 //
 // create(deps). deps:
 //   log, store          the debug log, firstpass.ts's store
-//   hq                  hqauth.ts: club(code), list(), accessToken(code)
+//   hq                  hqauth.ts: club(code), list(), accessToken(code), checkRole(code)
 //   fetch               for tests
 //   subscribe           opens the Realtime channel (realtimeSubscribe(), or a stand-in for tests)
 
@@ -75,7 +82,7 @@ const realtimeSubscribe: Subscribe = (club, gameId, token, onEvent, onStatus) =>
 };
 
 function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = realtimeSubscribe, now = () => Date.now() }: {
-  log: Log; store: Pick<Store, 'save'>; hq: Pick<HqAuth, 'club' | 'list' | 'accessToken'>;
+  log: Log; store: Pick<Store, 'save' | 'forgetGame'>; hq: Pick<HqAuth, 'club' | 'list' | 'accessToken' | 'checkRole'>;
   fetch?: typeof globalThis.fetch; subscribe?: Subscribe; now?: () => number;
 }) {
   const log = privateLog(rawLog);
@@ -84,8 +91,10 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
   let wanted: string | null = null;
   let channel: ReturnType<Subscribe> | null = null;
 
-  // A call to one of HQ's functions as the signed-in person: the JSON, or null (not signed in, refused, unreachable).
-  async function rpc(club: Club, name: string, args: Record<string, unknown>): Promise<unknown> {
+  // A call to one of HQ's functions as the signed-in person: { json }, or { refused } with HQ's answer when HQ said no
+  // (400 to 499 but 408 and 429, as hqauth.ts counts them), or null (not signed in, or HQ couldn't be reached).
+  type Got = { json: unknown } | { refused: number } | null;
+  async function rpc(club: Club, name: string, args: Record<string, unknown>): Promise<Got> {
     const token = await hq.accessToken(club.code);
     if (!token) return null;
     try {
@@ -93,21 +102,27 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
         method: 'POST', body: JSON.stringify(args), signal: AbortSignal.timeout(20000),
         headers: { apikey: club.anonKey, authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       });
-      if (!res.ok) { log('warn', 'hq', `${club.code}: ${name} answered ${res.status}`); return null; }
-      return await res.json();
+      if (!res.ok) {
+        log('warn', 'hq', `${club.code}: ${name} answered ${res.status}`);
+        return res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429 ? { refused: res.status } : null;
+      }
+      return { json: await res.json() };
     } catch (err) {
       log('warn', 'hq', `${club.code}: ${name} failed (${errorMessage(err)})`);
       return null;
     }
   }
+  const refusal = (got: Got): number => (got && 'refused' in got ? got.refused : 0);
 
   // A signed-in club's games Studio can read, read again every GAMES_EVERY.
   async function games(club: Club): Promise<HqGame[]> {
     const had = gameLists.get(club.code);
     if (had && now() - had.at < GAMES_EVERY) return had.games;
     const got = await rpc(club, 'studio_games', {});
-    if (got === null) return had ? had.games : [];
-    const list = arr(got).map(toGame).filter((g): g is HqGame => !!g && !!g.playhqGameId);
+    // Refused: nothing from the old list is used, and the role is checked (hqauth.ts signs the club out if it's gone).
+    if (refusal(got)) { gameLists.delete(club.code); await hq.checkRole(club.code); return []; }
+    if (!got || !('json' in got)) return had ? had.games : [];
+    const list = arr(got.json).map(toGame).filter((g): g is HqGame => !!g && !!g.playhqGameId);
     gameLists.set(club.code, { at: now(), games: list });
     return list;
   }
@@ -139,15 +154,32 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
     return !gap;
   }
 
-  // Reads everything after what is held, page by page, and the line-up.
+  // HQ refused Studio the game f follows (status), or the role is gone: stop following it at once, so nothing held is
+  // served, delete it from the store, and check the role (hqauth.ts signs the club out and deletes all its stats when
+  // the role is gone). roleGone: the role check already said so.
+  async function drop(f: Following, why: string, roleGone = false) {
+    if (following === f) stop();
+    gameLists.delete(f.club);
+    f.events = []; f.snapshot = null; f.lineup = [];
+    store.forgetGame(f.club, f.game.id, why);
+    log('info', 'hq', `${f.club}: ${why}; stopped following game ${f.game.id} and dropped its FirstPass stats`);
+    if (!roleGone) await hq.checkRole(f.club);
+  }
+
+  // Checks the role, then reads everything after what is held, page by page, and the line-up.
   function catchUp(f: Following): Promise<void> {
     if (f.catchingUp) return f.catchingUp;
     f.catchingUp = (async () => {
       const club = hq.club(f.club);
       if (!club) return;
+      // The role first, every time: once it's gone nothing more is read or kept, and what is held goes.
+      if (await hq.checkRole(f.club) === 'gone') { await drop(f, 'the Studio role is gone in HQ', true); return; }
+      if (following !== f) return;
       let pages = 0, got = 0;
       while (pages++ < MAX_PAGES && following === f) {
-        const live = obj(await rpc(club, 'studio_live', { p_game_id: f.game.id, p_after_seq: lastSeq(f) }));
+        const answer = await rpc(club, 'studio_live', { p_game_id: f.game.id, p_after_seq: lastSeq(f) });
+        if (refusal(answer)) { await drop(f, `HQ refused studio_live (${refusal(answer)})`); return; }
+        const live = obj(answer && 'json' in answer ? answer.json : null);
         if (!live.game && !live.events) return;
         const header = toGame(live.game);
         if (header) f.game = { ...header, playhqGameId: header.playhqGameId || f.game.playhqGameId };
@@ -162,9 +194,11 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
         add(f, list);
         if (live.more !== true) break;
       }
+      if (following !== f) return;
       const lineup = await rpc(club, 'studio_lineup', { p_game_id: f.game.id });
-      if (lineup !== null) {
-        f.lineup = arr(lineup).map(a => { const o = obj(a); return { profileId: str(o.profile_id), name: str(o.name), selection: str(o.selection), mayPublish: o.may_publish === true }; });
+      if (refusal(lineup)) { await drop(f, `HQ refused studio_lineup (${refusal(lineup)})`); return; }
+      if (lineup && 'json' in lineup) {
+        f.lineup = arr(lineup.json).map(a => { const o = obj(a); return { profileId: str(o.profile_id), name: str(o.name), selection: str(o.selection), mayPublish: o.may_publish === true }; });
       }
       f.lastCatchUp = now();
       if (following === f) keep(f);

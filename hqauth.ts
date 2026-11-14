@@ -15,7 +15,8 @@
 //      or a backup; the short-lived access token stays in memory. hq-signins.json (local folder) keeps only who signed
 //      in and when, to show.
 //
-// Every REFRESH_EVERY, and as Studio starts, each club's session is refreshed and the role checked again. Signing out,
+// Every REFRESH_EVERY, and as Studio starts, each club's session is refreshed and the role checked again; while a game
+// is followed, hqstats.ts also checks the role (checkRole()) on every catch-up, once a minute. Signing out,
 // or HQ refusing the refresh (the session ended) or the role being gone (removed, or the person stood down), deletes
 // that club's token and every stat kept from it (firstpass.ts forget()), and the graphics go back to PlayHQ's data for
 // that club. When HQ can't be reached the club shows as offline and is tried again later; nothing is deleted.
@@ -195,6 +196,26 @@ function create({ log: rawLog, clubs, tokens, store, metaFile, fetch = globalThi
     return role === 'yes';
   }
 
+  // Checks the Studio role again now, with the session Studio holds (refreshed first if it's about to run out): 'yes';
+  // 'gone' when HQ says the role is gone or turns the check down, or the session has ended, and the club is signed out
+  // (its token and stats deleted); or 'unreachable' when HQ can't be reached, which keeps everything, as a refresh does.
+  // hqstats.ts calls it on every catch-up and whenever HQ refuses one of its calls, so held stats go within a minute
+  // of the role going rather than at the next REFRESH_EVERY.
+  async function checkRole(code: string): Promise<'yes' | 'gone' | 'unreachable'> {
+    const club = byCode.get(code);
+    if (!club) return 'gone';
+    const access = await accessToken(code);
+    if (!access) return states.get(code) === 'offline' && await tokens.get(code) ? 'unreachable' : 'gone';
+    const { role, status } = await hasRole(club, access);
+    if (role === 'yes') return 'yes';
+    if (role === 'unreachable') { log('warn', 'hq', `${code}: HQ couldn't be reached to check the Studio role (${status || 'no answer'})`); return 'unreachable'; }
+    // A sign-out already under way (another check, or the refresh) has done this.
+    if (!sessions.has(code)) return 'gone';
+    if (role === 'no') await signOut(code, 'the Studio role was removed or paused in HQ');
+    else { await signOut(code, `HQ refused the Studio role check (${status})`); problems.set(code, refusedCheck(club, status)); }
+    return 'gone';
+  }
+
   // An access token for the club, refreshed first when it's about to run out; '' when not signed in.
   async function accessToken(code: string): Promise<string> {
     const s = sessions.get(code);
@@ -314,7 +335,7 @@ function create({ log: rawLog, clubs, tokens, store, metaFile, fetch = globalThi
   // Called with a club's code whenever it is signed out (hqstats.ts stops following its game).
   const onSignOut = (fn: (code: string) => void) => { signOutListeners.push(fn); };
 
-  return { list, signIn, signOut, refresh, accessToken, start, stop, onSignOut, club: (code: string) => byCode.get(code) || null };
+  return { list, signIn, signOut, refresh, accessToken, checkRole, start, stop, onSignOut, club: (code: string) => byCode.get(code) || null };
 }
 
 type HqAuth = ReturnType<typeof create>;
