@@ -36,7 +36,7 @@ const CATCH_UP_EVERY = 60 * 1000;
 const MAX_PAGES = 50; // 50,000 events: far more than any game, so a bad answer can't loop for ever
 
 interface HqEvent { id: string; gameId: string; stream: string; seq: number; type: string; payload: unknown; recordedAt: string }
-interface HqGame { id: string; playhqGameId: string; status: string; teamName: string; finishedAt: string | null }
+interface HqGame { id: string; playhqGameId: string; status: string; teamName: string; config: unknown; finishedAt: string | null }
 interface Athlete { profileId: string; name: string; selection: string; mayPublish: boolean }
 interface Snapshot { throughSeq: number; engineVersion: string; state: unknown; createdAt: string }
 interface Following {
@@ -57,7 +57,7 @@ const toEvent = (v: unknown): HqEvent | null => {
 const toGame = (v: unknown): HqGame | null => {
   const o = obj(v);
   if (!validGame(o.id)) return null;
-  return { id: str(o.id), playhqGameId: str(o.playhq_game_id).trim(), status: str(o.status), teamName: str(o.team_name), finishedAt: typeof o.finished_at === 'string' ? o.finished_at : null };
+  return { id: str(o.id), playhqGameId: str(o.playhq_game_id).trim(), status: str(o.status), teamName: str(o.team_name), config: o.config ?? null, finishedAt: typeof o.finished_at === 'string' ? o.finished_at : null };
 };
 
 // The real channel, through Supabase's Realtime client: a private broadcast channel, so HQ's row level security on

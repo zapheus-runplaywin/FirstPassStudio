@@ -27,7 +27,9 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.8.0",
+    "@firstpass/engine": "0.1.0",
     "@firstpass/playhq": "0.2.0",
+    "@firstpass/schema": "0.1.0",
     "@google/genai": "3.3.0",
     "@supabase/realtime-js": "2.119.0",
     "atem-connection": "3.10.3",

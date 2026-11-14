@@ -45,6 +45,7 @@ import * as storiesLib from './stories';
 import * as firstpassLib from './firstpass';
 import * as hqauthLib from './hqauth';
 import * as keychainLib from './keychain';
+import * as figuresLib from './firstpassfigures';
 import * as hqstatsLib from './hqstats';
 import { execFile } from 'node:child_process';
 import { create as createPlayhq } from './playhq';
@@ -1025,6 +1026,13 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     // Which game's FirstPass stats are followed, and how far: counts and ids only (hqstats.ts). Private like every
     // /api/firstpass/ route (access.firstpassRefusal()).
     if (url.pathname === '/api/firstpass/status' && method === 'GET') return send(res, 200, hqstats.status());
+    // The FirstPass figures the scoreboard game's graphics may show (firstpassfigures.ts): {} when there are none.
+    if (url.pathname === '/api/firstpass/onair' && method === 'GET') {
+      const b = theBoard.board();
+      const f = hqstats.current();
+      const figures = f && b.gameId && f.game.playhqGameId === String(b.gameId) ? figuresLib.onAir(f, { home: b.home.name, away: b.away.name }) : null;
+      return send(res, 200, figures || {});
+    }
     const hqClub = /^\/api\/firstpass\/clubs\/([A-Z0-9]{1,20})\/(signin|signout)$/.exec(url.pathname);
     if (hqClub && method === 'POST') {
       if (!hq.club(hqClub[1])) return send(res, 404, { error: `There's no club ${hqClub[1]} in Studio's FirstPass HQ list.` });

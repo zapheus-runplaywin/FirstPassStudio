@@ -21,6 +21,7 @@ interface Worm {
 interface GameStats {
   division?: string; round?: string; court?: string; competition?: string; periodType?: string; periods: number; superShots?: boolean; totalGoals: number;
   home: StatsTeam; away: StatsTeam; quarters: Quarter[]; worm: Worm;
+  firstPass?: FirstPassOnAir | null; // added here from /api/firstpass/onair, on this Mac only
   stats: {
     quartersWon: Both<number> & { of: number }; bestQuarter: Both<{ label: string; points: number } | null>; superShots: Both<number>;
     runs3: Both<number>; runs5: Both<number>; longestRun: Both<number>; shooting: Both<{ made: number; shots: number; percent: number | null } | null> | null;
@@ -214,11 +215,23 @@ async function loadTeamLists() {
 const word = (d: GameStats) => (d.periodType === 'halves' ? 'half' : 'quarter');
 const plural = (d: GameStats) => (d.periodType === 'halves' ? 'Halves' : 'Quarters');
 const periodOf = (w: Worm, t: number) => (Math.floor(t) + 1 > w.regularPeriods ? 'ET' : `${w.periodLabel}${Math.min(w.periods, Math.floor(t) + 1)}`);
+// A side's shooting: FirstPass's team totals for the FirstPass team when Studio has them, otherwise PlayHQ's.
+const shootingOf = (s: Side, d: GameStats) => {
+  const fp = d.firstPass;
+  if (fp && fp.side === s && fp.shooting.team.shots) { const t = fp.shooting.team; return { made: t.goals, shots: t.shots, percent: Math.round((t.goals / t.shots) * 100) }; }
+  return d.stats.shooting?.[s] ?? null;
+};
+// FirstPass's centre passes for a side: the FirstPass team is "us", the other side "them".
+const centrePass = (s: Side, d: GameStats) => { const fp = d.firstPass!; return fp.centrePass[s === fp.side ? 'us' : 'them']; };
+const cpPct = (s: Side, d: GameStats) => { const c = centrePass(s, d); return c.received ? Math.round((c.goals / c.received) * 100) : 0; };
 const STATS: Stat[] = [
-  { key: 'shooting', label: () => 'Shooting', value: (s, d) => d.stats.shooting?.[s]?.percent ?? 0,
-    text: (s, d) => { const x = d.stats.shooting?.[s]; return x && x.percent != null ? `${x.percent}%` : '–'; },
-    note: (s, d) => { const x = d.stats.shooting?.[s]; return x ? `${x.made}/${x.shots}` : ''; },
-    when: d => d.stats.shooting && (d.stats.shooting.home || d.stats.shooting.away) },
+  { key: 'shooting', label: () => 'Shooting', value: (s, d) => shootingOf(s, d)?.percent ?? 0,
+    text: (s, d) => { const x = shootingOf(s, d); return x && x.percent != null ? `${x.percent}%` : '–'; },
+    note: (s, d) => { const x = shootingOf(s, d); return x ? `${x.made}/${x.shots}` : ''; },
+    when: d => shootingOf('home', d) || shootingOf('away', d) },
+  { key: 'centrepass', label: () => 'Centre pass to goal', value: cpPct, text: (s, d) => (centrePass(s, d).received ? `${cpPct(s, d)}%` : '–'),
+    note: (s, d) => { const c = centrePass(s, d); return c.received ? `${c.goals}/${c.received}` : ''; },
+    when: d => d.firstPass && d.firstPass.centrePass.us.received + d.firstPass.centrePass.them.received > 0 },
   { key: 'won', label: d => `${plural(d)} won`, value: (s, d) => d.stats.quartersWon[s], when: d => d.stats.quartersWon.of > 0 },
   { key: 'best', label: d => `Best ${word(d)}`, value: (s, d) => (d.stats.bestQuarter[s] || {}).points ?? 0,
     text: (s, d) => { const b = d.stats.bestQuarter[s]; return b ? `${b.points}` : '–'; },
@@ -292,6 +305,12 @@ function statRows(d: GameStats) {
     row.append(cell('home'), mid, cell('away'));
     rows.appendChild(row);
   });
+  // The FirstPass team's named shooters (only athletes HQ allows; everyone else is in the team's shooting above).
+  const fp = d.firstPass;
+  if (fp && fp.shooting.players.length && !off('firstpass')) {
+    const who = fp.shooting.players.map(p => `${p.name} ${p.goals}/${p.shots}`).join('  ·  ');
+    rows.appendChild(el('div', 'gs__fp', `${fp.team} shooters: ${who}`));
+  }
   drawnRows = now;
   rows.hidden = !rows.children.length;
 }
@@ -308,7 +327,7 @@ async function loadStats() {
   let d: GameStats;
   try {
     const [stats, worm]: [Omit<GameStats, 'worm'>, Worm] = await Promise.all([fetch('/api/stats', { cache: 'no-store' }).then(r => r.json()), fetch('/api/worm', { cache: 'no-store' }).then(r => r.json())]);
-    d = { ...stats, worm };
+    d = { ...stats, worm, firstPass: await firstPassOnAir() };
   } catch (err) { console.warn('Game stats unavailable:', err instanceof Error ? err.message : err); return; }
   const time = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
   $('footer').textContent = [d.competition, refresh > 0 ? `Updated ${time}` : ''].filter(Boolean).join('  ·  ');

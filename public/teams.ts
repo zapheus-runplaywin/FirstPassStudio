@@ -34,3 +34,15 @@ function logoEl(team: { logo?: string | null, name?: string }, cls: string): HTM
   const initials = String(team.name || '?').split(/\s+/).map(w => w[0]).join('').slice(0, 3).toUpperCase();
   return el('div', cls + ' logo-fallback', initials);
 }
+
+// The FirstPass figures for the scoreboard's game (/api/firstpass/onair, firstpassfigures.ts), or null when there are
+// none: no club signed in, no FirstPass game, or this page isn't on the Mac (or a device paired over the secure link),
+// which FirstPass stats never leave. Only athletes HQ allows are named; everyone else is in the team's totals.
+async function firstPassOnAir(): Promise<FirstPassOnAir | null> {
+  try {
+    const res = await fetch('/api/firstpass/onair', { cache: 'no-store' });
+    if (!res.ok) return null;
+    const d: unknown = await res.json();
+    return d && typeof d === 'object' && ((d as FirstPassOnAir).side === 'home' || (d as FirstPassOnAir).side === 'away') ? d as FirstPassOnAir : null;
+  } catch { return null; }
+}

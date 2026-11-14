@@ -8,6 +8,7 @@ interface Quarter { n: number; label: string; played: boolean; home: number | nu
 interface GameStats {
   division?: string; court?: string; round?: string; competition?: string; periodType?: string; periods: number; superShots?: boolean;
   home: StatsTeam; away: StatsTeam; quarters: Quarter[]; totalGoals: number; gapInHistory?: boolean;
+  firstPass?: FirstPassOnAir | null; // added here from /api/firstpass/onair, on this Mac only
   stats: {
     quartersWon: Both<number> & { drawn: number; of: number }; bestQuarter: Both<{ n: number; label: string; points: number } | null>;
     superShots: Both<number>; runs3: Both<number>; runs5: Both<number>; longestRun: Both<number>;
@@ -31,6 +32,9 @@ if (title) $('title').textContent = title;
 //   value(side, d) the number the bar and the highlight use; text(side, d) what is shown (default the value).
 const word = (d: GameStats) => (d.periodType === 'halves' ? 'half' : 'quarter');
 const plural = (d: GameStats) => (d.periodType === 'halves' ? 'Halves' : 'Quarters');
+// FirstPass's centre passes for a side: the FirstPass team is "us", the other side "them".
+const centrePass = (s: Side, d: GameStats) => { const fp = d.firstPass!; return fp.centrePass[s === fp.side ? 'us' : 'them']; };
+const cpPct = (s: Side, d: GameStats) => { const c = centrePass(s, d); return c.received ? Math.round((c.goals / c.received) * 100) : 0; };
 const STATS: Stat[] = [
   { key: 'won', label: d => `${plural(d)} won`, value: (s, d) => d.stats.quartersWon[s], when: d => d.stats.quartersWon.of > 0 },
   { key: 'best', label: d => `Best ${word(d)}`, value: (s, d) => (d.stats.bestQuarter[s] || {}).points ?? 0,
@@ -39,6 +43,9 @@ const STATS: Stat[] = [
   { key: 'supershots', label: () => 'Super shots made', value: (s, d) => d.stats.superShots[s], when: d => d.superShots || d.stats.superShots.home || d.stats.superShots.away },
   { key: 'runs3', label: () => '3 goal runs', value: (s, d) => d.stats.runs3[s], when: d => d.totalGoals > 0 },
   { key: 'runs5', label: () => '5 goal runs', value: (s, d) => d.stats.runs5[s], when: d => d.totalGoals > 0 },
+  { key: 'centrepass', label: () => 'Centre pass to goal', value: cpPct, text: (s, d) => (centrePass(s, d).received ? `${cpPct(s, d)}%` : '–'),
+    note: (s, d) => { const c = centrePass(s, d); return c.received ? `${c.goals} of ${c.received}` : ''; },
+    when: d => d.firstPass && d.firstPass.centrePass.us.received + d.firstPass.centrePass.them.received > 0 },
   { key: 'longest', label: () => 'Longest run', value: (s, d) => d.stats.longestRun[s], note: (s, d) => (d.stats.longestRun[s] ? 'goals' : ''), when: d => d.totalGoals > 0 },
 ];
 
@@ -102,6 +109,7 @@ async function load() {
   let d: GameStats;
   try { d = await (await fetch('/api/stats', { cache: 'no-store' })).json(); }
   catch (err) { console.warn('Game stats unavailable:', err instanceof Error ? err.message : err); return; }
+  d.firstPass = await firstPassOnAir();
   $('division').textContent = [d.division, d.round && /^\d+$/.test(d.round) ? `Round ${d.round}` : d.round, d.court].filter(Boolean).join('  ·  ');
   for (const side of ['home', 'away'] as const) {
     const t = d[side];
