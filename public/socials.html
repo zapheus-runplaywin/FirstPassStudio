@@ -124,6 +124,29 @@
   .captions input[type=text] { width: min(100%, 520px); box-sizing: border-box; }
   .captions a { color: var(--fp-blue); }
   dialog.made .cap { white-space: pre-wrap; font-size: 13px; background: var(--fp-blue-soft); border-radius: 6px; padding: 6px 8px; margin: 6px 0 0; }
+  /* Post…: what goes where and when, each post with its caption to check. */
+  dialog.post { width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 16px; border: 0; border-radius: 12px; background: var(--fp-white); color: var(--fp-navy); }
+  dialog.post::backdrop { background: rgba(0,0,0,.6); }
+  dialog.post h2 { margin: 0 0 8px; font-size: 18px; }
+  dialog.post .row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 8px 0; font-size: 14px; }
+  dialog.post .one { border: 1px solid var(--fp-line); border-radius: 8px; padding: 8px 10px; margin: 8px 0; font-size: 13px; }
+  dialog.post .one b { display: block; margin-bottom: 4px; }
+  dialog.post textarea { width: 100%; box-sizing: border-box; min-height: 90px; font: inherit; padding: 6px 8px; border: 1px solid var(--fp-line-strong); border-radius: 8px; resize: vertical; }
+  dialog.post input[type=datetime-local] { font: inherit; padding: 3px 6px; }
+  dialog.post .warn, .posts .warn { color: var(--fp-warn-ink); background: var(--fp-warn-bg); padding: 4px 8px; border-radius: 6px; font-weight: 600; }
+  dialog.post .error { color: var(--fp-danger); }
+  dialog.post .actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; position: sticky; bottom: -16px; background: var(--fp-white); padding: 8px 0; }
+  dialog.post a, .posts a { color: var(--fp-blue); }
+  #postBtn[hidden] { display: none; }
+  /* The posts: each with where it's up to on Facebook and Instagram. */
+  .posts { display: grid; gap: 8px; margin-top: 10px; font-size: 13px; }
+  .posts .item { border: 1px solid var(--fp-line); border-radius: 8px; padding: 8px 10px; }
+  .posts .item .row { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin-top: 4px; }
+  .posts .chip { border-radius: 999px; padding: 1px 8px; font-weight: 700; font-size: 12px; background: var(--fp-blue-soft); }
+  .posts .chip.posted { background: #dcfce7; color: #166534; }
+  .posts .chip.failed, .posts .chip.missed { background: var(--fp-warn-bg); color: var(--fp-warn-ink); }
+  .posts .chip.cancelled { background: none; color: var(--fp-muted); }
+  .posts input[type=datetime-local] { font: inherit; padding: 2px 6px; }
   .bar #status { flex: 1; min-width: 200px; font-size: 14px; color: var(--fp-muted); }
   .bar #status.warn { color: var(--fp-warn-ink); background: var(--fp-warn-bg); padding: 4px 8px; border-radius: 6px; font-weight: 600; }
 </style>
@@ -164,6 +187,7 @@
       <label><input type="checkbox" id="pivt"> PIVT logo</label>
     </div>
     <details class="captions" id="captionsCard" hidden><summary><b>Captions</b> <span class="help" id="capSummary"></span></summary><div id="capBody"></div></details>
+    <details class="captions" id="postsCard" hidden><summary><b>Posts</b> <span class="help" id="postsSummary"></span></summary><div id="postsBody"></div></details>
     <details class="captions" id="postingCard" hidden><summary><b>Facebook and Instagram</b> <span class="help" id="postSummary"></span></summary><div id="postBody"></div></details>
     <div class="row colours" id="templates" role="group" aria-label="Template set"></div>
     <div class="row colours" id="colours" role="group" aria-label="Colour set"></div>
@@ -195,6 +219,7 @@
     <button class="alt" id="none" title="Untick every picture">Select none</button>
     <button id="save">Save pictures</button>
     <button class="alt" id="share">Share…</button>
+    <button class="alt" id="postBtn" hidden title="Post the ticked pictures with their captions to Facebook and Instagram, now or later">Post…</button>
     <label title="Also save the pictures as one .zip beside the folder; Share then sends the zip"><input type="checkbox" id="zip"> As a zip</label>
     <label title="Save the ticked pictures as one Instagram carousel, in the order shown: one size, up to 20, each marked 1/6, 2/6…"><input type="checkbox" id="carousel"> As a carousel</label>
     <span id="status"></span>
