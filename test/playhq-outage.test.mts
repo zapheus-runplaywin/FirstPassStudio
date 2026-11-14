@@ -59,10 +59,13 @@ test('the ladder keeps showing the last good one while PlayHQ is down, marked st
   assert.equal(back.stale, undefined, 'fresh again once PlayHQ answers');
 });
 
-test('a round\'s games (the fixtures, up next, the game list) keep the last ones read while PlayHQ is down', async () => {
+test('a round\'s games (the fixtures, up next, the game list) keep the last ones read while PlayHQ is down', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() });
   const c = client();
   const good = await c.getRoundGames('grade-div1-r3', 0);
   assert.equal(good.length, 2);
+  // Past the 5 minutes they're kept when no game is on (whatever the time of day the test runs).
+  t.mock.timers.tick(6 * 60 * 1000);
   playhq.world.fail.discoverFixtureByRound = 503;
   const kept = await c.getRoundGames('grade-div1-r3', 0);
   assert.deepEqual([...kept], good);

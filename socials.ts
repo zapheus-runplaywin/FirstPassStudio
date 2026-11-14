@@ -1053,7 +1053,9 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
   // body.toDevice: the pictures are for the device that asked (a phone), not this Mac: the app makes them in a temporary
   // folder (cleared after an hour) without opening Finder or the Share menu, and the answer lists links the device
   // fetches them from.
-  async function save(body: Body, port: number) {
+  // jpeg: for posting (posting.ts): the app makes them as JPEGs on white (Instagram takes nothing else), quietly in its
+  // temporary folder, and the answer is their paths on this Mac.
+  async function save(body: Body, port: number, jpeg = false) {
     const items = carouselOf(body);
     if (!appPort) throw Object.assign(new Error('Saving the pictures needs the FirstPass Studio app on the Mac. The previews here are what they will look like.'), { status: 501 });
     if (!items.length) throw Object.assign(new Error('Tick at least one picture to save.'), { status: 400 });
@@ -1075,16 +1077,17 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
       setTimeout(() => { if (waiting.delete(id)) resolve(savedOf({ error: 'The Mac app took too long to save the pictures.' })); }, EXPORT_TIMEOUT_MS).unref();
     });
     log('info', 'socials', `Saving ${pictures.length} pictures for ${date} (${set})${body.share ? ' to share' : ''}`);
-    const toDevice = body.toDevice === true;
+    const toDevice = jpeg || body.toDevice === true;
     // The pictures' captions (written by AI or typed on the tab), each under its picture's name: Captions.txt.
     const captions = arr(body.captions).slice(0, MAX_ITEMS).map(obj).map(c => ({ name: fileName(c.name), text: str(c.text).trim().slice(0, MAX_CAPTION_TEXT) }))
       .filter(c => c.text).map(c => `${c.name}\n\n${c.text}`).join('\n\n────────\n\n');
-    appPort.postMessage({ type: 'socialsSave', id, folder, carousel: body.carousel === true, pictures, captions, share: !toDevice && body.share === true, zip: body.zip === true, quiet: toDevice });
+    appPort.postMessage({ type: 'socialsSave', id, folder, carousel: body.carousel === true, pictures, captions: jpeg ? '' : captions, share: !toDevice && body.share === true, zip: !jpeg && body.zip === true, quiet: toDevice, format: jpeg ? 'jpeg' : 'png' });
     const m = await answer;
     if (m.error) { log('warn', 'socials', `Saving the pictures for ${date}: ${m.error}`); throw Object.assign(new Error(m.error), { status: 500 }); }
     const skipped = m.skipped;
     log('info', 'socials', toDevice ? `Made ${m.files.length} pictures for another device` : `Saved ${m.files.length} pictures in ${m.folder}${m.zip ? `, and ${m.zip}` : ''}`);
     for (const x of skipped) log('warn', 'socials', `Skipped ${x.name}: ${x.reason}`);
+    if (jpeg) return { folder: null, files: m.files, skipped, zip: null, shared: false };
     const saved = { folder: m.folder, files: m.files.map(f => path.basename(f)), skipped, zip: m.zip || null, shared: !!m.shared };
     if (!toDevice) return saved;
     const got = keepMade(m.files, m.zipFile || null);
@@ -1139,7 +1142,7 @@ function create({ log, competitions, savefile, photosDir, byDate, onStream, abou
     return false;
   }
 
-  return { route, list, night, pictureNight: (link: Query) => night(nightQuery(link)), settings, saveSettings, savePhoto, colourSets: () => allSets(settings().colourSets), SIZES, KINDS, KIND_NAMES, TEMPLATES };
+  return { route, list, night, picturesForPost: (body: Body, port: number) => save(body, port, true), pictureNight: (link: Query) => night(nightQuery(link)), settings, saveSettings, savePhoto, colourSets: () => allSets(settings().colourSets), SIZES, KINDS, KIND_NAMES, TEMPLATES };
 }
 
 export { create, SIZES, KINDS, KIND_NAMES };
