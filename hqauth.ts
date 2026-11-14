@@ -131,12 +131,18 @@ function create({ log: rawLog, clubs, tokens, store, metaFile, fetch = globalThi
     return true;
   }
 
-  // Whether the signed-in person holds HQ's Studio role (and isn't stood down): true, false, or null when HQ couldn't say.
-  async function hasRole(club: Club, access: string): Promise<boolean | null> {
+  // Whether the signed-in person holds HQ's Studio role (and isn't stood down): 'yes' or 'no' when HQ answered,
+  // 'refused' when HQ turned the check itself down (an error, such as a project without has_role or the wrong
+  // project), and 'unreachable' when HQ couldn't be reached. Only 'yes' keeps anything.
+  type Role = 'yes' | 'no' | 'refused' | 'unreachable';
+  async function hasRole(club: Club, access: string): Promise<{ role: Role; status: number }> {
     const r = await call(club, '/rest/v1/rpc/has_role', { p_role: 'studio' }, access);
-    if (r.ok) return r.json === true;
-    return r.refused ? false : null;
+    if (r.ok) return { role: r.json === true ? 'yes' : 'no', status: r.status };
+    return { role: r.refused ? 'refused' : 'unreachable', status: r.status };
   }
+  // What the card says when HQ turned the role check down, rather than answering it.
+  const refusedCheck = (club: Club, status: number) =>
+    `${club.name}'s FirstPass HQ turned down Studio's check for the Studio role (it answered ${status}), so Studio can't tell whether this account has it. Check that ${club.name}'s HQ is up to date and that Studio's clubs list points at the right project, then sign in again.`;
 
   // Signs a club out: the token and every stat kept from it go. why is said in the log.
   async function signOut(code: string, why = 'signed out'): Promise<boolean> {
@@ -180,11 +186,13 @@ function create({ log: rawLog, clubs, tokens, store, metaFile, fetch = globalThi
       return false;
     }
     if (!await keep(club, r.json)) { states.set(code, 'offline'); return false; }
-    const role = await hasRole(club, sessions.get(code)?.access || '');
-    if (role === false) { await signOut(code, 'the Studio role was removed or paused in HQ'); return false; }
-    states.set(code, role === null ? 'offline' : 'signed-in');
-    if (role !== null) problems.delete(code);
-    return role === true;
+    const { role, status } = await hasRole(club, sessions.get(code)?.access || '');
+    if (role === 'no') { await signOut(code, 'the Studio role was removed or paused in HQ'); return false; }
+    // HQ turning the check down signs out too: nothing is kept that HQ hasn't said Studio may read.
+    if (role === 'refused') { await signOut(code, `HQ refused the Studio role check (${status})`); problems.set(code, refusedCheck(club, status)); return false; }
+    states.set(code, role === 'unreachable' ? 'offline' : 'signed-in');
+    if (role !== 'unreachable') problems.delete(code);
+    return role === 'yes';
   }
 
   // An access token for the club, refreshed first when it's about to run out; '' when not signed in.
@@ -260,14 +268,15 @@ function create({ log: rawLog, clubs, tokens, store, metaFile, fetch = globalThi
     }
     const got = obj(r.json);
     const email = str(obj(got.user).email);
-    const role = await hasRole(club, str(got.access_token));
-    if (role !== true) {
+    const { role, status } = await hasRole(club, str(got.access_token));
+    if (role !== 'yes') {
       call(club, '/auth/v1/logout', {}, str(got.access_token)).catch(() => {});
       states.set(code, 'signed-out');
-      problems.set(code, role === false
+      problems.set(code, role === 'no'
         ? `${email || 'This account'} doesn't have the Studio role in ${club.name}'s FirstPass HQ. Ask a club admin to add it, then sign in again.`
-        : 'FirstPass HQ couldn\'t be reached to check the Studio role. Try again.');
-      log('warn', 'hq', `${code}: signed in without the Studio role${role === null ? ' (or HQ couldn\'t say)' : ''}, nothing kept`);
+        : role === 'refused' ? refusedCheck(club, status)
+          : 'FirstPass HQ couldn\'t be reached to check the Studio role. Try again.');
+      log('warn', 'hq', `${code}: signed in, but ${role === 'no' ? 'without the Studio role' : role === 'refused' ? `HQ refused the Studio role check (${status})` : 'HQ couldn\'t be reached to check the Studio role'}; nothing kept`);
       return false;
     }
     if (!await keep(club, got)) { states.set(code, 'signed-out'); return false; }

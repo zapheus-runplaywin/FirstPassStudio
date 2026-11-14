@@ -33,7 +33,7 @@ const jwt = (n: number) => `eyJhbGciOiJIUzI1NiJ9.eyJuIjo${n}fQ.c2lnbmF0dXJl${n}`
 
 // The club's Supabase project, as far as signing in goes. hq.role says whether the account has the Studio role.
 async function startHq() {
-  const hq = { role: true, email: 'streamer@example.com', challenge: '', refresh: '', access: '', n: 0, calls: [] as string[], refuseRefresh: false, error: '', url: '', close: () => Promise.resolve() };
+  const hq = { role: true, roleStatus: 0, email: 'streamer@example.com', challenge: '', refresh: '', access: '', n: 0, calls: [] as string[], refuseRefresh: false, error: '', url: '', close: () => Promise.resolve() };
   const issue = () => {
     hq.n++;
     hq.access = jwt(hq.n);
@@ -68,6 +68,7 @@ async function startHq() {
     if (url.pathname === '/rest/v1/rpc/has_role') {
       assert.equal(json.p_role, 'studio');
       if (req.headers.authorization !== `Bearer ${hq.access}`) return send(401, { message: 'JWT expired' });
+      if (hq.roleStatus) return send(hq.roleStatus, { message: 'Could not find the function public.has_role(p_role)' });
       return send(200, hq.role);
     }
     if (url.pathname === '/auth/v1/logout') return send(204);
@@ -163,6 +164,27 @@ test('an account without the Studio role keeps nothing, and the card says why', 
   assert.match(club.problem, /streamer@example\.com doesn't have the Studio role in West Coast Thunder's FirstPass HQ/);
   assert.equal(await tokens.get('THUNDER'), '');
   assert.ok(await until(() => hq.calls.includes('POST /auth/v1/logout')), 'the session HQ made is ended');
+});
+
+test('HQ turning the role check down says so, rather than that the account lacks the role, and keeps nothing', async t => {
+  const { hq, dir, store, tokens, auth, browse } = await setup(t);
+  hq.roleStatus = 404;
+  await browse(opened(await auth.signIn('THUNDER')).url);
+  let club = auth.list()[0];
+  assert.equal(club.state, 'signed-out');
+  assert.match(club.problem, /West Coast Thunder's FirstPass HQ turned down Studio's check for the Studio role \(it answered 404\)/);
+  assert.doesNotMatch(club.problem, /doesn't have the Studio role/);
+  assert.equal(await tokens.get('THUNDER'), '');
+  // Signed in, then HQ starts turning the check down at a refresh: signed out, stats deleted, and the card says why.
+  hq.roleStatus = 0;
+  await browse(opened(await auth.signIn('THUNDER')).url);
+  store.save('THUNDER', GAME, {});
+  hq.roleStatus = 400;
+  assert.equal(await auth.refresh('THUNDER'), false);
+  club = auth.list()[0];
+  assert.equal(club.state, 'signed-out');
+  assert.match(club.problem, /turned down Studio's check for the Studio role \(it answered 400\)/);
+  assert.equal(fs.existsSync(path.join(dir, 'firstpass', 'THUNDER')), false);
 });
 
 test('a sign-in HQ turns down, or a code that isn\'t this Studio\'s, keeps nothing', async t => {
