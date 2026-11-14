@@ -9,7 +9,18 @@ const HALF_BREAKS: Record<number, string> = { 1: 'Half time', 2: 'Full time', 5:
 let supers = true; // the Super column, when the competition plays super shots
 const pct = (g: number, a: number | null | undefined) => (a ? `${Math.round((g / a) * 100)}%` : '–');
 
-function teamBlock(section: HTMLElement, team: SheetSide) {
+// A side's shooting from FirstPass instead of PlayHQ: the named shooters (only athletes HQ allows) and the team's
+// totals, which count everyone. FirstPass doesn't tell super shots apart, so that column shows a dash.
+type ShootingSide = SheetSide & { firstPass?: boolean };
+function fromFirstPass(team: SheetSide, fp: FirstPassOnAir): ShootingSide {
+  return {
+    ...team, firstPass: true,
+    players: fp.shooting.players.map(p => ({ name: p.name, number: null, position: p.positions.join('/'), shooting: { goals: p.goals, superGoals: 0, shots: p.shots, points: p.goals } })),
+    totals: { goals: fp.shooting.team.goals, superGoals: 0, shots: fp.shooting.team.shots },
+  };
+}
+
+function teamBlock(section: HTMLElement, team: ShootingSide) {
   section.replaceChildren();
   const head = el('div', 'shooting__team-head');
   head.appendChild(logoEl(team, 'shooting__logo'));
@@ -37,7 +48,7 @@ function teamBlock(section: HTMLElement, team: SheetSide) {
     nameCell.appendChild(document.createTextNode(p.name));
     r.appendChild(nameCell);
     r.appendChild(el('td', 'n', s.goals || 0));
-    if (supers) r.appendChild(el('td', 'n', s.superGoals || 0));
+    if (supers) r.appendChild(el('td', 'n', team.firstPass ? '–' : s.superGoals || 0));
     r.appendChild(el('td', 'n', s.shots ?? '–'));
     r.appendChild(el('td', 'n', pct((s.goals || 0) + (s.superGoals || 0), s.shots)));
   });
@@ -46,23 +57,27 @@ function teamBlock(section: HTMLElement, team: SheetSide) {
   const f = t.createTFoot().insertRow();
   f.appendChild(el('td', 'who', 'Team'));
   f.appendChild(el('td', 'n', tot.goals ?? 0));
-  if (supers) f.appendChild(el('td', 'n', tot.superGoals ?? 0));
+  if (supers) f.appendChild(el('td', 'n', team.firstPass ? '–' : tot.superGoals ?? 0));
   f.appendChild(el('td', 'n', tot.shots ?? 0));
   f.appendChild(el('td', 'n', pct((tot.goals || 0) + (tot.superGoals || 0), tot.shots)));
   section.appendChild(t);
-  if (!team.players.length) section.appendChild(el('p', 'teamlist__empty', 'Stats not available from PlayHQ yet.'));
+  if (!team.players.length && !team.firstPass) section.appendChild(el('p', 'teamlist__empty', 'Stats not available from PlayHQ yet.'));
 }
 
-loadTeams<TeamSheets>(data => {
+loadTeams<TeamSheets>(async data => {
+  // The FirstPass team's shooting comes from FirstPass when Studio has it (on this Mac only); the other side stays PlayHQ's.
+  const fp = await firstPassOnAir();
+  const sides: Record<'home' | 'away', ShootingSide> = { home: data.home, away: data.away };
+  if (fp) sides[fp.side] = fromFirstPass(data[fp.side], fp);
   const rules = data.rules || {};
   supers = rules.superShots !== false || !!(data.home.totals && data.home.totals.superGoals) || !!(data.away.totals && data.away.totals.superGoals);
   const breaks = rules.periodType === 'halves' ? HALF_BREAKS : BREAKS;
   $('title').textContent = params.get('title') || `Shooting stats  ·  ${breaks[data.period ?? 0] || ''}`.replace(/\s·\s$/, '');
   $('homeName').textContent = data.home.name;
   $('awayName').textContent = data.away.name;
-  // The big score is the scoreboard's score; the tables are PlayHQ's shooting stats.
-  teamBlock($('home'), data.home);
-  teamBlock($('away'), data.away);
+  // The big score is the scoreboard's score; the tables are PlayHQ's shooting stats, or FirstPass's for its team.
+  teamBlock($('home'), sides.home);
+  teamBlock($('away'), sides.away);
   $('homeGoals').textContent = data.score ? String(data.score.home) : '';
   $('awayGoals').textContent = data.score ? String(data.score.away) : '';
   $('footer').textContent = [data.competition, data.division, data.court].filter(Boolean).join('  ·  ');

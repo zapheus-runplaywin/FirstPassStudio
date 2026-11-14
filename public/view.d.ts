@@ -166,6 +166,13 @@ interface SwitcherState {
   model: string; inputs: SwInput[]; program: number | null; preview: number | null; inTransition: boolean; usk: boolean[]; dsk: boolean[]; ftb: boolean;
 }
 
+// What /api/firstpass/onair answers (firstpassfigures.ts OnAir): the FirstPass team's side, its named shooters and totals.
+interface FirstPassOnAir {
+  side: 'home' | 'away'; team: string; period: number; score: { us: number; them: number };
+  shooting: { players: { name: string; positions: string[]; goals: number; shots: number }[]; team: { goals: number; shots: number } };
+  centrePass: { us: { received: number; goals: number }; them: { received: number; goals: number } };
+  gains: number; turnovers: number; named: number; teamTotalsOnly: number;
+}
 // What /api/teams answers (teams.ts getTeamSheets): the board's game with each side's line up, for loadTeams().
 interface SheetPlayer {
   name: string; number: string | number | null; position: string; captain?: boolean; viceCaptain?: boolean; fromSquad?: boolean; photo?: string | null; silhouette?: string;

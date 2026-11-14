@@ -122,7 +122,7 @@ const PAGE_OPTIONS = ((): Record<string, PageOption[]> => {
     'gamestats.html': [
       title('Game stats'),
       show('quarters', 'Score by quarter'), show('won', 'Quarters won'), show('best', 'Best quarter'), show('supershots', 'Super shots made'),
-      show('runs3', '3 goal runs'), show('runs5', '5 goal runs'), show('longest', 'Longest run'),
+      show('runs3', '3 goal runs'), show('runs5', '5 goal runs'), show('centrepass', 'Centre pass to goal (FirstPass stats)'), show('longest', 'Longest run'),
       spot('next sponsor in rotation, Major and up, in the footer'),
     ],
     'commentatorstats.html': [
@@ -131,7 +131,7 @@ const PAGE_OPTIONS = ((): Record<string, PageOption[]> => {
         help: 'Updates the stats in place, and straight away when the score changes; they come from Studio, so this asks PlayHQ for nothing. Unticked, they load once each time the page comes on. The team lists load at the start and at each quarter break; the clock, moments, last 10 goals and run always follow the game live.' },
       title('Game stats'),
       show('quarters', 'Score by quarter'), show('shooting', 'Shooting %'), show('won', 'Quarters won'), show('best', 'Best quarter'), show('supershots', 'Super shots made'),
-      show('runs3', '3 goal runs'), show('runs5', '5 goal runs'), show('longest', 'Longest run'), show('leads', 'Biggest lead and lead changes'), show('worm', 'Score worm'),
+      show('runs3', '3 goal runs'), show('runs5', '5 goal runs'), show('centrepass', 'Centre pass to goal (FirstPass stats)'), show('firstpass', 'FirstPass named shooters'), show('longest', 'Longest run'), show('leads', 'Biggest lead and lead changes'), show('worm', 'Score worm'),
       show('games', 'Games played this season (team lists)'), show('drought', 'Time since each team\'s last goal'), show('h2h', 'Head to head this season'), show('next', 'Up next on this court'), show('moments', 'Moments list'), show('goals', 'Last 10 goals'), show('run', 'Current run'), show('mic', 'Who is on the mic (Production Planner)'),
       { key: 'bg', label: 'Background', type: 'select', choices: [['', 'Solid (for a monitor)'], ['0', 'See-through']] },
     ],
