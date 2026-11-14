@@ -123,6 +123,17 @@
   .captions input[type=text], .captions input[type=password], .captions select { font: inherit; padding: 4px 8px; border: 1px solid var(--fp-line-strong); border-radius: 8px; }
   .captions input[type=text] { width: min(100%, 520px); box-sizing: border-box; }
   .captions a { color: var(--fp-blue); }
+  /* The prompt the AI gets: About us, the writing guide and the styles to change; the rules to read. */
+  .captions .prompt { margin-top: 12px; border-top: 1px solid var(--fp-line); padding-top: 10px; }
+  .captions .prompt summary { font-weight: 700; color: var(--fp-navy); }
+  .captions .prompt label { display: block; font-weight: 700; margin: 10px 0 4px; font-size: 14px; }
+  .captions .prompt textarea, .caption .asked textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--fp-line-strong); border-radius: 8px; resize: vertical; }
+  .captions .prompt .styles-list { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 10px; align-items: start; font-size: 13px; }
+  .captions .prompt .styles-list b { padding-top: 6px; }
+  .captions .rules, .caption .asked pre { white-space: pre-wrap; font: inherit; font-size: 12.5px; background: var(--fp-surface-2, #f1f5f9); color: var(--fp-muted); border-radius: 8px; padding: 8px 10px; margin: 4px 0 0; }
+  .caption .asked { margin-top: 6px; }
+  .caption .asked summary { font-weight: 400; color: var(--fp-blue); }
+  .caption .asked textarea { min-height: 220px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
   dialog.made .cap { white-space: pre-wrap; font-size: 13px; background: var(--fp-blue-soft); border-radius: 6px; padding: 6px 8px; margin: 6px 0 0; }
   /* Post…: what goes where and when, each post with its caption to check. */
   dialog.post { width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 16px; border: 0; border-radius: 12px; background: var(--fp-white); color: var(--fp-navy); }

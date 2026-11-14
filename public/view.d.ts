@@ -215,7 +215,7 @@ interface PictureSet { id?: string; name: string; kinds: string[] }
 interface SocialsSettings {
   mark: boolean; pivt: boolean; sponsor: Record<string, boolean>; colours: string; colourSets: ColourSet[]; template: string;
   favourites: string[]; favouritesOnly: boolean; movers: boolean; pictureSets: (PictureSet & { id: string })[]; pictureSet: string;
-  hashtags: string;
+  hashtags: string; captionAbout: string; captionWriting: string; captionStyles: Record<string, string>;
 }
 // A kept story's worm (board.ts getWorm): the margin over game time in segments, and each team's biggest lead.
 interface SocialWorm {

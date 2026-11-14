@@ -329,6 +329,13 @@ const captions = createCaptions({
   log, night: q => socials.pictureNight(q),
   kindOf: kind => socials.KIND_NAMES.find(k => k.kind === kind) || null,
   hashtags: () => socials.settings().hashtags,
+  // The competition in a caption's words, from Competitions setup.
+  competition: () => (competitions.activeId() ? {
+    name: competitionName(), organisation: CONFIG.organisationName || '', venue: CONFIG.venueName || '', season: CONFIG.seasonName || '',
+    periods: CONFIG.periodType === 'halves' ? `two halves of ${Number(CONFIG.quarterMinutes) || 10} minutes` : `four quarters of ${Number(CONFIG.quarterMinutes) || 10} minutes`,
+    superShots: CONFIG.superShots !== false || Object.values(CONFIG.divisionSuperShots || {}).some(Boolean),
+  } : null),
+  prompting: () => { const s = socials.settings(); return { about: s.captionAbout, writing: s.captionWriting, styles: s.captionStyles }; },
 });
 // Posting the Socials pictures to the competition's Facebook Page and Instagram (posting.ts), now or later, with the
 // token kept on this Mac; the Mac app makes the pictures as JPEGs.

@@ -19,12 +19,16 @@ type Size = 'square' | 'portrait' | 'story';
 interface CaptionPrice { in: number; out: number }
 interface CaptionProvider { id: string; name: string; maker: string; key: string; model: string; price: CaptionPrice | null; billing: string; keys: string;
   month: { usd: number; captions: number; unpriced: number } }
-interface CaptionsStatus { error?: string; provider: string; providers: CaptionProvider[]; styles: string[]; pricesFrom: string; warning: string }
+// The prompt every caption gets (captions.ts): the rules (never changed), Studio's writing guide and styles, and how long
+// the club's own may be.
+interface CaptionPrompt { intro: string; rules: string; writing: string; styles: Record<string, string>; max: { writing: number; about: number; style: number } }
+interface CaptionsStatus { error?: string; provider: string; providers: CaptionProvider[]; styles: string[]; pricesFrom: string; warning: string; prompt: CaptionPrompt }
 interface CaptionModel { id: string; name: string; price: CaptionPrice | null }
-interface Written { error?: string; text: string; provider: string; model: string; cost: { usd: number | null; tokensIn: number; tokensOut: number }; warning: string }
+interface Written { error?: string; text: string; provider: string; model: string; prompt: { system: string; ask: string }; cost: { usd: number | null; tokensIn: number; tokensOut: number }; warning: string }
 // A picture's caption, by its key: the text (written or typed), the style ('' for the one last picked) and length asked
-// for, and the line under it.
-interface Caption { text: string; undo: string | null; style: string; short: boolean; open: boolean; busy: boolean; note: string; noteKind: '' | 'warn' | 'error' }
+// for, the line under it, and the prompt it was written from (Show prompt), as sent and as changed there (ask).
+interface Caption { text: string; undo: string | null; style: string; short: boolean; open: boolean; busy: boolean; note: string; noteKind: '' | 'warn' | 'error';
+  prompt: { system: string; ask: string } | null; ask: string; asked: boolean }
 // The dialog for the bigger view remembers the preview it came from.
 type BigView = HTMLDialogElement & { from?: Element };
 
@@ -902,7 +906,7 @@ const STYLE_KEY = 'socials.captionStyle';
 const captions: Record<string, Caption> = {};
 // The style last picked is where every picture not given one of its own starts (style '').
 let lastStyle = (() => { try { return localStorage.getItem(STYLE_KEY) || 'neutral'; } catch { return 'neutral'; } })();
-const captionOf = (key: string) => (captions[key] = captions[key] || { text: '', undo: null, style: '', short: false, open: false, busy: false, note: '', noteKind: '' });
+const captionOf = (key: string) => (captions[key] = captions[key] || { text: '', undo: null, style: '', short: false, open: false, busy: false, note: '', noteKind: '', prompt: null, ask: '', asked: false });
 const PROVIDER_NAMES: Record<string, string> = { anthropic: 'Claude', openai: 'ChatGPT', google: 'Gemini' };
 const usd = (n: number) => `US$${n < 0.01 && n > 0 ? n.toFixed(4) : n.toFixed(2)}`;
 async function copyText(text: string, button: HTMLButtonElement) {
@@ -959,6 +963,32 @@ function captionBox(p: Picture) {
   const note = el('p', `note ${c.noteKind}`, c.note);
   note.hidden = !c.note;
   d.append(sum, styles, row, box, note);
+  if (c.prompt) d.append(askedBox(p, c, c.prompt));
+  return d;
+}
+// Show prompt: what the AI was sent for this caption. The rules and writing guide to read (changed on the Captions card),
+// and the request to change and Rewrite this caption from, without changing anything for the others.
+function askedBox(p: Picture, c: Caption, prompt: { system: string; ask: string }) {
+  const d = el('details', 'asked');
+  d.open = c.asked;
+  d.ontoggle = () => { c.asked = d.open; };
+  d.append(el('summary', '', 'Show prompt'));
+  const sys = el('details');
+  sys.append(el('summary', '', 'Rules and writing guide (change the writing guide on the Captions card)'), el('pre', '', prompt.system));
+  const ask = el('textarea');
+  ask.value = c.ask || prompt.ask; ask.readOnly = c.busy;
+  ask.setAttribute('aria-label', `${p.name} prompt`);
+  ask.oninput = () => { c.ask = ask.value; };
+  const again = el('button', 'small', 'Rewrite');
+  again.type = 'button'; again.disabled = c.busy;
+  again.title = 'Write this caption again from the prompt as changed here. The rules still apply.';
+  again.onclick = () => writeCaption(p, ask.value);
+  const reset = el('button', 'alt small', 'Back to as sent');
+  reset.type = 'button';
+  reset.onclick = () => { c.ask = ''; ask.value = prompt.ask; };
+  const row = el('div', 'row');
+  row.append(again, reset);
+  d.append(sys, el('p', 'help', 'What was asked for this picture. Change it and press Rewrite to try again.'), ask, row);
   return d;
 }
 // Just the caption of a picture drawn again (its previews stay as they are).
@@ -968,7 +998,7 @@ function redrawCaption(key: string) {
   const old = card?.querySelector('.caption');
   if (old && p) old.replaceWith(captionBox(p));
 }
-async function writeCaption(p: Picture) {
+async function writeCaption(p: Picture, ask = '') {
   const c = captionOf(p.key);
   if (c.busy) return;
   c.busy = true; c.note = 'Writing the caption…'; c.noteKind = '';
@@ -976,11 +1006,13 @@ async function writeCaption(p: Picture) {
   try {
     // The picture's own link, so the caption is written from what it shows.
     const query = Object.fromEntries(new URL(link(p, sizes()[0] || 'square'), location.href).searchParams);
-    const res = await fetch('/api/socials/caption', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: p.kind, query, style: c.style || lastStyle, short: c.short }) });
+    const res = await fetch('/api/socials/caption', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: p.kind, query, style: c.style || lastStyle, short: c.short, ...(ask ? { ask } : {}) }) });
     const d = await res.json() as Written;
     if (d.error) throw new Error(d.error);
     c.undo = c.text || null;
     c.text = d.text;
+    c.prompt = d.prompt || null;
+    if (!ask) c.ask = '';
     const tokens = `${d.cost.tokensIn} tokens in, ${d.cost.tokensOut} out`;
     c.note = `${PROVIDER_NAMES[d.provider] || d.provider} ${d.model}: ${d.cost.usd === null ? `cost unknown (${tokens})` : `about ${usd(d.cost.usd)} (${tokens})`}.${d.warning ? ` ${d.warning}` : ''}`;
     c.noteKind = d.warning ? 'warn' : '';
@@ -1086,8 +1118,52 @@ function drawCaptions() {
   tags.setAttribute('aria-label', 'Hashtags and handles');
   tags.onchange = () => saveSettings({ hashtags: tags.value });
   field('Hashtags', tags);
-  $('capBody').replaceChildren(...(capError ? [el('p', 'error', capError)] : []), grid,
+  $('capBody').replaceChildren(...(capError ? [el('p', 'error', capError)] : []), grid, promptBox(s.prompt, i.settings),
     el('p', 'help', `Each caption is written by ${p.name} from the facts its picture shows, never negative stats, and paid for with your own key. Prices are US dollars from LiteLLM's public price list, checked weekly; your provider's bill is the real figure.`));
+}
+
+// The prompt on the Captions card: About us and the writing guide and styles to change (kept with the competition), and the
+// rules every caption keeps to, to read. Reset puts Studio's writing guide and styles back.
+let promptOpen = false;
+function promptBox(pr: CaptionPrompt, set: SocialsSettings) {
+  const d = el('details', 'prompt');
+  d.open = promptOpen;
+  d.ontoggle = () => { promptOpen = d.open; };
+  d.append(el('summary', '', 'Prompt: what the AI is told'));
+  const area = (label: string, value: string, max: number, rows: number, save: (v: string) => void, placeholder = '') => {
+    const id = `cap-${label.replace(/\W+/g, '-').toLowerCase()}`;
+    const l = el('label', '', label); l.htmlFor = id;
+    const t = el('textarea'); t.id = id; t.value = value; t.maxLength = max; t.rows = rows; t.placeholder = placeholder;
+    t.onchange = () => save(t.value);
+    return [l, t] as const;
+  };
+  const about = area('About us', set.captionAbout || '', pr.max.about, 4, v => saveSettings({ captionAbout: v }),
+    'Who you are and who reads your posts. For example: Men\'s and mixed netball in Perth, Saturday afternoons. Our followers are players, families and friends. We call teams by their nicknames and keep it friendly.');
+  // Reset is offered once the writing guide or a style differs from Studio's.
+  const reset = el('button', 'alt small', 'Reset to Studio\'s');
+  const changed = (x: SocialsSettings) => !!x.captionWriting || Object.keys(x.captionStyles || {}).length > 0;
+  const saveWords = async (change: Partial<SocialsSettings>) => { await saveSettings(change); if (info) reset.disabled = !changed(info.settings); };
+  const writing = area('Writing guide', set.captionWriting || pr.writing, pr.max.writing, 8, v => saveWords({ captionWriting: v }));
+  const list = el('div', 'styles-list');
+  const styleBoxes: HTMLTextAreaElement[] = [];
+  for (const [id, name] of STYLES) {
+    const t = el('textarea'); t.value = set.captionStyles?.[id] || pr.styles[id] || ''; t.maxLength = pr.max.style; t.rows = 2;
+    t.setAttribute('aria-label', `${name} style`);
+    t.onchange = () => saveWords({ captionStyles: Object.fromEntries(STYLES.map(([k], n) => [k, styleBoxes[n].value])) });
+    styleBoxes.push(t);
+    list.append(el('b', '', name), t);
+  }
+  reset.type = 'button';
+  reset.title = 'Put back Studio\'s writing guide and styles (About us stays)';
+  reset.onclick = async () => { await saveSettings({ captionWriting: '', captionStyles: {} }); drawCaptions(); };
+  reset.disabled = !changed(set);
+  const styleLabel = el('label', '', 'Styles');
+  d.append(el('p', 'help', 'Every caption is asked for with the competition from Competitions setup, About us, what the picture is for, the style, a key to the facts, and the picture\'s facts. Change About us, the writing guide and the styles here; they\'re kept with this competition. Show prompt under a caption shows exactly what was sent.'),
+    ...about, ...writing, styleLabel, list, el('div', 'row', ''), el('label', '', 'Rules, always'), el('pre', 'rules', pr.rules),
+    el('p', 'help', 'These keep every caption to the facts and away from negative stats, and can\'t be changed. If the writing guide or About us asks for something against them, the rules win.'));
+  const row = d.querySelector<HTMLElement>('div.row')!;
+  row.append(reset);
+  return d;
 }
 
 // The Facebook and Instagram card, on this Mac only: the competition's Page and the Instagram account linked to it,
