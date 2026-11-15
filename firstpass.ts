@@ -11,7 +11,7 @@
 //     story or anything else read openly or shared with the other Studio Macs.
 //   - How long: a game's stats are deleted KEEP_DAYS after it finished (or was last saved, while it has no finish),
 //     since HQ keeps the record, and all of a club's at once when the club is signed out or its sign-in stops working
-//     (forget()).
+//     (forget()), and one game's at once when HQ stops letting Studio read that game (forgetGame()).
 //   - The log: nothing from HQ is logged but counts and ids. scrub() takes tokens, sign-in codes and secrets out of a
 //     line before it is written, and privateLog() wraps the debug log so everything logged through it is scrubbed.
 //
@@ -109,6 +109,18 @@ function create({ log: rawLog, dir, now = () => Date.now() }: { log: Log; dir: s
     return n;
   }
 
+  // Deletes one game's stats: HQ refused Studio that game while the club is still signed in (it is no longer a live
+  // or finished PlayHQ game). true when there was something to delete.
+  function forgetGame(club: string, gameId: string, why = 'HQ refused the game'): boolean {
+    if (!validClub(club) || !validGame(gameId) || !fs.existsSync(gameFile(club, gameId))) return false;
+    try { fs.rmSync(gameFile(club, gameId), { force: true }); } catch (err) {
+      log('error', 'firstpass', `Couldn't delete ${club} game ${gameId}: ${errorMessage(err)}`);
+      return false;
+    }
+    log('info', 'firstpass', `Deleted ${club} game ${gameId}'s FirstPass stats (${why})`);
+    return true;
+  }
+
   // Deletes every game finished (or, unfinished, last saved) more than KEEP_DAYS ago. Returns how many went.
   function sweep(): number {
     const before = now() - KEEP_DAYS * DAY;
@@ -135,7 +147,7 @@ function create({ log: rawLog, dir, now = () => Date.now() }: { log: Log; dir: s
   }
   function stop() { if (timer) clearInterval(timer); timer = undefined; }
 
-  return { save, read, games, clubs, forget, sweep, start, stop, log };
+  return { save, read, games, clubs, forget, forgetGame, sweep, start, stop, log };
 }
 
 type Store = ReturnType<typeof create>;

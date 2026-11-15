@@ -20,6 +20,7 @@ process.env.STUDIO_KEYCHAIN = '0';
 const hqauth: typeof import('../out/hqauth.js') = require('../out/hqauth.js');
 const keychain: typeof import('../out/keychain.js') = require('../out/keychain.js');
 const firstpass: typeof import('../out/firstpass.js') = require('../out/firstpass.js');
+const hqstats: typeof import('../out/hqstats.js') = require('../out/hqstats.js');
 const access: typeof import('../out/access.js') = require('../out/access.js');
 const location: typeof import('../out/datalocation.js') = require('../out/datalocation.js');
 const { startStudio } = require('./support/studio.mts') as typeof import('./support/studio.mts');
@@ -70,6 +71,15 @@ async function startHq() {
       if (req.headers.authorization !== `Bearer ${hq.access}`) return send(401, { message: 'JWT expired' });
       if (hq.roleStatus) return send(hq.roleStatus, { message: 'Could not find the function public.has_role(p_role)' });
       return send(200, hq.role);
+    }
+    // Studio's reads, as HQ answers them: refused (42501, so 403) without the Studio role.
+    if (url.pathname.startsWith('/rest/v1/rpc/studio_')) {
+      if (req.headers.authorization !== `Bearer ${hq.access}`) return send(401, { message: 'JWT expired' });
+      if (!hq.role) return send(403, { code: '42501', message: 'Studio can only read live and finished PlayHQ games' });
+      const name = url.pathname.slice('/rest/v1/rpc/'.length);
+      if (name === 'studio_games') return send(200, [{ id: GAME, playhq_game_id: '123456', status: 'live', team_name: 'Thunder 17U', finished_at: null }]);
+      if (name === 'studio_live') return send(200, { game: { id: GAME, playhq_game_id: '123456', status: 'live', finished_at: null }, snapshot: null, events: json.p_after_seq ? [] : [{ id: 'e1', gameId: GAME, stream: 'primary', seq: 1, type: 'goal', payload: {}, recordedAt: '' }], more: false });
+      if (name === 'studio_lineup') return send(200, [{ profile_id: 'a1', name: 'Ava Smith', selection: 'final', may_publish: true }]);
     }
     if (url.pathname === '/auth/v1/logout') return send(204);
     send(404, {});
@@ -243,6 +253,57 @@ test('a refresh keeps the new refresh token; HQ ending the session or the role g
   assert.equal(await auth.refresh('THUNDER'), false);
   assert.match(auth.list()[0].problem, /HQ ended the sign-in/);
   assert.equal(fs.existsSync(path.join(dir, 'firstpass', 'THUNDER')), false);
+});
+
+test('the Studio role removed while a game is followed: within one catch-up Studio stops serving it, signs out and deletes its stats', async t => {
+  const { hq, dir, store, tokens, auth, browse, lines } = await setup(t);
+  await browse(opened(await auth.signIn('THUNDER')).url);
+  // As server.ts wires them: hqstats follows the scoreboard's game, and stops when the club is signed out.
+  let clock = Date.now();
+  const stats = hqstats.create({ log: (...a: unknown[]) => lines.push(a.join(' ')), store, hq: auth, now: () => clock,
+    subscribe: () => ({ close: () => {}, setToken: () => {} }) });
+  auth.onSignOut(code => stats.signedOut(code));
+  t.after(() => stats.stop());
+  await stats.follow('123456');
+  assert.equal(stats.current()!.events.length, 1);
+  assert.ok(fs.existsSync(path.join(dir, 'firstpass', 'THUNDER', `${GAME}.json`)));
+  const refreshes = hq.calls.filter(c => c.endsWith('?refresh_token')).length;
+  const before = hq.calls.length;
+  // Removed in HQ a minute later: no half-hourly refresh is needed for Studio to notice.
+  hq.role = false;
+  clock += hqstats.CATCH_UP_EVERY;
+  await stats.follow('123456');
+  assert.equal(stats.current(), null);
+  assert.equal(stats.status().following, false);
+  assert.equal(auth.list()[0].state, 'signed-out');
+  assert.match(auth.list()[0].problem, /Studio role was removed or paused/);
+  assert.equal(fs.existsSync(path.join(dir, 'firstpass', 'THUNDER')), false);
+  assert.equal(await tokens.get('THUNDER'), '');
+  assert.equal(hq.calls.filter(c => c.endsWith('?refresh_token')).length, refreshes, 'no refresh was needed');
+  assert.deepEqual(hq.calls.slice(before), ['POST /rest/v1/rpc/has_role'], 'only the role check: nothing more was read once the role was gone');
+});
+
+test('checkRole: yes, gone (signed out, stats deleted, or HQ refusing the check), or unreachable (nothing deleted)', async t => {
+  const { hq, dir, store, tokens, auth, browse } = await setup(t);
+  assert.equal(await auth.checkRole('NOPE'), 'gone');
+  assert.equal(await auth.checkRole('THUNDER'), 'gone', 'not signed in');
+  await browse(opened(await auth.signIn('THUNDER')).url);
+  assert.equal(await auth.checkRole('THUNDER'), 'yes');
+  // HQ turns the check itself down: signed out, as at a refresh, and the card says why.
+  store.save('THUNDER', GAME, {});
+  hq.roleStatus = 404;
+  assert.equal(await auth.checkRole('THUNDER'), 'gone');
+  assert.match(auth.list()[0].problem, /turned down Studio's check/);
+  assert.equal(fs.existsSync(path.join(dir, 'firstpass', 'THUNDER')), false);
+  assert.equal(await tokens.get('THUNDER'), '');
+  // Signed in again; HQ out of reach keeps everything.
+  hq.roleStatus = 0;
+  await browse(opened(await auth.signIn('THUNDER')).url);
+  store.save('THUNDER', GAME, {});
+  await hq.close();
+  assert.equal(await auth.checkRole('THUNDER'), 'unreachable');
+  assert.ok(fs.existsSync(path.join(dir, 'firstpass', 'THUNDER', `${GAME}.json`)));
+  assert.notEqual(await tokens.get('THUNDER'), '');
 });
 
 test('HQ out of reach keeps the sign-in and the stats, and says so', async t => {

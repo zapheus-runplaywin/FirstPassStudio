@@ -1,7 +1,9 @@
 // Reading the FirstPass stats of the game on the scoreboard from its club's HQ (hqstats.ts): matched by PlayHQ game id,
 // caught up page by page with studio_live, the line-up with may_publish from studio_lineup, then followed on the game's
 // Realtime channel, a gap or a dropped channel filled by another catch-up; kept in firstpass.ts's store only, and
-// dropped when the club is signed out. A stand-in HQ answers the calls; the channel is a stand-in too.
+// dropped when the club is signed out. The role is checked on every catch-up, and anything HQ refuses (the role gone,
+// or the game no longer one Studio may read) stops Studio serving what it held at once. A stand-in HQ answers the
+// calls; the channel is a stand-in too.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -21,6 +23,11 @@ const event = (seq: number, extra = {}) => ({ id: `e${seq}`, gameId: GAME, strea
 function standIn() {
   const hq = {
     signedIn: true, events: [] as ReturnType<typeof event>[], calls: [] as string[], status: 'live',
+    // What hqauth's checkRole() answers, how often it was asked, and HQ's answer to a function it refuses (403, as
+    // HQ's studio_live and studio_lineup answer with errcode 42501).
+    role: 'yes' as 'yes' | 'gone' | 'unreachable', roleChecks: 0, refuse: {} as Record<string, number>, down: false,
+    // What checkRole() did when the role was gone: hqauth signs the club out, which calls signedOut on hqstats.
+    onGone: () => {},
     snapshot: null as { throughSeq: number; engineVersion: string; state: unknown; createdAt: string } | null,
     // The Realtime channel: send(e) delivers an event, setLive(true|false) joins or drops it.
     channels: [] as Json[],
@@ -34,6 +41,8 @@ function standIn() {
     const args = JSON.parse(init.body);
     assert.equal(init.headers.authorization, 'Bearer access-token');
     hq.calls.push(name === 'studio_live' ? `${name}(${args.p_after_seq})` : name);
+    if (hq.down) throw new Error('fetch failed');
+    if (hq.refuse[name]) return { ok: false, status: hq.refuse[name], json: async () => ({ code: '42501', message: 'Studio can only read live and finished PlayHQ games' }) };
     const json = (j: Json) => ({ ok: true, status: 200, json: async () => j });
     if (name === 'studio_games') return json(hq.games);
     if (name === 'studio_lineup') return json(hq.lineup);
@@ -50,6 +59,11 @@ function standIn() {
     list: () => [{ code: 'THUNDER', state: hq.signedIn ? 'signed-in' : 'signed-out' }],
     club: (code: Json) => (code === 'THUNDER' ? CLUB : null),
     accessToken: async () => (hq.signedIn ? 'access-token' : ''),
+    checkRole: async () => {
+      hq.roleChecks++;
+      if (hq.role === 'gone' && hq.signedIn) { hq.signedIn = false; hq.onGone(); }
+      return hq.role;
+    },
   };
   const subscribe = (club: Json, gameId: string, token: string, onEvent: Json, onStatus: Json) => {
     const ch = { club, gameId, token, onEvent, onStatus, closed: false, tokens: [token] };
@@ -68,6 +82,8 @@ function setup(t: TestContext, hq = standIn()) {
   const clock = { t: Date.parse('2026-11-13T09:00:00Z') };
   const stats = hqstats.create({ log, store, hq: hq.auth, fetch: hq.fetch, subscribe: hq.subscribe, now: () => clock.t });
   t.after(() => stats.stop());
+  // As hqauth.ts does when checkRole() finds the role gone: the club is signed out, its stats deleted, and hqstats told.
+  hq.onGone = () => { store.forget('THUNDER', 'role gone'); stats.signedOut('THUNDER'); };
   const settle = () => new Promise(r => setTimeout(r, 30));
   return { hq, dir, lines, store, stats, clock, settle };
 }
@@ -181,6 +197,125 @@ test('another game on the scoreboard closes the first one\'s channel; signing ou
   hq.signedIn = false;
   await stats.follow('123456');
   assert.equal(stats.status().following, false);
+});
+
+test('the role is checked again on every catch-up, once a minute, not only at the half-hourly refresh', async t => {
+  const { hq, stats, clock } = setup(t);
+  hq.add(2);
+  await stats.follow('123456');
+  assert.equal(hq.roleChecks, 1, 'checked before the first catch-up');
+  await stats.follow('123456');
+  assert.equal(hq.roleChecks, 1, 'not on every look, 5 seconds apart');
+  clock.t += hqstats.CATCH_UP_EVERY;
+  await stats.follow('123456');
+  assert.equal(hq.roleChecks, 2);
+  clock.t += hqstats.CATCH_UP_EVERY;
+  await stats.follow('123456');
+  assert.equal(hq.roleChecks, 3);
+});
+
+test('the role gone in HQ: the next catch-up stops serving the game at once and deletes what was held', async t => {
+  const { hq, stats, store, clock, dir } = setup(t);
+  hq.add(3);
+  await stats.follow('123456');
+  assert.ok(store.read('THUNDER', GAME));
+  assert.equal(stats.current()!.events.length, 3);
+  // Removed, paused or stood down in HQ: Studio learns it at the next catch-up, within a minute.
+  hq.role = 'gone';
+  hq.calls.length = 0;
+  clock.t += hqstats.CATCH_UP_EVERY;
+  await stats.follow('123456');
+  assert.equal(stats.current(), null, 'nothing is served');
+  assert.equal(stats.status().following, false);
+  assert.equal(hq.channels[0].closed, true);
+  assert.equal(store.read('THUNDER', GAME), null);
+  assert.equal(fs.existsSync(path.join(dir, 'THUNDER')), false);
+  assert.deepEqual(hq.calls, [], 'nothing more is read from HQ once the role is gone');
+  // And nothing comes back on the next looks.
+  clock.t += hqstats.CATCH_UP_EVERY;
+  await stats.follow('123456');
+  assert.equal(stats.current(), null);
+});
+
+for (const name of ['studio_live', 'studio_lineup']) {
+  test(`HQ refusing ${name} with the role gone: Studio drops the game at once, checks the role, and the club is signed out`, async t => {
+    const { hq, stats, store, clock, lines } = setup(t);
+    hq.add(3);
+    await stats.follow('123456');
+    // HQ's answer reaches Studio before the role check would say so (the role check passed a moment earlier).
+    hq.refuse[name] = 403;
+    const checks = hq.roleChecks;
+    let roleAsked = false;
+    hq.onGone = () => { roleAsked = true; store.forget('THUNDER', 'role gone'); stats.signedOut('THUNDER'); };
+    const check = hq.auth.checkRole;
+    let first = true;
+    hq.auth.checkRole = async (code: string) => { if (first) { first = false; hq.roleChecks++; return 'yes'; } hq.role = 'gone'; return check(code); };
+    clock.t += hqstats.CATCH_UP_EVERY;
+    await stats.follow('123456');
+    assert.equal(stats.current(), null);
+    assert.equal(store.read('THUNDER', GAME), null);
+    assert.equal(hq.roleChecks, checks + 2, 'the role is checked again after the refusal');
+    assert.equal(roleAsked, true, 'the role gone signs the club out');
+    assert.equal(hq.channels[0].closed, true);
+    assert.match(lines.join('\n'), new RegExp(`HQ refused ${name} \\(403\\)`));
+  });
+}
+
+test('HQ refusing a game while the role is still there: only that game is dropped, and the club stays signed in', async t => {
+  const { hq, stats, store, clock } = setup(t);
+  hq.add(3);
+  await stats.follow('123456');
+  store.save('THUNDER', OTHER, { other: true });
+  // The game is no longer a live or finished PlayHQ game (its PlayHQ id taken off, or set back to draft).
+  hq.refuse.studio_live = 403;
+  clock.t += hqstats.CATCH_UP_EVERY;
+  await stats.follow('123456');
+  assert.equal(stats.current(), null);
+  assert.equal(store.read('THUNDER', GAME), null);
+  assert.ok(store.read('THUNDER', OTHER), 'the club\'s other games stay');
+  assert.equal(hq.signedIn, true);
+  // The old games list isn't used again: HQ is asked afresh, and the game is followed again once HQ allows it.
+  delete hq.refuse.studio_live;
+  hq.calls.length = 0;
+  await stats.follow('123456');
+  assert.equal(hq.calls[0], 'studio_games');
+  assert.equal(stats.current()!.events.length, 3);
+});
+
+test('HQ refusing the games list checks the role and doesn\'t use the old list', async t => {
+  const { hq, stats, clock } = setup(t);
+  await stats.follow('999999');
+  hq.refuse.studio_games = 401;
+  hq.role = 'gone';
+  clock.t += hqstats.GAMES_EVERY;
+  await stats.follow('123456');
+  assert.equal(stats.current(), null);
+  assert.equal(hq.roleChecks, 1);
+  assert.equal(hq.signedIn, false);
+});
+
+test('HQ out of reach, for the role check or a catch-up, keeps what is held and tries again', async t => {
+  const { hq, stats, store, clock } = setup(t);
+  hq.add(3);
+  await stats.follow('123456');
+  hq.role = 'unreachable';
+  hq.down = true;
+  clock.t += hqstats.CATCH_UP_EVERY;
+  await stats.follow('123456');
+  assert.equal(stats.current()!.events.length, 3);
+  assert.ok(store.read('THUNDER', GAME));
+  // A 500 or a 429 isn't a refusal either.
+  hq.down = false;
+  for (const status of [500, 429, 408]) {
+    hq.refuse.studio_live = status;
+    await stats.follow('123456');
+    assert.equal(stats.current()!.events.length, 3, `${status} keeps what is held`);
+  }
+  delete hq.refuse.studio_live;
+  hq.role = 'yes';
+  hq.add(1);
+  await stats.follow('123456');
+  assert.equal(stats.current()!.events.length, 4);
 });
 
 test('not signed in to any club: HQ is never asked', async t => {
