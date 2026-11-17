@@ -422,6 +422,7 @@ setInterval(pushBoard, 1000);
 //   /deck/auto/on  off  toggle   (pick the game from the court and the time)
 //   /deck/court/Indoor%2001  or  /deck/court/1   (the court for automatic selection)
 //   /deck/ticker/faster  slower  normal   /deck/ticker/speed/150   (pixels per second)
+//   /deck/mark                                (the Mark moment key: recorder.ts deck())
 // (The 4K replay's and practice game's links, /deck/replay/... and /deck/practice/..., are replay.ts's and practice.ts's deck().)
 const STREAK_KINDS: Record<string, string> = { heating: 'heating', heatingup: 'heating', fire: 'fire', onfire: 'fire', goalforgoal: 'goalForGoal', lead: 'lead', front: 'lead',
   level: 'level', square: 'level', comeback: 'comeback', siren: 'siren', backtoback: 'backToBack' };
@@ -1218,6 +1219,10 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
       // A 4K replay or a practice game: /deck/replay/play, pause, toggle, stop, next, prev, nudge/<ms>; /deck/practice/... (replay.ts, practice.ts).
       const playback = replay.deck(parts) || practice.deck(parts);
       if (playback) return send(res, playback.status, playback.body);
+      // The Mark moment key: /deck/mark notes this moment in the game's recording (recorder.ts mark()), with the quarter
+      // and the clock left as the scoreboard has them. Off until turned on on the Recordings page.
+      const marked = recorder.deck(parts, () => { const now = board(); return { period: now.period, clockMs: (clockLeft(now) ?? 0) * 1000 }; });
+      if (marked) return send(res, marked.status, marked.body);
       const action = deckAction(parts, q);
       if (!action) return send(res, 404, { error: `Unknown Stream Deck link ${url.pathname}. See Links on the Devices tab, /api.html#links.` });
       const b = board();

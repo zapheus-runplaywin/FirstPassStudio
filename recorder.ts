@@ -18,6 +18,8 @@
 //   board     the board the pages were sent (scene.ts publishBoard), when it changed (not the clock reading)
 //   api       an answer a graphic fetched (GET /api/...), when it changed: p (the path and query) and body
 //   practice  a practice game started (on: true) or stopped (practice.ts); nothing is recorded in between
+//   mark      a moment the producer marked with the Mark moment key (/deck/mark): id, and flag ({ period, clockMs }),
+//             the same form as a mark made in FirstPass Vantage (a 'flag' event's payload)
 //   end       the recording stopped: why (full time, next game, off air, recording off, too long)
 // The first two layers (playhq, live, action) are what came in, for practice games and tests; the rest (scene,
 // board, api) is what went to air, for replaying the graphics at 4K. Nothing secret is recorded: no keys,
@@ -35,11 +37,17 @@
 // carries its date and time. A practice game (practice.ts) plays it back as if live, to put graphics over someone
 // else's video of that game (server.ts feeds the list each second: followGames).
 // Recording can be turned off, and the minutes after full time set, on the Recordings page (recordings.json in the
-// local data folder, as the recordings are this Mac's: { record, afterMinutes }).
+// local data folder, as the recordings are this Mac's: { record, afterMinutes, marks }).
+//
+// Marks. For a game nobody is taking stats on, the producer can mark a moment worth finding again: the Mark moment key
+// (/deck/mark) writes a mark line into the game's recording, with the quarter and the clock as the scoreboard had them.
+// It is off until turned on on the Recordings page (marks: true). The Recordings tab's replay lists each mark with
+// what went on air, to jump to. A mark stays on this Mac with its recording; nothing is sent anywhere.
 
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
+import crypto from 'node:crypto';
 import { errorMessage } from './errors';
 import { arr, isObj, obj, str } from './check';
 import type { IncomingMessage, IncomingHttpHeaders, ServerResponse } from 'node:http';
@@ -75,6 +83,8 @@ let log: Log = () => {};
 let dir = '', settingsFile = '', file = '', name = '';
 let record = true;
 let afterMinutes = AFTER_MIN;
+let marks = false;      // whether the Mark moment key works (off until turned on)
+let marked = 0;         // marks in the recording being made
 let pending: string[] = [];
 let timer: NodeJS.Timeout | undefined, checker: NodeJS.Timeout | undefined;
 let startLine = (): StartLine => ({});
@@ -103,6 +113,7 @@ function init(logger: Log | null | undefined, { dir: recordingsDir, settings, st
   try { saved = obj(JSON.parse(fs.readFileSync(settingsFile, 'utf8'))); } catch { /* none yet */ }
   record = saved.record !== false;
   afterMinutes = minutes(saved.afterMinutes);
+  marks = saved.marks === true;
   fs.mkdirSync(dir, { recursive: true });
   tidy();
   clearInterval(checker);
@@ -156,6 +167,7 @@ function begin(b: RecBoard) {
   last.clear();
   gameId = b.gameId || null;
   finishedAt = 0;
+  marked = 0;
   const start = startLine() || {};
   note('start', { version: start.version || '', competition: start.competition || '', zone: Intl.DateTimeFormat().resolvedOptions().timeZone });
   note('game', { id: b.gameId, home: (b.home || {}).name || '', away: (b.away || {}).name || '', division: b.division || '',
@@ -280,6 +292,31 @@ function live(id: string, json: unknown) {
 }
 function action(a: unknown) { if (a && typeof a === 'object') note('action', { action: a }); }
 function scene(state: unknown, text: string) { changed('scene', 'scene', { scene: state }, text); }
+
+// The Mark moment key: a mark line in the game's recording, timed now, with the quarter and the clock left as the
+// scoreboard has them (at(): { period, clockMs }). Gives { marked } (how many this recording has), or { error } when
+// the key is off or no game is being recorded.
+const MARK_OFF = 'The Mark moment key is turned off. Turn it on on the Recordings page.';
+function mark(at: () => { period: unknown; clockMs: unknown }): { marked: number; error?: undefined } | { error: string; status: number } {
+  if (!marks) return { error: MARK_OFF, status: 409 };
+  if (!file) return { error: 'No game is being recorded, so there is nothing to mark.', status: 409 };
+  if (paused) return { error: 'A practice game or 4K replay is running. Marks are for the live game.', status: 409 };
+  const now = at();
+  const period = Math.max(1, Math.round(Number(now.period)) || 1);
+  const clockMs = Math.max(0, Math.round(Number(now.clockMs)) || 0);
+  note('mark', { id: crypto.randomUUID(), flag: { period, clockMs } });
+  marked++;
+  log('info', 'recorder', `Marked a moment (Q${period}, ${marked} in this recording)`);
+  return { marked };
+}
+
+// A Stream Deck key: /deck/mark. { status, body } or null when it isn't the mark link.
+function deck(parts: string[], at: () => { period: unknown; clockMs: unknown }) {
+  if (parts[0] !== 'mark') return null;
+  if (parts.length > 1) return { status: 404, body: { error: 'Unknown mark link. Use /deck/mark.' } };
+  const done = mark(at);
+  return done.error !== undefined ? { status: done.status, body: { error: done.error } } : { status: 200, body: { ok: true, marked: done.marked } };
+}
 function board(json: RecBoard | null | undefined) {
   if (!json || paused) return;
   onBoard = json;
@@ -374,7 +411,7 @@ function remove(recording: string) {
 }
 
 function save() {
-  try { fs.writeFileSync(settingsFile, JSON.stringify({ record, afterMinutes })); } catch (err) { log('warn', 'recorder', `Could not save recordings.json: ${errorMessage(err)}`); }
+  try { fs.writeFileSync(settingsFile, JSON.stringify({ record, afterMinutes, marks })); } catch (err) { log('warn', 'recorder', `Could not save recordings.json: ${errorMessage(err)}`); }
 }
 
 // Turning recording off stops the one being made; on again starts one when a game is due.
@@ -393,17 +430,24 @@ function setAfter(m: unknown) {
   check();
 }
 
+// Whether the Mark moment key works.
+function setMarks(on: unknown) {
+  marks = !!on;
+  save();
+  log('info', 'recorder', `Mark moment key turned ${marks ? 'on' : 'off'}`);
+}
+
 // waiting: the board's game when it isn't recording yet ({ game, from (ms, when it's due), why }); followed: the followed
 // games' recordings being made.
 function state() {
   const w = !file && record && onBoard && onBoard.gameId ? dueOf(onBoard) : null;
-  return { record, recording: file ? name : '', followed: [...others.values()].map(o => o.name), keepDays: KEEP_DAYS, afterMinutes, leadMinutes: Math.round(lead() / 60000),
+  return { record, marks, marked: file ? marked : 0, recording: file ? name : '', followed: [...others.values()].map(o => o.name), keepDays: KEEP_DAYS, afterMinutes, leadMinutes: Math.round(lead() / 60000),
     waiting: w && !w.due && onBoard ? { game: teams(onBoard), from: w.from || null, why: w.why } : null, recordings: list() };
 }
 
 const fileOf = (recording: string) => (NAME.test(recording) && names().includes(recording) ? path.join(dir, recording) : null);
 
-// /api/recordings: GET the list and whether Studio records, POST { record } to turn it on or off and
+// /api/recordings: GET the list and whether Studio records, POST { record } to turn it on or off, { marks } for the Mark moment key and
 // { afterMinutes } to set the minutes after full time; DELETE /api/recordings/<name> removes one;
 // GET /api/recordings/<name>/file downloads it (to keep, or to send in as test data).
 async function route(req: IncomingMessage, res: ServerResponse, url: URL, { send: reply, readBody }: { send: Send; readBody: ReadBody }) {
@@ -411,10 +455,11 @@ async function route(req: IncomingMessage, res: ServerResponse, url: URL, { send
     if (req.method === 'POST') {
       const body = await readBody(req);
       const after = body.afterMinutes;
-      if (typeof body.record !== 'boolean' && (after === undefined || !Number.isFinite(Number(after)))) {
-        reply(res, 400, { error: 'Send { record: true } or { record: false }, or { afterMinutes: 0 to 60 }.' }); return true;
+      if (typeof body.record !== 'boolean' && typeof body.marks !== 'boolean' && (after === undefined || !Number.isFinite(Number(after)))) {
+        reply(res, 400, { error: 'Send { record: true } or { record: false }, { marks: true } or { marks: false }, or { afterMinutes: 0 to 60 }.' }); return true;
       }
       if (typeof body.record === 'boolean') setRecord(body.record);
+      if (typeof body.marks === 'boolean') setMarks(body.marks);
       if (after !== undefined && Number.isFinite(Number(after))) setAfter(after);
     }
     reply(res, 200, state());
@@ -442,4 +487,4 @@ async function route(req: IncomingMessage, res: ServerResponse, url: URL, { send
 
 export type { Line, RecBoard, FollowedGame };
 export { route,
- init, close, flush, followGames, closeFollowed, pause, playhq, live, action, scene, board, answer, read, list, tidy, remove, setRecord, setAfter, state, check, fileOf, KEEP_DAYS };
+ init, close, flush, followGames, closeFollowed, pause, playhq, live, action, scene, board, answer, read, list, tidy, remove, setRecord, setAfter, setMarks, mark, deck, state, check, fileOf, KEEP_DAYS };

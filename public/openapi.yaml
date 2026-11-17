@@ -1349,6 +1349,18 @@ paths:
         '404': { description: No such input or key on this switcher, or not one of the links listed here }
         '409': { description: No switcher is set up, or it isn't answering; nothing was sent }
 
+  /deck/mark:
+    get:
+      tags: [Recordings]
+      summary: Mark this moment in the game being recorded
+      description: For a game nobody is taking stats on. Notes the moment in the game's recording with the quarter and the clock left, in the same form as a mark made in FirstPass Vantage. A 4K replay lists each mark to jump to. Off until **Mark moment key** is turned on on the Recordings tab; marks stay on this Mac with the recording.
+      operationId: markMoment
+      x-links:
+        - ["Mark this moment", "/deck/mark"]
+      responses:
+        '200': { description: Marked. Returns how many marks the recording has. }
+        '409': { description: The Mark moment key is turned off, no game is being recorded, or a practice game is running; nothing was marked }
+
   /deck/replay/{action}:
     get:
       tags: [Recordings]

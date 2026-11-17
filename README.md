@@ -93,7 +93,7 @@ In it:
 - `control.json`: the control page's choices (the game night picked by hand, and the scoreboard's automatic game selection,
   its court, following the PlayHQ clock, how often to check PlayHQ, showing the clock, the ticker speed, finals winners).
 - `scoreboard-state.json`: the game on the scoreboard, the scores and the clock.
-- `recordings.json`, `demos.json`, `replay.json` and `Recordings/`: whether Studio records each PlayHQ game on air (and how long after full time), the saved demo games, the HyperDeck
+- `recordings.json`, `demos.json`, `replay.json` and `Recordings/`: whether Studio records each PlayHQ game on air (and how long after full time, and whether the Mark moment key is on), the saved demo games, the HyperDeck
   a 4K replay follows (with each recording's sync) and the recordings (see **Recordings** below), in the local data folder, so they stay on this Mac (not in iCloud Drive or a backup).
 - `config.json` (optional): this computer's settings. The app's own `config.json` has the defaults (port, log size,
   how often to check PlayHQ, `linkHost`, `remoteChanges`); a `config.json` here changes only the settings it names.
@@ -1061,6 +1061,13 @@ stopped suddenly. Recordings older than 60 days, and old ones with no game, are 
 (`/recordings.html`, ⌘4) lists them with their games, Download and Remove, when the next one starts (`waiting`), *Record each PlayHQ game on air*
 and the minutes after full time (`GET`/`POST /api/recordings` `{ record }` or `{ afterMinutes }`, `DELETE /api/recordings/<name>`, `GET /api/recordings/<name>/file`; private reads).
 Tests and 4K replays will play these back too (docs/game-recording-replay-plan-2026-10-29.md).
+
+**Mark moment key**: for a game nobody is taking stats on, the producer can mark a moment worth finding again. With *Mark moment key*
+turned on on the Recordings tab (`POST /api/recordings` `{ marks }`, off by default, kept in `recordings.json`), the Stream Deck link
+`/deck/mark` (`recorder.ts` `mark()`) writes a `mark` line into the game's recording: an `id` and `flag` (`{ period, clockMs }`: the
+quarter and the clock left on the scoreboard), the same form as a mark made in FirstPass Vantage. It answers 409 and marks nothing while
+the key is off, no game is being recorded, or a practice game or 4K replay is running. A 4K replay lists each mark in its `events`
+("Marked moment · Q2 7:42 left"), so Jump to and the Replay key's next and back stop at them. Marks stay on this Mac with the recording.
 
 **4K replay** (`replay.ts`): *Replay* beside a game plays the recording's on-air layer (`scene`, `board`, `api`) back
 through Studio's own pages: `scene.ts` `replay()`/`replayBoard()` send the recorded scene and board to the sockets instead of

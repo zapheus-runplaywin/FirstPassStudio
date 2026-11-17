@@ -109,8 +109,12 @@
     <p class="help"><label>Keep recording for <input type="number" id="after" min="0" max="60" step="1" value="10" style="width:4.5em;font:inherit"> minutes
       after full time</label> (0 to 60).</p>
     <p class="help" id="recordNote"></p>
+    <label class="fp-switch" style="margin-top:.9rem"><input type="checkbox" id="marks"> Mark moment key</label>
+    <p class="help" id="marksNote"></p>
     <details class="info"><summary>Expand for info</summary><p class="note">A recording starts when its game is due on the scoreboard, <span id="leadMin">10</span> minutes before its
-      scheduled start (Competitions setup's automatic game selection), and stops this long after full time, or when the scoreboard moves on to another game.</p></details>
+      scheduled start (Competitions setup's automatic game selection), and stops this long after full time, or when the scoreboard moves on to another game.</p>
+      <p class="note">The Mark moment key is for a game nobody is taking stats on. With it on, a Stream Deck key (Devices tab, Links, Recordings: <strong>Mark this moment</strong>)
+      notes the moment in the game's recording with the quarter and the clock. A 4K replay lists each mark under Jump to. Marks stay on this Mac with the recording.</p></details>
   </section>
 
   <section>
