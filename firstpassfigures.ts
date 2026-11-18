@@ -14,8 +14,13 @@
 // the starting point when it was made by the same engine version (major, or major.minor while 0.x); otherwise the
 // figures wait for the next snapshot rather than guess. A correction to an event from before the snapshot can't
 // be seen from here until HQ's next snapshot takes it in.
+//
+// The helper statistician: a second statistician's substitutions and corrections count (hqstats.ts holds them beside
+// the primary events). The engine's mergeStreams() places each by the time it was recorded, so the later change wins,
+// exactly as in Vantage and Vision. After a snapshot, only what the helper recorded after the snapshot was made is
+// applied: the snapshot is the game's record as it stood then, so it already has what came before.
 
-import { applyEvent, deriveGame, ENGINE_VERSION, initialState, liveEvents, type GameState } from '@firstpass/engine';
+import { applyEvent, deriveGame, ENGINE_VERSION, initialState, liveEvents, mergeStreams, type GameState } from '@firstpass/engine';
 import type { GameConfig, GameEvent } from '@firstpass/schema';
 import { obj, str } from './check';
 import type { Athlete, HqEvent, HqGame, Snapshot } from './hqstats';
@@ -31,7 +36,7 @@ interface OnAir {
   // How many of the line-up are named with their own figures, and how many count in team totals only.
   named: number; teamTotalsOnly: number;
 }
-interface Followed { game: HqGame; snapshot: Snapshot | null; events: HqEvent[]; lineup: Athlete[] }
+interface Followed { game: HqGame; snapshot: Snapshot | null; events: HqEvent[]; helper?: HqEvent[]; lineup: Athlete[] }
 
 // The same engine release line: major, or major.minor while the engine is 0.x.
 function sameLine(a: string, b: string) {
@@ -60,9 +65,25 @@ function configOf(game: HqGame): GameConfig {
   };
 }
 
+// The game's record: the primary events held with the helper's substitutions and corrections merged in.
+function recordOf(f: Followed): GameEvent[] {
+  const primary = f.events.filter(e => e.stream === 'primary');
+  const helper = f.helper || [];
+  if (!helper.length) return primary as unknown as GameEvent[];
+  // mergeStreams() reads each stream from seq 1. After a snapshot the primary events held start after it, so they
+  // are numbered from 1 for the merge and the events themselves are handed back.
+  const first = primary.length ? primary[0].seq : 1;
+  const own = new Map(primary.map(e => [e.id, e]));
+  const merged = mergeStreams([...primary.map(e => ({ ...e, seq: e.seq - first + 1 })), ...helper] as unknown as GameEvent[])
+    .map(e => (e.stream === 'primary' ? own.get(e.id) as unknown as GameEvent : e));
+  if (!f.snapshot) return merged;
+  const made = Date.parse(f.snapshot.createdAt);
+  return merged.filter(e => e.stream === 'primary' || !(Date.parse(e.recordedAt) <= made));
+}
+
 // The game's state from the snapshot and the events after it, or from every event when there's no snapshot yet.
 function stateOf(f: Followed, config: GameConfig): GameState | null {
-  const events = f.events.filter(e => e.stream === 'primary') as unknown as GameEvent[];
+  const events = recordOf(f);
   if (!f.snapshot) return deriveGame(config, events);
   if (!sameLine(f.snapshot.engineVersion, ENGINE_VERSION)) return null;
   const s = obj(f.snapshot.state);
