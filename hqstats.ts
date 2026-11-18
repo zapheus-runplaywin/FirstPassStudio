@@ -12,6 +12,11 @@
 //   3. Live: the game's private Realtime topic game:<id> sends each new primary event (as 'event'). An event that
 //      follows on is kept; a gap (one missed while reconnecting) is filled by another catch-up. A catch-up also runs
 //      every CATCH_UP_EVERY while following, and whenever the channel comes back, so nothing is missed for long.
+//   4. The helper statistician: a game may have a second statistician whose substitutions and corrections count
+//      (FirstPassHQ PR #223). They are on a stream of the helper's own (helper:<user id>), numbered from 1. Every
+//      studio_live answer carries all of them as helperEvents (there are few), and the same topic sends each new one.
+//      They are held beside the primary events, and firstpassfigures.ts merges the two exactly as Vantage and Vision
+//      do. A helper event that doesn't follow on from the ones held of its stream is filled by another catch-up.
 //
 // Revocation: every catch-up first checks the Studio role again (hqauth.ts checkRole()), so a role removed or paused in
 // HQ, or a member stood down or deleted, stops Studio within a minute, not at the next half-hourly refresh. Whenever HQ
@@ -31,6 +36,8 @@
 //   subscribe           opens the Realtime channel (realtimeSubscribe(), or a stand-in for tests)
 
 import { RealtimeClient } from '@supabase/realtime-js';
+import { isHelperStream } from '@firstpass/engine';
+import { HELPER_EVENT_TYPES } from '@firstpass/schema';
 import { errorMessage } from './errors';
 import { arr, obj, str } from './check';
 import { privateLog, validGame } from './firstpass';
@@ -47,7 +54,7 @@ interface HqGame { id: string; playhqGameId: string; status: string; teamName: s
 interface Athlete { profileId: string; name: string; selection: string; mayPublish: boolean }
 interface Snapshot { throughSeq: number; engineVersion: string; state: unknown; createdAt: string }
 interface Following {
-  club: string; game: HqGame; snapshot: Snapshot | null; events: HqEvent[]; lineup: Athlete[];
+  club: string; game: HqGame; snapshot: Snapshot | null; events: HqEvent[]; helper: HqEvent[]; lineup: Athlete[];
   live: boolean; lastCatchUp: number; catchingUp: Promise<void> | null;
 }
 // Opens game:<id> for a club: calls onEvent for each event and onStatus(true|false) as the channel joins or drops.
@@ -60,6 +67,15 @@ const toEvent = (v: unknown): HqEvent | null => {
   const seq = Number(o.seq);
   if (!Number.isInteger(seq) || seq < 1 || o.stream !== 'primary') return null;
   return { id: str(o.id), gameId: str(o.gameId), stream: 'primary', seq, type: str(o.type), payload: o.payload ?? null, recordedAt: str(o.recordedAt) };
+};
+// A helper statistician's event: on a helper stream, and only what a helper may record (substitutions and corrections).
+const helperTypes: readonly string[] = HELPER_EVENT_TYPES;
+const toHelperEvent = (v: unknown): HqEvent | null => {
+  const o = obj(v);
+  const seq = Number(o.seq), stream = str(o.stream), type = str(o.type);
+  if (!Number.isInteger(seq) || seq < 1 || !isHelperStream(stream) || !helperTypes.includes(type)) return null;
+  if (!str(o.id) || Number.isNaN(Date.parse(str(o.recordedAt)))) return null;
+  return { id: str(o.id), gameId: str(o.gameId), stream, seq, type, payload: o.payload ?? null, recordedAt: str(o.recordedAt) };
 };
 const toGame = (v: unknown): HqGame | null => {
   const o = obj(v);
@@ -140,7 +156,7 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
   }
 
   const lastSeq = (f: Following) => (f.events.length ? f.events[f.events.length - 1].seq : f.snapshot?.throughSeq || 0);
-  const keep = (f: Following) => store.save(f.club, f.game.id, { game: f.game, snapshot: f.snapshot, events: f.events, lineup: f.lineup }, { finishedAt: f.game.finishedAt });
+  const keep = (f: Following) => store.save(f.club, f.game.id, { game: f.game, snapshot: f.snapshot, events: f.events, helper: f.helper, lineup: f.lineup }, { finishedAt: f.game.finishedAt });
 
   // Adds events in seq order, dropping ones already held. false when one doesn't follow on (a gap).
   function add(f: Following, list: HqEvent[]): boolean {
@@ -154,13 +170,31 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
     return !gap;
   }
 
+  // Adds helper events not already held (by stream and seq), keeping them in stream and seq order. { added } is how
+  // many were new; gap: one of them doesn't follow on from the ones held of its stream (another catch-up fills it).
+  function addHelper(f: Following, list: HqEvent[]): { added: number; gap: boolean } {
+    const held = new Set(f.helper.map(e => `${e.stream} ${e.seq}`));
+    let added = 0, gap = false;
+    for (const e of list) {
+      if (held.has(`${e.stream} ${e.seq}`)) continue;
+      held.add(`${e.stream} ${e.seq}`);
+      f.helper.push(e);
+      added++;
+    }
+    if (added) {
+      f.helper.sort((a, b) => (a.stream < b.stream ? -1 : a.stream > b.stream ? 1 : a.seq - b.seq));
+      gap = list.some(e => e.seq > 1 && !held.has(`${e.stream} ${e.seq - 1}`));
+    }
+    return { added, gap };
+  }
+
   // HQ refused Studio the game f follows (status), or the role is gone: stop following it at once, so nothing held is
   // served, delete it from the store, and check the role (hqauth.ts signs the club out and deletes all its stats when
   // the role is gone). roleGone: the role check already said so.
   async function drop(f: Following, why: string, roleGone = false) {
     if (following === f) stop();
     gameLists.delete(f.club);
-    f.events = []; f.snapshot = null; f.lineup = [];
+    f.events = []; f.helper = []; f.snapshot = null; f.lineup = [];
     store.forgetGame(f.club, f.game.id, why);
     log('info', 'hq', `${f.club}: ${why}; stopped following game ${f.game.id} and dropped its FirstPass stats`);
     if (!roleGone) await hq.checkRole(f.club);
@@ -175,7 +209,7 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
       // The role first, every time: once it's gone nothing more is read or kept, and what is held goes.
       if (await hq.checkRole(f.club) === 'gone') { await drop(f, 'the Studio role is gone in HQ', true); return; }
       if (following !== f) return;
-      let pages = 0, got = 0;
+      let pages = 0, got = 0, helped = 0;
       while (pages++ < MAX_PAGES && following === f) {
         const answer = await rpc(club, 'studio_live', { p_game_id: f.game.id, p_after_seq: lastSeq(f) });
         if (refusal(answer)) { await drop(f, `HQ refused studio_live (${refusal(answer)})`); return; }
@@ -192,6 +226,8 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
         const list = arr(live.events).map(toEvent).filter((e): e is HqEvent => !!e);
         got += list.length;
         add(f, list);
+        // Every helper event so far comes with each answer (an HQ from before the helper sends none).
+        helped += addHelper(f, arr(live.helperEvents).map(toHelperEvent).filter((e): e is HqEvent => !!e)).added;
         if (live.more !== true) break;
       }
       if (following !== f) return;
@@ -202,7 +238,7 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
       }
       f.lastCatchUp = now();
       if (following === f) keep(f);
-      log('info', 'hq', `${f.club} game ${f.game.id}: caught up to seq ${lastSeq(f)} (${got} new event(s), ${f.lineup.length} in the line-up)`);
+      log('info', 'hq', `${f.club} game ${f.game.id}: caught up to seq ${lastSeq(f)} (${got} new event(s), ${helped ? `${helped} new from a helper, ` : ''}${f.lineup.length} in the line-up)`);
     })().catch(err => log('error', 'hq', `${f.club}: catching up failed: ${errorMessage(err)}`)).finally(() => { f.catchingUp = null; });
     return f.catchingUp;
   }
@@ -229,7 +265,7 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
     if (!wanted) return;
     const found = await match(wanted);
     if (!found || wanted !== playhqGameId || following) return;
-    const nf: Following = { club: found.club.code, game: found.game, snapshot: null, events: [], lineup: [], live: false, lastCatchUp: 0, catchingUp: null };
+    const nf: Following = { club: found.club.code, game: found.game, snapshot: null, events: [], helper: [], lineup: [], live: false, lastCatchUp: 0, catchingUp: null };
     following = nf;
     log('info', 'hq', `${nf.club}: following game ${nf.game.id} (PlayHQ ${wanted})`);
     await catchUp(nf);
@@ -240,8 +276,12 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
       e => {
         if (following !== nf) return;
         const ev = toEvent(e);
-        if (!ev) return;
-        if (add(nf, [ev])) keep(nf); else catchUp(nf);
+        if (ev) { if (add(nf, [ev])) keep(nf); else catchUp(nf); return; }
+        const help = toHelperEvent(e);
+        if (!help) return;
+        const { added, gap } = addHelper(nf, [help]);
+        if (added) keep(nf);
+        if (gap) catchUp(nf);
       },
       live => {
         if (following !== nf) return;
@@ -257,13 +297,13 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
     const f = following;
     if (!f) return { following: false as const };
     return { following: true as const, club: f.club, gameId: f.game.id, playhqGameId: f.game.playhqGameId, status: f.game.status, live: f.live,
-      events: f.events.length, throughSeq: lastSeq(f), snapshot: !!f.snapshot, lineup: f.lineup.length };
+      events: f.events.length, helperEvents: f.helper.length, throughSeq: lastSeq(f), snapshot: !!f.snapshot, lineup: f.lineup.length };
   }
 
   // What is held for the game being followed (the private routes and the graphics use it), or null.
   function current() {
     const f = following;
-    return f ? { club: f.club, game: f.game, snapshot: f.snapshot, events: f.events, lineup: f.lineup } : null;
+    return f ? { club: f.club, game: f.game, snapshot: f.snapshot, events: f.events, helper: f.helper, lineup: f.lineup } : null;
   }
 
   // A club signed out: stop following its game at once.

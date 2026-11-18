@@ -23,6 +23,8 @@ const event = (seq: number, extra = {}) => ({ id: `e${seq}`, gameId: GAME, strea
 function standIn() {
   const hq = {
     signedIn: true, events: [] as ReturnType<typeof event>[], calls: [] as string[], status: 'live',
+    // The helper statistician's events (every one comes with each studio_live answer); undefined: an HQ from before the helper.
+    helper: [] as Json[] | undefined,
     // What hqauth's checkRole() answers, how often it was asked, and HQ's answer to a function it refuses (403, as
     // HQ's studio_live and studio_lineup answer with errcode 42501).
     role: 'yes' as 'yes' | 'gone' | 'unreachable', roleChecks: 0, refuse: {} as Record<string, number>, down: false,
@@ -51,7 +53,7 @@ function standIn() {
       const snap = hq.snapshot && hq.snapshot.throughSeq > from ? hq.snapshot : null;
       if (snap) from = snap.throughSeq;
       const after = hq.events.filter(e => e.seq > from);
-      return json({ game: { ...hq.games[0], status: hq.status }, snapshot: snap, events: after.slice(0, 1000), more: after.length > 1000 });
+      return json({ game: { ...hq.games[0], status: hq.status }, snapshot: snap, events: after.slice(0, 1000), ...(hq.helper ? { helperEvents: hq.helper } : {}), more: after.length > 1000 });
     }
     return { ok: false, status: 404, json: async () => ({}) };
   };
@@ -154,6 +156,75 @@ test('live events follow on; a gap, or the channel coming back, is filled by ano
   assert.ok(hq.calls.includes('studio_live(8)'));
   assert.equal(stats.status().throughSeq, 11);
   assert.equal(stats.status().live, true);
+});
+
+const HELPER = 'helper:5f0c1f0e-1111-4222-8333-444455556666';
+const help = (seq: number, extra = {}) => ({ id: `h${seq}`, gameId: GAME, stream: HELPER, seq, type: 'lineup_change', payload: { team: 'us', lineup: { GS: 'Ava Smith' } }, recordedAt: `2026-11-13T09:0${seq}:00Z`, ...extra });
+
+test('a helper statistician\'s substitutions and corrections are held beside the primary events, caught up and live', async t => {
+  const { hq, store, stats, lines, settle } = setup(t);
+  hq.add(5);
+  // What HQ holds of the helper so far, with things Studio must never count: another kind of event on the helper's
+  // stream, a shadow statistician's event, one with no time, and junk.
+  hq.helper = [help(1), help(2, { type: 'correction', payload: { target: 'e3', op: 'delete' } }),
+    help(3, { type: 'action' }), { ...help(1), id: 's1', stream: 'shadow:5f0c1f0e-1111-4222-8333-444455556666' }, help(4, { recordedAt: 'never' }), { nonsense: true }];
+  await stats.follow('123456');
+  assert.deepEqual(stats.current()!.helper.map(e => [e.stream, e.seq, e.type]), [[HELPER, 1, 'lineup_change'], [HELPER, 2, 'correction']]);
+  assert.equal(stats.status().helperEvents, 2);
+  assert.equal(stats.status().events, 5, 'the primary events are counted on their own');
+  assert.equal((store.read('THUNDER', GAME)! as { data: Json }).data.helper.length, 2);
+  assert.match(lines.join('\n'), /caught up to seq 5 \(5 new event\(s\), 2 new from a helper, 2 in the line-up\)/);
+  assert.doesNotMatch(lines.join('\n'), /Ava Smith/);
+
+  // Live: the next helper event follows on and is kept at once; one already held, a shadow event and another kind are dropped.
+  const ch = hq.channels[0];
+  ch.onStatus(true);
+  await settle();
+  hq.calls.length = 0;
+  ch.onEvent(help(3));
+  ch.onEvent(help(2, { type: 'correction' }));
+  ch.onEvent({ ...help(4), stream: 'shadow:5f0c1f0e-1111-4222-8333-444455556666' });
+  ch.onEvent(help(4, { type: 'action' }));
+  assert.deepEqual(stats.current()!.helper.map(e => e.seq), [1, 2, 3]);
+  assert.equal((store.read('THUNDER', GAME)! as { data: Json }).data.helper.length, 3);
+  assert.equal(hq.calls.length, 0, 'nothing was missed, so HQ isn\'t asked');
+  assert.equal(stats.status().throughSeq, 5, 'a helper event never moves the primary count');
+
+  // 4 was missed: 5 arrives, so Studio catches up and gets both.
+  hq.helper = [help(1), help(2, { type: 'correction' }), help(3), help(4), help(5)];
+  ch.onEvent(help(5));
+  await settle();
+  assert.ok(hq.calls.includes('studio_live(5)'));
+  assert.deepEqual(stats.current()!.helper.map(e => e.seq), [1, 2, 3, 4, 5]);
+
+  // A second helper stream (another helper took over) is held from its own seq 1, with no catch-up needed.
+  hq.calls.length = 0;
+  ch.onEvent({ ...help(1), id: 'k1', stream: 'helper:other' });
+  await settle();
+  assert.equal(hq.calls.length, 0);
+  assert.equal(stats.status().helperEvents, 6);
+});
+
+test('an HQ from before the helper statistician answers no helper events, and Studio carries on', async t => {
+  const { hq, stats } = setup(t);
+  hq.add(3);
+  hq.helper = undefined;
+  await stats.follow('123456');
+  assert.deepEqual(stats.current()!.helper, []);
+  assert.equal(stats.status().events, 3);
+});
+
+test('when HQ refuses the game, the helper\'s events go with the rest', async t => {
+  const { hq, stats, clock, store } = setup(t);
+  hq.add(2);
+  hq.helper = [help(1)];
+  await stats.follow('123456');
+  assert.equal(stats.status().helperEvents, 1);
+  hq.refuse.studio_live = 403;
+  clock.t += hqstats.CATCH_UP_EVERY;
+  await stats.follow('123456');
+  assert.equal(stats.current(), null);
+  assert.equal(store.read('THUNDER', GAME), null);
 });
 
 test('following the same game: a catch-up every minute, and the channel keeps a fresh token', async t => {
