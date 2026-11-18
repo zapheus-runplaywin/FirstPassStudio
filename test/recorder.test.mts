@@ -237,3 +237,104 @@ test('each game followed in the background gets a recording of its own: what Pla
     assert.equal(recorder.list().filter((r: Json) => r.followed).length, 3);
   } finally { recorder.closeFollowed(); recorder.close(); fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('the Mark moment key is off until turned on, then notes the quarter and the clock in the game being recorded', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-recorder-'));
+  const recorder = require('../out/recorder');
+  try {
+    const settings = path.join(dir, 'recordings.json');
+    recorder.init(() => {}, { dir: path.join(dir, 'Recordings'), settings, start: { version: '9.9.9' } });
+    const at = (period: Json, clockMs: Json) => () => ({ period, clockMs });
+    assert.equal(recorder.state().marks, false, 'off by default');
+
+    // Off: nothing is marked, even with a game recording.
+    recorder.board({ gameId: 'm1', home: { name: 'Stormz' }, away: { name: 'Semi Pro' } });
+    const first = recorder.state().recording;
+    assert.ok(first);
+    assert.deepEqual(recorder.mark(at(1, 300000)), { error: 'The Mark moment key is turned off. Turn it on on the Recordings page.', status: 409 });
+    assert.deepEqual(recorder.deck(['mark'], at(1, 300000)), { status: 409, body: { error: 'The Mark moment key is turned off. Turn it on on the Recordings page.' } });
+    assert.ok(!recorder.read(first).some((l: Json) => l.k === 'mark'));
+
+    // On: kept in recordings.json beside the other settings, and each press is a line in the same form as a Vantage flag.
+    recorder.setMarks(true);
+    assert.deepEqual(JSON.parse(fs.readFileSync(settings, 'utf8')), { record: true, afterMinutes: 10, marks: true });
+    assert.deepEqual(recorder.deck(['mark'], at(2, 462000)), { status: 200, body: { ok: true, marked: 1 } });
+    assert.deepEqual(recorder.mark(at(2, 301499.6)), { marked: 2 });
+    assert.equal(recorder.state().marked, 2);
+    const marks = recorder.read(first).filter((l: Json) => l.k === 'mark');
+    assert.deepEqual(marks.map((l: Json) => l.flag), [{ period: 2, clockMs: 462000 }, { period: 2, clockMs: 301500 }]);
+    assert.ok(marks.every((l: Json) => /^[0-9a-f-]{36}$/.test(l.id) && Math.abs(l.t - Date.now()) < 5000), 'each has an id and the time it was pressed');
+    assert.notEqual(marks[0].id, marks[1].id);
+    assert.deepEqual(Object.keys(marks[0]).sort(), ['flag', 'id', 'k', 't'], 'nothing else is kept with a mark');
+
+    // A board that can't say the quarter or the clock still marks the moment: the time of the press is what finds it.
+    recorder.mark(at(undefined, null));
+    recorder.mark(at('x', -5));
+    assert.deepEqual(recorder.read(first).filter((l: Json) => l.k === 'mark').slice(2).map((l: Json) => l.flag), [{ period: 1, clockMs: 0 }, { period: 1, clockMs: 0 }]);
+
+    // Only /deck/mark is the mark link.
+    assert.equal(recorder.deck(['home', 'add1'], at(1, 0)), null);
+    assert.equal(recorder.deck(['mark', 'twice'], at(1, 0)).status, 404);
+
+    // A practice game isn't the real game: nothing is marked while one runs.
+    recorder.pause(true);
+    assert.equal(recorder.mark(at(1, 0)).status, 409);
+    assert.match(recorder.mark(at(1, 0)).error, /practice game or 4K replay/);
+    recorder.pause(false);
+    assert.equal(recorder.read(first).filter((l: Json) => l.k === 'mark').length, 4);
+
+    // The next game starts its own count, and the setting is remembered by the next Studio.
+    recorder.board({ gameId: 'm2', home: { name: 'Fliers' }, away: { name: 'Gold' } });
+    assert.notEqual(recorder.state().recording, first);
+    assert.equal(recorder.state().marked, 0);
+    assert.deepEqual(recorder.mark(at(1, 600000)), { marked: 1 });
+    assert.equal(recorder.read(first).filter((l: Json) => l.k === 'mark').length, 4, 'the first game keeps its own');
+    recorder.close();
+    assert.match(recorder.mark(at(1, 0)).error, /No game is being recorded/);
+    assert.equal(recorder.state().marked, 0);
+    recorder.init(() => {}, { dir: path.join(dir, 'Recordings'), settings, start: { version: '9.9.9' } });
+    assert.equal(recorder.state().marks, true);
+    recorder.setMarks(false);
+    assert.equal(JSON.parse(fs.readFileSync(settings, 'utf8')).marks, false);
+  } finally { recorder.close(); recorder.setMarks(false); fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the Mark moment link and its switch work through Studio, and a mark is somewhere a replay can jump to', async t => {
+  const studio = await startStudio(t, { competition: 'Thunder League' });
+  await studio.until(async () => (await studio.get('/api/scoreboard')).gameId);
+  await studio.until(async () => (await studio.get('/api/recordings')).recording);
+
+  // Off until turned on: the key answers why, and marks nothing.
+  assert.equal((await studio.get('/api/recordings')).marks, false);
+  const off = await studio.request('GET', '/deck/mark');
+  assert.equal(off.status, 409);
+  assert.match(off.text, /turned off/);
+
+  // The Recordings page's switch, sent the way the page sends it.
+  assert.equal((await studio.request('POST', '/api/recordings', { marks: 'yes' })).status, 400);
+  assert.equal((await studio.post('/api/recordings', { marks: true })).marks, true);
+  assert.equal((await studio.get('/api/recordings')).record, true, 'recording itself is untouched');
+
+  for (const link of ['/deck/source/manual', '/deck/clock/playhq/off', '/deck/clock/stop', '/deck/quarter/2', '/deck/clock/set/7:42']) assert.equal((await studio.request('GET', link)).status, 200, link);
+  const on = await studio.request('GET', '/deck/mark');
+  assert.equal(on.status, 200);
+  assert.deepEqual(on.json, { ok: true, marked: 1 });
+  const s = await studio.get('/api/recordings');
+  assert.equal(s.marked, 1);
+
+  const file = path.join(studio.dataDir, 'Recordings', s.recording);
+  await studio.request('GET', `/api/recordings/${encodeURIComponent(s.recording)}/file`); // writes what's pending
+  const marks = read(file).filter(l => l.k === 'mark');
+  assert.deepEqual(marks.map(l => l.flag), [{ period: 2, clockMs: 462000 }]);
+
+  // The replay's jump list names it with what went on air.
+  const replay = require('../out/replay');
+  replay.init(() => {}, { read: () => read(file) });
+  const loaded = replay.load(s.recording);
+  assert.ok(loaded.events.some((e: Json) => e.label === 'Marked moment · Q2 7:42 left' && e.t === marks[0].t));
+
+  // Turned off again, the key stops.
+  await studio.post('/api/recordings', { marks: false });
+  assert.equal((await studio.request('GET', '/deck/mark')).status, 409);
+  assert.equal(read(file).filter(l => l.k === 'mark').length, 1);
+});

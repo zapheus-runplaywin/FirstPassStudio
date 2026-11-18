@@ -240,3 +240,24 @@ test("the SDI input's timecode is followed: moving on a frame at a time is playi
   assert.deepEqual(asked.at(-1), { type: 'readTimecode', device: null });
   assert.equal(sdi.state().conn, 'off');
 });
+
+test('a mark the producer made is in the jump list by its quarter and clock, in order with what went on air', () => {
+  const replay = require('../out/replay');
+  const lines = [
+    { t: 1000, k: 'start' },
+    { t: 1000, k: 'game', id: 'g1', home: 'Stormz', away: 'Semi Pro' },
+    { t: 1000, k: 'board', board: { gameId: 'g1', period: 1 } },
+    { t: 5000, k: 'mark', id: 'a', flag: { period: 1, clockMs: 462000 } },
+    { t: 9000, k: 'board', board: { gameId: 'g1', period: 2 } },
+    { t: 12000, k: 'mark', id: 'b', flag: { period: 2, clockMs: 5400 } },
+    { t: 13000, k: 'mark', id: 'c' },
+    { t: 14000, k: 'mark', id: 'd', flag: { period: 'two', clockMs: 1 } },
+  ];
+  replay.init(() => {}, { read: () => lines });
+  const loaded = replay.load('night.jsonl.gz', 'g1');
+  assert.deepEqual(loaded.events.map((e: Json) => [e.t, e.label]), [
+    [1000, 'Game: Stormz v Semi Pro'], [1000, 'Q1'], [5000, 'Marked moment · Q1 7:42 left'], [9000, 'Q2'], [12000, 'Marked moment · Q2 0:05 left'],
+    [13000, 'Marked moment'], [14000, 'Marked moment'],
+  ]);
+  assert.equal(loaded.last, 14000, 'a mark after the last change is still within the replay');
+});

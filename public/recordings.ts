@@ -4,7 +4,7 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 interface RecGame { id: string; at: number; home: string; away: string; division?: string; round?: string; court?: string; followed?: boolean }
 interface Recording { name: string; started: number; ended: number; size: number; recording?: boolean; competition?: string; games: RecGame[] }
 interface Recordings {
-  record: boolean; afterMinutes: number; leadMinutes: number; keepDays: number; recording?: string | null;
+  record: boolean; marks?: boolean; marked?: number; afterMinutes: number; leadMinutes: number; keepDays: number; recording?: string | null;
   waiting?: { game: string; from?: number; why?: string } | null; recordings: Recording[]; error?: string;
 }
 interface DemoSide {
@@ -37,6 +37,10 @@ function show(s: Recordings) {
   $<HTMLInputElement>('record').checked = s.record;
   if (document.activeElement !== $<HTMLInputElement>('after')) $<HTMLInputElement>('after').value = String(s.afterMinutes);
   $('leadMin').textContent = String(s.leadMinutes);
+  $<HTMLInputElement>('marks').checked = !!s.marks;
+  $('marksNote').textContent = !s.marks ? 'Off. Turn it on to let a Stream Deck key mark moments in the game being recorded.'
+    : !s.recording ? 'On. The key works while a game is being recorded.'
+    : `On. ${s.marked || 0} marked in this game so far.`;
   const w = s.waiting;
   $('recordNote').textContent = s.recording ? `Recording now. Recordings older than ${s.keepDays} days are removed when Studio starts.`
     : !s.record ? 'Not recording. Turn it on to keep games for practice games and 4K replays.'
@@ -235,6 +239,7 @@ $<HTMLButtonElement>('demoStart').onclick = async () => {
 };
 
 $<HTMLInputElement>('record').onchange = () => call('POST', '/api/recordings', { record: $<HTMLInputElement>('record').checked }).then(() => { if (!lastError) studioStatus('Saved'); });
+$<HTMLInputElement>('marks').onchange = () => call('POST', '/api/recordings', { marks: $<HTMLInputElement>('marks').checked }).then(() => { if (!lastError) studioStatus('Saved'); });
 $<HTMLInputElement>('after').onchange = () => call('POST', '/api/recordings', { afterMinutes: Number($<HTMLInputElement>('after').value) }).then(() => { if (!lastError) studioStatus('Saved'); });
 $('nights').onclick = async e => {
   const rp = hit(e, '[data-replay]');

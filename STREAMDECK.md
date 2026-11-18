@@ -391,6 +391,17 @@ while it's on, or plugged into the ATEM switcher, whose faders Studio moves. The
 
 - A mic is named like a source (**Court mic** is `court-mic`), or by its number on the Output page (`/deck/mic/1/up`).
 
+## Mark moment (Recordings tab)
+
+For a game nobody is taking stats on, the producer can mark a moment worth finding again. Turn on **Mark moment key** on the
+Recordings tab first; it is off until then, and the link answers that it is. Each press notes the moment in the game's recording
+with the quarter and the clock left. A 4K replay lists the marks under **Jump to**, and its Next and Back keys stop at them.
+Marks stay on this Mac with the recording.
+
+| Button | Link |
+|---|---|
+| Mark this moment | http://localhost:8080/deck/mark |
+
 ## 4K replay and practice games (Recordings tab)
 
 For the 4K replay or the practice (or demo) game started on the Recordings tab. With none running a link answers that none is,

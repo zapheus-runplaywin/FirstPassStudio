@@ -12,7 +12,7 @@
 // Stop puts the live scene and scoreboard back on the pages.
 //
 // Controls (the Recordings tab): Play, Pause, nudge (a frame either way, or a second), and jump to anything that went
-// on air (a source coming on, a quarter starting), which pauses there: pause the video on the same moment, then
+// on air (a source coming on, a quarter starting) or a moment the producer marked, which pauses there: pause the video on the same moment, then
 // Play both.
 //
 // Or the replay follows the timecode of the player with the video (Follow): a HyperDeck over the network
@@ -92,6 +92,14 @@ const PERIODS: Record<string, string> = { FIRST_QTR: 'Q1', SECOND_QTR: 'Q2', THI
 // The sources on in a recorded scene: id -> name.
 const onNow = (st: unknown) => new Map((Array.isArray(obj(st).sources) ? obj(st).sources as unknown[] : []).map(obj).filter(s => s.visible).map(s => [str(s.id), str(s.name) || 'A source']));
 
+// A mark's name in the jump list: "Marked moment · Q2 7:42 left".
+function markLabel(flag: unknown) {
+  const f = obj(flag), period = Number(f.period), ms = Number(f.clockMs);
+  if (!Number.isFinite(period) || !Number.isFinite(ms)) return 'Marked moment';
+  const sec = Math.max(0, Math.round(ms / 1000));
+  return `Marked moment · Q${period} ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')} left`;
+}
+
 // A recording's on-air layer: the scene and board timelines, the graphics' reads, and what went on air.
 function load(recording: string, gameId?: string) {
   const lines = hooks.read(recording);
@@ -105,6 +113,8 @@ function load(recording: string, gameId?: string) {
       events.push({ t: l.t, label: `Game: ${str(l.home)} v ${str(l.away)}` });
       if (l.id === gameId) game = l;
     }
+    // A moment the producer marked (recorder.ts mark()): somewhere to jump to, named by its quarter and clock.
+    else if (l.k === 'mark') events.push({ t: l.t, label: markLabel(l.flag) });
   }
   if (!scene.length && !board.length) throw new Error('This recording has nothing that went to air.');
   // What came on (the primary output's sources), and each quarter as the board started it.
