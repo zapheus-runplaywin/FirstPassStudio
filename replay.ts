@@ -290,6 +290,10 @@ function answer(pathAndQuery: string) {
   return isObj(v) && 'serverNow' in v ? { ...v, serverNow: Date.now() } : v;
 }
 
+// The sync a recording's replay keeps (the ms between the followed player's timecode and this Mac's clock), 0 when it
+// has never been synced: video markers (videomarkers.ts) line a video up with it.
+const offsetOf = (recording: string) => saved.offsets[recording] || 0;
+
 function followState() {
   const f = { kind: saved.follow, address: saved.hyperdeck };
   const s = run && source();
@@ -348,4 +352,4 @@ async function route(req: IncomingMessage, res: ServerResponse, url: URL, { send
   return true;
 }
 
-export { init, active, start, stop, pause, nudge, seek, answer, state, route, deck, load, FRAME_MS };
+export { init, active, start, stop, pause, nudge, seek, answer, state, route, deck, load, offsetOf, FRAME_MS };

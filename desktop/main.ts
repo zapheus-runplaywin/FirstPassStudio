@@ -216,7 +216,7 @@ function askToPair(child: UtilityProcess, message: unknown) {
   const msg = obj(message);
   if (msg.type === 'pairDone') { pairDialogs.get(msg.id)?.abort(); pairDialogs.delete(msg.id); return; }
   if (msg.type !== 'pair' || !msg.request) return;
-  const { id, name, address, browser } = obj(msg.request);
+  const { id, name, address, browser, stats } = obj(msg.request);
   const stop = new AbortController();
   pairDialogs.set(id, stop);
   app.focus({ steal: true });
@@ -226,8 +226,11 @@ function askToPair(child: UtilityProcess, message: unknown) {
   const deny = choices.length - 1;
   dialog.showMessageBox({
     type: 'question', buttons: choices.map(c => c.label), defaultId: deny, cancelId: deny, signal: stop.signal,
-    message: `Allow "${name}" at ${address} to control Studio?`,
-    detail: browser
+    message: stats ? `Allow "${name}" at ${address} to use the venue link?` : `Allow "${name}" at ${address} to control Studio?`,
+    // FirstPass Vantage or the Vision phone app (devices.ts kind 'stats'): the game's stats, and nothing else of Studio.
+    detail: stats
+      ? 'FirstPass Vantage sends the game\'s stats to Studio over this network, and the FirstPass Vision phone app reads them here, for the game on the scoreboard. It can\'t change the scoreboard, the scene or anything else. Only allow a statistician\'s or coach\'s device you know. Devices in the menu bar icon lists it, and can take it away again.'
+      : browser
       ? 'Scoring only: the scores, clock, quarter and game, as on Scoreboard control. Everything: the scene, sequences and settings too. Only allow a device you know is yours. Devices in the menu bar icon lists it, and can change or take it away.'
       : 'It will be able to change scores, the scene, sequences and settings, like a Stream Deck. Only allow a device you know is yours. Devices in the menu bar icon lists it, and can take it away again.',
   }).then(({ response }) => {

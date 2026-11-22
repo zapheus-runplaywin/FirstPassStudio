@@ -21,11 +21,16 @@
 // access.scoring()) or 'full'; Devices… can change it later. Every allowed device, link set and plugin can change
 // things while "Only this Mac can change things" is ticked (access.refusal()), within its level.
 //
+// FirstPass Vantage and the FirstPass Vision phone app ask to use the venue link (venuelink.ts), kind 'stats': over
+// the secure link only (server.ts refuses the request anywhere else), and allowed on the Mac like any other. Its key
+// counts for the venue link's routes and nothing else: sent in the x-studio-key header (fromKey()), never in a /k/
+// link, so it can't change the scoreboard, the scene or anything else in Studio.
+//
 // devices.json in the local data folder: never in iCloud, a backup or a template (datalocation.ts LOCAL_ONLY).
-//   [{ id, name, kind: 'links' | 'program' | 'plugin' | 'browser', level: 'full' | 'scoring', secret | publicKey, address,
+//   [{ id, name, kind: 'links' | 'program' | 'plugin' | 'browser' | 'stats', level: 'full' | 'scoring', secret | publicKey, address,
 //      created, lastSeen, secure? }]
-// secure: a browser that collected its cookie over the secure link (https), so the cookie has never crossed the network
-// in the clear. Only such a browser may read FirstPass stats (access.firstpassRefusal()); one paired at the .local
+// secure: a browser that collected its cookie, or a FirstPass app its key, over the secure link (https), so it has
+// never crossed the network in the clear. Only such a device may read FirstPass stats (access.firstpassRefusal()); one paired at the .local
 // address over plain http has to pair again over the secure link to see them.
 // The secrets never leave this module except as This Mac's key (linkKey(), which the Output page puts in the links
 // it copies); list() leaves them out.
@@ -43,7 +48,7 @@ import { obj } from './check';
 import type { IncomingHttpHeaders } from 'node:http';
 import type { Log } from './types';
 
-type Kind = 'links' | 'program' | 'plugin' | 'browser';
+type Kind = 'links' | 'program' | 'plugin' | 'browser' | 'stats';
 type Level = 'full' | 'scoring';
 // A device in devices.json: secret for a link set, program or browser; publicKey for a plugin.
 interface Device {
@@ -52,7 +57,7 @@ interface Device {
 }
 // The open request to be added.
 interface Asking {
-  id: string; token: string; name: string; address: string; publicKey?: string; browser: boolean; at: number;
+  id: string; token: string; name: string; address: string; publicKey?: string; browser: boolean; stats: boolean; at: number;
   answer: null | 'allow' | 'deny'; kind?: Kind; level?: Level; secret?: string; deviceId?: string;
 }
 
@@ -175,6 +180,9 @@ function fromCookie(header: unknown): Device | null {
   return m ? match(m[1], ['browser']) : null;
 }
 
+// The FirstPass app whose key is in this x-studio-key header (the venue link, venuelink.ts), or null.
+const fromKey = (header: unknown): Device | null => (typeof header === 'string' && validKey(header) ? match(header, ['stats']) : null);
+
 // The device a signed press came from (after signed() said 'ok'), or null.
 const byId = (id: string): Device | null => all().find(d => d.id === id && !unused(d)) || null;
 
@@ -242,19 +250,20 @@ function endAsking() {
 // A device at address asks to be added under name, with its public key if it signs (the Studio plugin).
 // { id, token, expires } (token collects the answer), or { error } when another request is open or this address was
 // just denied.
-function ask(name: unknown, address: string, publicKey?: string, browser = false): { error: string } | { id: string; token: string; expires: string } {
+// stats: FirstPass Vantage or Vision asking to use the venue link, and nothing else.
+function ask(name: unknown, address: string, publicKey?: string, browser = false, stats = false): { error: string } | { id: string; token: string; expires: string } {
   if (publicKey !== undefined && !publicKeyOf(publicKey)) return { error: 'That public key isn\'t an Ed25519 key (SPKI DER, base64url).' };
   const clean = String(name || '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
   if (!clean) return { error: 'Give the device a name, such as "Office Stream Deck", so whoever is at the Mac knows what is asking.' };
   if (Date.now() - (deniedAt.get(address) || 0) < DENIED_MS) return { error: 'This device was just denied. Wait a minute before asking again.' };
   if (asking && !asking.answer) return { error: 'Another device is asking already. Try again once it is answered, or in five minutes.' };
   endAsking();
-  const open: Asking = { id: crypto.randomBytes(6).toString('base64url'), token: crypto.randomBytes(16).toString('base64url'), name: clean, address, publicKey, browser: !publicKey && browser === true, at: Date.now(), answer: null };
+  const open: Asking = { id: crypto.randomBytes(6).toString('base64url'), token: crypto.randomBytes(16).toString('base64url'), name: clean, address, publicKey, browser: !publicKey && !stats && browser === true, stats: !publicKey && stats === true, at: Date.now(), answer: null };
   asking = open;
   askTimer = setTimeout(() => { log('info', 'devices', `${open.name} at ${open.address} wasn't answered in five minutes`); endAsking(); }, ASK_MS);
   askTimer.unref?.();
-  log('info', 'devices', `${clean} at ${address} asks to control Studio`);
-  if (app) app.postMessage({ type: 'pair', request: { id: open.id, name: clean, address, browser: open.browser } });
+  log('info', 'devices', `${clean} at ${address} asks to ${open.stats ? 'use the venue link' : 'control Studio'}`);
+  if (app) app.postMessage({ type: 'pair', request: { id: open.id, name: clean, address, browser: open.browser, stats: open.stats } });
   return { id: open.id, token: open.token, expires: new Date(open.at + ASK_MS).toISOString() };
 }
 
@@ -266,7 +275,9 @@ function answer(id: string, allow: boolean, level?: unknown): boolean {
     const base = { id: crypto.randomBytes(6).toString('base64url'), name: asking.name, level: 'full' as Level, address: asking.address, created: new Date().toISOString(), lastSeen: null };
     const d: Device = asking.publicKey ? { ...base, kind: 'plugin', publicKey: asking.publicKey }
       : asking.browser ? { ...base, kind: 'browser', level: isLevel(level) ? level : 'scoring', secret: newSecret() }
-        : { ...base, kind: 'program', secret: newSecret() };
+        // A FirstPass app's level never counts: its key is taken on the venue link's routes only (fromKey()).
+        : asking.stats ? { ...base, kind: 'stats', level: 'scoring', secret: newSecret() }
+          : { ...base, kind: 'program', secret: newSecret() };
     asking.kind = d.kind;
     asking.level = d.level;
     // A plugin asking again with the same key (its settings were lost) replaces its old entry.
@@ -280,7 +291,7 @@ function answer(id: string, allow: boolean, level?: unknown): boolean {
   }
   asking.answer = allow ? 'allow' : 'deny';
   if (app) app.postMessage({ type: 'pairDone', id });
-  log('info', 'devices', `${asking.name} at ${asking.address} was ${allow ? (asking.level === 'scoring' ? 'allowed to score' : 'allowed to control Studio') : 'denied'}`);
+  log('info', 'devices', `${asking.name} at ${asking.address} was ${allow ? (asking.kind === 'stats' ? 'allowed to use the venue link' : asking.level === 'scoring' ? 'allowed to score' : 'allowed to control Studio') : 'denied'}`);
   return true;
 }
 
@@ -291,7 +302,7 @@ function answer(id: string, allow: boolean, level?: unknown): boolean {
 function collect(id: string, token: unknown, secure = false) {
   if (!asking || asking.id !== id || !same(asking.token, token || '')) return { status: 'gone' };
   if (!asking.answer) return { status: 'waiting', expires: new Date(asking.at + ASK_MS).toISOString() };
-  if (asking.answer === 'allow' && asking.kind === 'browser' && secure) {
+  if (asking.answer === 'allow' && (asking.kind === 'browser' || asking.kind === 'stats') && secure) {
     const d = all().find(x => x.id === asking?.deviceId);
     if (d) { d.secure = true; save(); }
   }
@@ -303,8 +314,8 @@ function collect(id: string, token: unknown, secure = false) {
 
 // The open request, for the Devices page: { id, name, address, at, expires }, or null.
 const pending = () => asking && !asking.answer
-  ? { id: asking.id, name: asking.name, address: asking.address, browser: asking.browser, at: new Date(asking.at).toISOString(), expires: new Date(asking.at + ASK_MS).toISOString() }
+  ? { id: asking.id, name: asking.name, address: asking.address, browser: asking.browser, stats: asking.stats, at: new Date(asking.at).toISOString(), expires: new Date(asking.at + ASK_MS).toISOString() }
   : null;
 
 export type { Device, Kind, Level };
-export { load, linkKey, addLinks, renew, match, fromCookie, byId, setLevel, list, revoke, signed, pluginPaired, ask, answer, collect, pending, FILE, LINKS, COOKIE };
+export { load, linkKey, addLinks, renew, match, fromCookie, fromKey, byId, setLevel, list, revoke, signed, pluginPaired, ask, answer, collect, pending, FILE, LINKS, COOKIE };

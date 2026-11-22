@@ -389,6 +389,92 @@ test('HQ out of reach, for the role check or a catch-up, keeps what is held and 
   assert.equal(stats.current()!.events.length, 4);
 });
 
+// The venue link (venuelink.ts): events FirstPass Vantage hands over on the venue network.
+test('the venue link\'s events count until HQ sends its own copy, are never saved, and only for the game followed', async t => {
+  const { hq, store, stats, lines } = setup(t);
+  hq.add(3);
+  await stats.follow('123456');
+  let grew = 0;
+  const off = stats.onChange(() => { grew++; });
+  // Another game, or no game: nothing is taken.
+  assert.deepEqual(stats.venue(OTHER, [event(4, { gameId: OTHER })], 'tablet'), { ok: false, reason: 'not-followed' });
+  // Events that follow on are taken; ones already held, ones for another game, shadow ones and junk are not.
+  const took = stats.venue(GAME, [event(3), event(4), event(5), event(6, { gameId: OTHER }), { ...event(6), stream: 'shadow:x' }, { nonsense: true }, event(6, { id: '' })], 'tablet');
+  assert.deepEqual(took, { ok: true, throughSeq: 5, taken: 2 });
+  assert.equal(grew, 1);
+  assert.deepEqual(stats.current()!.events.map(e => e.seq), [1, 2, 3, 4, 5], 'the graphics see them at once');
+  assert.equal(stats.status().events, 3, 'HQ\'s own are counted apart');
+  assert.equal(stats.status().venueEvents, 2);
+  assert.ok(stats.status().venueAt);
+  assert.equal((store.read('THUNDER', GAME)! as { data: Json }).data.events.length, 3, 'only HQ\'s copy is kept');
+  // A hole: 8 doesn't follow on from 5, so the answer says where to send from.
+  assert.deepEqual(stats.venue(GAME, [event(8)], 'tablet'), { ok: true, throughSeq: 5, taken: 0 });
+  // A second device's events don't follow on from the first one's.
+  assert.deepEqual(stats.venue(GAME, [event(6)], 'other-tablet'), { ok: true, throughSeq: 5, taken: 0 });
+  // What a reader gets: after a seq, HQ's then the venue link's, with how far HQ has confirmed.
+  const read = stats.since(GAME, 3)!;
+  assert.deepEqual([read.events.map(e => e.seq), read.throughSeq, read.confirmedSeq, read.firstSeq], [[4, 5], 5, 3, 1]);
+  assert.equal(stats.since(OTHER, 0), null);
+  // HQ sends 4 and 5 (the same events): they are HQ's now, kept, and no longer the venue link's.
+  hq.add(2);
+  hq.channels[0].onEvent(hq.events[3]);
+  hq.channels[0].onEvent(hq.events[4]);
+  assert.equal(stats.status().events, 5);
+  assert.equal(stats.status().venueEvents, 0);
+  assert.deepEqual(stats.current()!.events.map(e => e.seq), [1, 2, 3, 4, 5]);
+  assert.equal((store.read('THUNDER', GAME)! as { data: Json }).data.events.length, 5);
+  assert.ok(grew >= 3);
+  off();
+  // Never an event's contents in the log.
+  assert.doesNotMatch(lines.join('\n'), /athleteId/);
+});
+
+test('HQ\'s copy wins: a device whose events aren\'t HQ\'s is dropped and not listened to again', async t => {
+  const { hq, stats, lines } = setup(t);
+  hq.add(2);
+  await stats.follow('123456');
+  // A tablet that lost the game to another one keeps sending its own 3 and 4.
+  assert.equal(stats.venue(GAME, [event(3, { id: 'stale3' }), event(4, { id: 'stale4' })], 'stale').ok, true);
+  assert.deepEqual(stats.current()!.events.map(e => e.id), ['e1', 'e2', 'stale3', 'stale4']);
+  // HQ's 3 is another event: everything the stale tablet gave goes.
+  hq.add(1);
+  hq.channels[0].onEvent(hq.events[2]);
+  assert.deepEqual(stats.current()!.events.map(e => e.id), ['e1', 'e2', 'e3']);
+  assert.deepEqual(stats.venue(GAME, [event(4, { id: 'stale4' })], 'stale'), { ok: false, reason: 'other-recorder' });
+  assert.match(lines.join('\n'), /venue link's event 3 wasn't HQ's/);
+  // The tablet that has the game now is listened to.
+  assert.deepEqual(stats.venue(GAME, [event(4)], 'recorder'), { ok: true, throughSeq: 4, taken: 1 });
+});
+
+test('the venue link carries a helper\'s events too, a break snapshot covers what it gave, and a dropped game takes them with it', async t => {
+  const { hq, stats, clock } = setup(t);
+  hq.add(2);
+  hq.helper = [help(1)];
+  await stats.follow('123456');
+  // The helper's tablet hands over its 2; one already held and one a helper may not record are left.
+  assert.deepEqual(stats.venue(GAME, [help(1), help(2), help(3, { type: 'action' })], 'helper-tablet'), { ok: true, throughSeq: 2, taken: 1 });
+  assert.deepEqual(stats.current()!.helper.map(e => e.seq), [1, 2]);
+  assert.equal(stats.status().helperEvents, 1);
+  stats.venue(GAME, [event(3), event(4)], 'tablet');
+  assert.equal(stats.status().venueEvents, 3);
+  // HQ catches up with a snapshot through 4 and the helper's 2: nothing is left of the venue link's.
+  hq.add(2);
+  hq.helper = [help(1), help(2)];
+  hq.snapshot = { throughSeq: 4, engineVersion: '0.2.0', state: {}, createdAt: '2026-11-13T09:20:00Z' };
+  clock.t += hqstats.CATCH_UP_EVERY;
+  await stats.follow('123456');
+  assert.equal(stats.status().venueEvents, 0);
+  assert.equal(stats.status().throughSeq, 4);
+  assert.deepEqual(stats.current()!.helper.map(e => e.seq), [1, 2]);
+  // The role goes: what the venue link gave since goes with everything else, and no more is taken.
+  stats.venue(GAME, [event(5)], 'tablet');
+  hq.role = 'gone';
+  clock.t += hqstats.CATCH_UP_EVERY;
+  await stats.follow('123456');
+  assert.equal(stats.current(), null);
+  assert.deepEqual(stats.venue(GAME, [event(6)], 'tablet'), { ok: false, reason: 'not-followed' });
+});
+
 test('not signed in to any club: HQ is never asked', async t => {
   const hq = standIn();
   hq.signedIn = false;

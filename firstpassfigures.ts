@@ -131,4 +131,4 @@ function onAir(f: Followed | null, board: { home: string; away: string }): OnAir
 }
 
 export type { OnAir, Shooter, Followed };
-export { onAir, sideOf, sameLine };
+export { onAir, sideOf, sameLine, configOf, recordOf };

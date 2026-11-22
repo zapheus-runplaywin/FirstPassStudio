@@ -18,6 +18,13 @@
 //      They are held beside the primary events, and firstpassfigures.ts merges the two exactly as Vantage and Vision
 //      do. A helper event that doesn't follow on from the ones held of its stream is filled by another catch-up.
 //
+//   5. The venue link (venuelink.ts): on the venue network, FirstPass Vantage can hand Studio each event as it is
+//      recorded, as well as sending it to HQ, so the graphics keep up when the venue's internet is slow. venue() takes
+//      them only for the game being followed here, so every rule above still decides whether Studio may hold the game
+//      at all. They sit apart from what HQ has sent (Following venue and venueHelper), are never saved, and count only
+//      until HQ sends its own copy of the same event: HQ's copy always wins, and a device whose events turn out not to
+//      be HQ's (another tablet took the game over) isn't listened to again for that game.
+//
 // Revocation: every catch-up first checks the Studio role again (hqauth.ts checkRole()), so a role removed or paused in
 // HQ, or a member stood down or deleted, stops Studio within a minute, not at the next half-hourly refresh. Whenever HQ
 // refuses one of these calls (an answer of 400 to 499 but 408 and 429), Studio stops following the game at once, drops
@@ -56,7 +63,13 @@ interface Snapshot { throughSeq: number; engineVersion: string; state: unknown; 
 interface Following {
   club: string; game: HqGame; snapshot: Snapshot | null; events: HqEvent[]; helper: HqEvent[]; lineup: Athlete[];
   live: boolean; lastCatchUp: number; catchingUp: Promise<void> | null;
+  // From the venue link, not yet sent by HQ: primary events that follow on from events, and helper events HQ hasn't
+  // sent. sender: the device each primary one came from; refusedSenders: devices whose events weren't HQ's.
+  venue: HqEvent[]; venueHelper: HqEvent[]; venueSender: string; refusedSenders: Set<string>; venueAt: number;
 }
+// What venue() answers: how far the game's primary events now reach here (the sender sends what comes after), and how
+// many of the ones given were new; or why none were taken.
+type VenueAnswer = { ok: true; throughSeq: number; taken: number } | { ok: false; reason: 'not-followed' | 'other-recorder' };
 // Opens game:<id> for a club: calls onEvent for each event and onStatus(true|false) as the channel joins or drops.
 // Gives back a function that closes it and one that hands it a fresh access token.
 type Subscribe = (club: Club, gameId: string, token: string, onEvent: (e: unknown) => void, onStatus: (live: boolean) => void)
@@ -106,6 +119,9 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
   let following: Following | null = null;
   let wanted: string | null = null;
   let channel: ReturnType<Subscribe> | null = null;
+  // Called whenever the events held for the followed game grow (venuelink.ts answers its waiting readers).
+  const listeners = new Set<() => void>();
+  const changed = () => { for (const fn of listeners) fn(); };
 
   // A call to one of HQ's functions as the signed-in person: { json }, or { refused } with HQ's answer when HQ said no
   // (400 to 499 but 408 and 429, as hqauth.ts counts them), or null (not signed in, or HQ couldn't be reached).
@@ -165,10 +181,77 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
       const last = lastSeq(f);
       if (e.seq <= last) continue;
       if (e.seq !== last + 1) { gap = true; break; }
+      // HQ's copy of an event the venue link gave first: if it isn't the same event, that device's aren't the game's
+      // record (another tablet took over), so none of them count and it isn't listened to again.
+      const given = f.venue.find(v => v.seq === e.seq);
+      if (given && given.id !== e.id) {
+        f.refusedSenders.add(f.venueSender);
+        f.venue = [];
+        log('warn', 'hq', `${f.club} game ${f.game.id}: the venue link's event ${e.seq} wasn't HQ's; dropped what that device sent`);
+      }
       f.events.push(e);
     }
+    settleVenue(f);
     return !gap;
   }
+
+  // Drops what the venue link gave that HQ has now sent (or a snapshot now covers).
+  function settleVenue(f: Following) {
+    const last = lastSeq(f);
+    if (f.venue.length && f.venue[0].seq <= last) f.venue = f.venue.filter(e => e.seq > last);
+    if (f.venueHelper.length) {
+      const held = new Set(f.helper.map(e => `${e.stream} ${e.seq}`));
+      f.venueHelper = f.venueHelper.filter(e => !held.has(`${e.stream} ${e.seq}`));
+    }
+  }
+  // The game's events as the graphics and the venue link's readers see them: HQ's, then what the venue link gave beyond.
+  const primaryOf = (f: Following) => (f.venue.length ? f.events.concat(f.venue) : f.events);
+  const helperOf = (f: Following) => (f.venueHelper.length
+    ? f.helper.concat(f.venueHelper).sort((a, b) => (a.stream < b.stream ? -1 : a.stream > b.stream ? 1 : a.seq - b.seq))
+    : f.helper);
+  const reach = (f: Following) => (f.venue.length ? f.venue[f.venue.length - 1].seq : lastSeq(f));
+
+  // Events FirstPass Vantage handed over on the venue network (venuelink.ts), from the device `sender`. Taken only for
+  // the game being followed; primary ones only when they follow on from what is held, so the answer tells the sender
+  // where to send from. Nothing is saved: HQ's copy is the one that is kept.
+  function venue(gameId: string, list: unknown[], sender: string): VenueAnswer {
+    const f = following;
+    if (!f || f.game.id !== gameId) return { ok: false, reason: 'not-followed' };
+    if (f.refusedSenders.has(sender)) return { ok: false, reason: 'other-recorder' };
+    let taken = 0;
+    const primary = list.map(toEvent).filter((e): e is HqEvent => !!e && e.gameId === gameId && !!e.id).sort((a, b) => a.seq - b.seq);
+    for (const e of primary) {
+      const last = reach(f);
+      if (e.seq <= last) continue;
+      if (e.seq !== last + 1) break;
+      // One device's run at a time: another device's events don't follow on from this one's.
+      if (f.venue.length && f.venueSender !== sender) break;
+      f.venueSender = sender;
+      f.venue.push(e);
+      taken++;
+    }
+    const held = new Set(helperOf(f).map(e => `${e.stream} ${e.seq}`));
+    for (const e of list.map(toHelperEvent)) {
+      if (!e || e.gameId !== gameId || held.has(`${e.stream} ${e.seq}`)) continue;
+      held.add(`${e.stream} ${e.seq}`);
+      f.venueHelper.push(e);
+      taken++;
+    }
+    if (taken) { f.venueAt = now(); changed(); }
+    return { ok: true, throughSeq: reach(f), taken };
+  }
+
+  // What a reader on the venue link gets (venuelink.ts): the followed game's primary events after a seq (500 at most)
+  // and every helper event, ids only as HQ holds them (names come from HQ itself); null when it isn't the game followed.
+  function since(gameId: string, after: number) {
+    const f = following;
+    if (!f || f.game.id !== gameId) return null;
+    const all = primaryOf(f);
+    const events = all.filter(e => e.seq > after).slice(0, 500);
+    return { gameId, status: f.game.status, throughSeq: reach(f), confirmedSeq: lastSeq(f), firstSeq: all.length ? all[0].seq : reach(f) + 1, events, helper: helperOf(f) };
+  }
+  // fn is called whenever the followed game's events grow. Gives back a function that stops it.
+  function onChange(fn: () => void) { listeners.add(fn); return () => { listeners.delete(fn); }; }
 
   // Adds helper events not already held (by stream and seq), keeping them in stream and seq order. { added } is how
   // many were new; gap: one of them doesn't follow on from the ones held of its stream (another catch-up fills it).
@@ -194,7 +277,7 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
   async function drop(f: Following, why: string, roleGone = false) {
     if (following === f) stop();
     gameLists.delete(f.club);
-    f.events = []; f.helper = []; f.snapshot = null; f.lineup = [];
+    f.events = []; f.helper = []; f.snapshot = null; f.lineup = []; f.venue = []; f.venueHelper = [];
     store.forgetGame(f.club, f.game.id, why);
     log('info', 'hq', `${f.club}: ${why}; stopped following game ${f.game.id} and dropped its FirstPass stats`);
     if (!roleGone) await hq.checkRole(f.club);
@@ -222,12 +305,14 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
           // A newer snapshot covers every event before it; the events after it follow in this answer.
           f.snapshot = { throughSeq: Number(snap.throughSeq), engineVersion: str(snap.engineVersion), state: snap.state ?? null, createdAt: str(snap.createdAt) };
           f.events = [];
+          settleVenue(f);
         }
         const list = arr(live.events).map(toEvent).filter((e): e is HqEvent => !!e);
         got += list.length;
         add(f, list);
         // Every helper event so far comes with each answer (an HQ from before the helper sends none).
         helped += addHelper(f, arr(live.helperEvents).map(toHelperEvent).filter((e): e is HqEvent => !!e)).added;
+        settleVenue(f);
         if (live.more !== true) break;
       }
       if (following !== f) return;
@@ -238,6 +323,7 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
       }
       f.lastCatchUp = now();
       if (following === f) keep(f);
+      if (got || helped) changed();
       log('info', 'hq', `${f.club} game ${f.game.id}: caught up to seq ${lastSeq(f)} (${got} new event(s), ${helped ? `${helped} new from a helper, ` : ''}${f.lineup.length} in the line-up)`);
     })().catch(err => log('error', 'hq', `${f.club}: catching up failed: ${errorMessage(err)}`)).finally(() => { f.catchingUp = null; });
     return f.catchingUp;
@@ -265,7 +351,8 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
     if (!wanted) return;
     const found = await match(wanted);
     if (!found || wanted !== playhqGameId || following) return;
-    const nf: Following = { club: found.club.code, game: found.game, snapshot: null, events: [], helper: [], lineup: [], live: false, lastCatchUp: 0, catchingUp: null };
+    const nf: Following = { club: found.club.code, game: found.game, snapshot: null, events: [], helper: [], lineup: [], live: false, lastCatchUp: 0, catchingUp: null,
+      venue: [], venueHelper: [], venueSender: '', refusedSenders: new Set(), venueAt: 0 };
     following = nf;
     log('info', 'hq', `${nf.club}: following game ${nf.game.id} (PlayHQ ${wanted})`);
     await catchUp(nf);
@@ -276,11 +363,11 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
       e => {
         if (following !== nf) return;
         const ev = toEvent(e);
-        if (ev) { if (add(nf, [ev])) keep(nf); else catchUp(nf); return; }
+        if (ev) { if (add(nf, [ev])) { keep(nf); changed(); } else catchUp(nf); return; }
         const help = toHelperEvent(e);
         if (!help) return;
         const { added, gap } = addHelper(nf, [help]);
-        if (added) keep(nf);
+        if (added) { settleVenue(nf); keep(nf); changed(); }
         if (gap) catchUp(nf);
       },
       live => {
@@ -297,21 +384,23 @@ function create({ log: rawLog, store, hq, fetch = globalThis.fetch, subscribe = 
     const f = following;
     if (!f) return { following: false as const };
     return { following: true as const, club: f.club, gameId: f.game.id, playhqGameId: f.game.playhqGameId, status: f.game.status, live: f.live,
-      events: f.events.length, helperEvents: f.helper.length, throughSeq: lastSeq(f), snapshot: !!f.snapshot, lineup: f.lineup.length };
+      events: f.events.length, helperEvents: f.helper.length, throughSeq: lastSeq(f), snapshot: !!f.snapshot, lineup: f.lineup.length,
+      // The venue link: how many events it has given that HQ hasn't sent yet, and when it last gave one.
+      venueEvents: f.venue.length + f.venueHelper.length, venueAt: f.venueAt ? new Date(f.venueAt).toISOString() : null };
   }
 
   // What is held for the game being followed (the private routes and the graphics use it), or null.
   function current() {
     const f = following;
-    return f ? { club: f.club, game: f.game, snapshot: f.snapshot, events: f.events, helper: f.helper, lineup: f.lineup } : null;
+    return f ? { club: f.club, game: f.game, snapshot: f.snapshot, events: primaryOf(f), helper: helperOf(f), lineup: f.lineup } : null;
   }
 
   // A club signed out: stop following its game at once.
   function signedOut(code: string) { if (following && following.club === code) stop(); gameLists.delete(code); }
 
-  return { follow, status, current, signedOut, stop };
+  return { follow, status, current, signedOut, stop, venue, since, onChange };
 }
 
 type HqStats = ReturnType<typeof create>;
-export type { HqEvent, HqGame, Athlete, Snapshot, Subscribe, HqStats };
+export type { HqEvent, HqGame, Athlete, Snapshot, Subscribe, HqStats, VenueAnswer };
 export { create, realtimeSubscribe, GAMES_EVERY, CATCH_UP_EVERY };
