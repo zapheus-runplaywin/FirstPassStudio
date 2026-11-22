@@ -2,7 +2,7 @@
   "name": "@firstpass/playhq",
   "version": "0.2.0",
   "description": "PlayHQ's public data for FirstPass: link parsing, the GraphQL queries, the guest session, and parsers for fixtures, line ups, ladders and the live scoring feed.",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "author": "PIVT",
   "repository": {
     "type": "git",

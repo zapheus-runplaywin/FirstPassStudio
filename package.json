@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Live PlayHQ graphics for livestreams, by PIVT",
   "author": "PIVT",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "private": true,
   "main": "out/desktop/main.js",
   "workspaces": [
