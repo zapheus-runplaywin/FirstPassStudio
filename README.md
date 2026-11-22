@@ -1069,6 +1069,21 @@ quarter and the clock left on the scoreboard), the same form as a mark made in F
 the key is off, no game is being recorded, or a practice game or 4K replay is running. A 4K replay lists each mark in its `events`
 ("Marked moment · Q2 7:42 left"), so Jump to and the Replay key's next and back stop at them. Marks stay on this Mac with the recording.
 
+**Video markers** (`videomarkers.ts`): *Markers* beside a game on the Recordings tab makes a file that marks the game's moments in a
+video editor, so a coach drops the camera recording into DaVinci Resolve or Premiere Pro and finds them on the timeline. Without
+FirstPass stats it marks what went to air: each quarter as its clock first ran, each goal as the score went up, and every moment marked
+with the Mark moment key (`GET /api/recordings/<name>/markers`). When Studio holds the game's FirstPass stats it marks every event the
+statistician recorded in FirstPass Vantage, named and coloured by `@firstpass/engine` as Vantage's and Vision's own files are
+(`GET /api/firstpass/markers?recording=<name>`): a FirstPass route, so private as the rest (this Mac, or a device allowed over the secure
+link), and a player is named only when HQ says they may be (`may_publish`); everyone else is marked by position. Both take `game`,
+`format` (`edl` for Resolve's Timeline Markers from EDL, `xml` for a Final Cut Pro 7 XML sequence Premiere and Resolve import, `list`
+for plain times), `fps` (25, 50, 29.97, 30, 59.94, 60, 24), `lead` (seconds each marker sits before its moment, 5 unless given),
+`nudge` (seconds) and how the video lines up: `start`, the video's first timecode as a time of day (`18:55:10:00`, as a HyperDeck stamps
+it), to which the recording's 4K replay sync in `replay.json` is added, or `into`, how far into the video the first quarter starts
+(`3:12`). `info=1` answers what there is to mark, in counts. The answer is the file (`content-disposition: attachment`), with
+`x-markers` and `x-markers-outside` (moments before the video starts, left out). Not yet imported into a real editor or lined up against
+a real recording.
+
 **4K replay** (`replay.ts`): *Replay* beside a game plays the recording's on-air layer (`scene`, `board`, `api`) back
 through Studio's own pages: `scene.ts` `replay()`/`replayBoard()` send the recorded scene and board to the sockets instead of
 the live ones (the live scene goes on underneath, unsaved changes impossible: scene, scoreboard, practice, sequences,

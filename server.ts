@@ -47,6 +47,7 @@ import * as hqauthLib from './hqauth';
 import * as keychainLib from './keychain';
 import * as figuresLib from './firstpassfigures';
 import * as hqstatsLib from './hqstats';
+import * as videomarkersLib from './videomarkers';
 import { execFile } from 'node:child_process';
 import { create as createPlayhq } from './playhq';
 import { create as createBoard } from './board';
@@ -229,6 +230,22 @@ const hq = hqauthLib.create({
 // The FirstPass stats of the game on the scoreboard, from its club's HQ (hqstats.ts): caught up, then followed live.
 const hqstats = hqstatsLib.create({ log, store: firstpass, hq });
 hq.onSignOut(code => hqstats.signedOut(code));
+// Video markers for a recorded game (videomarkers.ts): what went to air, or the game's FirstPass stats when Studio holds
+// them (the game being followed now, else what the store kept of it).
+const videomarkers = videomarkersLib.create({
+  read: name => recorder.read(name), has: name => !!recorder.fileOf(name), offset: name => replay.offsetOf(name),
+  stats: playhqGameId => {
+    const now = hqstats.current();
+    if (now && now.game.playhqGameId === playhqGameId) return now;
+    for (const club of firstpass.clubs()) {
+      for (const id of firstpass.games(club)) {
+        const kept = firstpass.read(club, id)?.data as videomarkersLib.Kept | undefined;
+        if (kept && kept.game && kept.game.playhqGameId === playhqGameId && Array.isArray(kept.events)) return { ...kept, lineup: Array.isArray(kept.lineup) ? kept.lineup : [] };
+      }
+    }
+    return null;
+  },
+});
 
 // ─── The board (board.ts): scores, clock, goals, streaks, stats and the worm ──
 const theBoard = createBoard({
@@ -1041,6 +1058,8 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     if (url.pathname === '/api/firstpass/clubs' && method === 'GET') return send(res, 200, { clubs: hq.list() });
     // Which game's FirstPass stats are followed, and how far: counts and ids only (hqstats.ts). Private like every
     // /api/firstpass/ route (access.firstpassRefusal()).
+    // A recorded game's video markers with its FirstPass stats (videomarkers.ts): private as every /api/firstpass/ route.
+    if (url.pathname === '/api/firstpass/markers' && videomarkers.route(req, res, url, { send })) return;
     if (url.pathname === '/api/firstpass/status' && method === 'GET') return send(res, 200, hqstats.status());
     // The FirstPass figures the scoreboard game's graphics may show (firstpassfigures.ts): {} when there are none.
     if (url.pathname === '/api/firstpass/onair' && method === 'GET') {
@@ -1186,6 +1205,7 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
       if (await practice.route(req, res, url, { send, readBody })) return;
     }
     if (url.pathname === '/api/recordings' || url.pathname.startsWith('/api/recordings/')) {
+      if (videomarkers.route(req, res, url, { send })) return;
       if (await recorder.route(req, res, url, { send, readBody })) return;
     }
     if (url.pathname === '/api/outputs' || url.pathname.startsWith('/api/outputs/')) {

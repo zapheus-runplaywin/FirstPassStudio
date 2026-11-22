@@ -52,7 +52,7 @@ function show(s: Recordings) {
         <span class="meta">${esc(length(r.ended - r.started))} · ${mb(r.size)}${r.competition ? ` · ${esc(r.competition)}` : ''}</span>
         <span class="acts"><a class="btn alt small" href="/api/recordings/${encodeURIComponent(r.name)}/file" download>Download</a>
           <button class="danger small" data-remove="${esc(r.name)}"${r.recording ? ' disabled title="Still being recorded: it can be removed once it stops, after the game"' : ''}>Remove</button></span></div>
-      ${r.games.length ? `<ul>${r.games.map(g => `<li>${esc(time(g.at))}: ${esc(g.home)} v ${esc(g.away)}${g.division ? ` · ${esc(g.division)}` : ''}${g.round ? ` · ${esc(g.round)}` : ''}${g.court ? ` · ${esc(g.court)}` : ''}${g.followed ? ' · <span class="help" style="margin:0" title="Studio followed this game in the background: no graphics went to air for it, so it plays back as a practice game, to put graphics over a video of it">followed, not streamed</span>' : ''}<button class="alt small" data-practise="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game back as if it were live">Practise</button><button class="alt small" data-demo="${esc(r.name)}" data-game="${esc(g.id)}" data-what="${esc(`${g.home} v ${g.away}`)}" title="Play this game back as one of your competition's, with its teams and athletes">Demo</button>${g.followed ? '' : `<button class="alt small" data-replay="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game's graphics again exactly as they went to air, for a 4K recording">Replay</button>`}</li>`).join('')}</ul>` : '<p class="help">No game picked yet.</p>'}
+      ${r.games.length ? `<ul>${r.games.map(g => `<li>${esc(time(g.at))}: ${esc(g.home)} v ${esc(g.away)}${g.division ? ` · ${esc(g.division)}` : ''}${g.round ? ` · ${esc(g.round)}` : ''}${g.court ? ` · ${esc(g.court)}` : ''}${g.followed ? ' · <span class="help" style="margin:0" title="Studio followed this game in the background: no graphics went to air for it, so it plays back as a practice game, to put graphics over a video of it">followed, not streamed</span>' : ''}<button class="alt small" data-practise="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game back as if it were live">Practise</button><button class="alt small" data-demo="${esc(r.name)}" data-game="${esc(g.id)}" data-what="${esc(`${g.home} v ${g.away}`)}" title="Play this game back as one of your competition's, with its teams and athletes">Demo</button>${g.followed ? '' : `<button class="alt small" data-markers="${esc(r.name)}" data-game="${esc(g.id)}" title="Make a file that marks this game's moments in a video editor">Markers</button>`}${g.followed ? '' : `<button class="alt small" data-replay="${esc(r.name)}" data-game="${esc(g.id)}" title="Play this game's graphics again exactly as they went to air, for a 4K recording">Replay</button>`}</li>`).join('')}</ul>` : '<p class="help">No game picked yet.</p>'}
     </div>`).join('') : '<p class="fp-empty">No recordings yet. The next PlayHQ game on air is recorded.</p>';
 }
 
@@ -238,10 +238,74 @@ $<HTMLButtonElement>('demoStart').onclick = async () => {
   if (!lastError) { $('demo').hidden = true; demoOf = null; }
 };
 
+// Video markers (videomarkers.ts): the game picked with Markers, as a file for a video editor. With FirstPass stats when
+// Studio holds them and this browser may read them (/api/firstpass/markers), otherwise what went to air.
+interface MarkersInfo {
+  game: { home: string; away: string }; offset: number; synced: boolean; error?: string;
+  onAir: { quarters: number; goals: number; marks: number; firstQuarter: boolean };
+  firstpass: { markers: number; partial: boolean; firstQuarter: boolean } | null;
+  rates: number[]; formats: { format: string; label: string; how: string }[];
+}
+let markersOf: { recording: string; game: string; stats: boolean } | null = null;
+const markersUrl = (extra: Record<string, string>) => {
+  if (!markersOf) return '';
+  const q = new URLSearchParams({ game: markersOf.game, ...extra });
+  if (markersOf.stats) { q.set('recording', markersOf.recording); return `/api/firstpass/markers?${q}`; }
+  return `/api/recordings/${encodeURIComponent(markersOf.recording)}/markers?${q}`;
+};
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+async function openMarkers(recording: string, game: string) {
+  lastError = '';
+  let info: MarkersInfo | null = null;
+  // FirstPass stats first; a browser that may not read them (403) gets what went to air.
+  for (const stats of [true, false]) {
+    markersOf = { recording, game, stats };
+    try {
+      const r = await fetch(markersUrl({ info: '1' }));
+      const got: MarkersInfo = await r.json();
+      if (r.ok && (!stats || got.firstpass)) { info = got; break; }
+      if (!stats && got.error) fail(got.error);
+    } catch (err) { fail(`Could not reach Studio: ${errText(err)}`); break; }
+  }
+  if (!info) { markersOf = null; $('markers').hidden = true; return; }
+  const a = info.onAir, f = info.firstpass;
+  $('markersWhat').innerHTML = `<b>${esc(info.game.home)} v ${esc(info.game.away)}</b>: ${f
+    ? `${plural(f.markers, 'event')} from FirstPass stats${f.partial ? ' (from the last break Studio joined at)' : ''}${a.marks ? ` and ${plural(a.marks, 'marked moment')}` : ''}.`
+    : `${plural(a.quarters, 'quarter')}, ${plural(a.goals, 'goal')} and ${plural(a.marks, 'marked moment')} from what went to air.`}
+    ${info.synced ? 'The 4K replay sync of this game is used.' : ''}`;
+  if (!$<HTMLSelectElement>('markersFps').options.length) $<HTMLSelectElement>('markersFps').innerHTML = info.rates.map(r => `<option value="${r}">${r}</option>`).join('');
+  $('markersSave').innerHTML = info.formats.map(x => `<button data-format="${esc(x.format)}" title="${esc(x.how)}">${x.format === 'list' ? esc(x.label) : `For ${esc(x.label)}`}</button>`).join('');
+  $('markersNote').textContent = f ? 'This file holds FirstPass stats. It is for the coaching team: keep it within the team and do not post it publicly.' : '';
+  $('markers').hidden = false;
+  $('markers').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+$('markersSave').onclick = async e => {
+  const b = hit(e, '[data-format]');
+  if (!b || !markersOf) return;
+  lastError = '';
+  const start = $<HTMLInputElement>('markersStart').value.trim(), into = $<HTMLInputElement>('markersInto').value.trim();
+  const url = markersUrl({ format: b.dataset.format || '', fps: $<HTMLSelectElement>('markersFps').value, lead: $<HTMLInputElement>('markersLead').value || '0', ...(start ? { start } : into ? { into } : {}) });
+  try {
+    const r = await fetch(url);
+    if (!r.ok) { fail((await r.json()).error || 'Could not make the markers.'); return; }
+    const name = /filename="([^"]+)"/.exec(r.headers.get('content-disposition') || '')?.[1] || 'markers.txt';
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(await r.blob());
+    link.download = name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+    const outside = Number(r.headers.get('x-markers-outside')) || 0;
+    studioStatus(`${plural(Number(r.headers.get('x-markers')) || 0, 'marker')} saved${outside ? `; ${outside} from outside the video left out` : ''}`);
+  } catch (err) { fail(`Could not reach Studio: ${errText(err)}`); }
+};
+$<HTMLButtonElement>('markersClose').onclick = () => { $('markers').hidden = true; markersOf = null; };
+
 $<HTMLInputElement>('record').onchange = () => call('POST', '/api/recordings', { record: $<HTMLInputElement>('record').checked }).then(() => { if (!lastError) studioStatus('Saved'); });
 $<HTMLInputElement>('marks').onchange = () => call('POST', '/api/recordings', { marks: $<HTMLInputElement>('marks').checked }).then(() => { if (!lastError) studioStatus('Saved'); });
 $<HTMLInputElement>('after').onchange = () => call('POST', '/api/recordings', { afterMinutes: Number($<HTMLInputElement>('after').value) }).then(() => { if (!lastError) studioStatus('Saved'); });
 $('nights').onclick = async e => {
+  const mk = hit(e, '[data-markers]');
+  if (mk) { openMarkers(mk.dataset.markers || '', mk.dataset.game || ''); return; }
   const rp = hit(e, '[data-replay]');
   if (rp) { replayCall({ start: { recording: rp.dataset.replay, game: rp.dataset.game } }); return; }
   const d = hit(e, '[data-demo]');

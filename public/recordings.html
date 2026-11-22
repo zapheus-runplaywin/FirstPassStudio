@@ -85,6 +85,32 @@
       Or send the player's SDI into the UltraStudio's SDI input (the HyperDeck's monitor output is enough) and follow the timecode it carries. HDMI carries no timecode.</p></details>
   </section>
 
+  <section id="markers" hidden>
+    <h2>Video markers</h2>
+    <p id="markersWhat" style="margin:0"></p>
+    <div class="row"><label for="markersStart">The video's first timecode</label>
+      <input id="markersStart" placeholder="18:55:10:00" maxlength="12" style="font:inherit;padding:5px 8px;border:1px solid var(--fp-line-strong);border-radius:8px;width:9em">
+      <span class="help" style="margin:0">or the first quarter starts</span>
+      <input id="markersInto" placeholder="3:12" maxlength="10" style="font:inherit;padding:5px 8px;border:1px solid var(--fp-line-strong);border-radius:8px;width:6em">
+      <span class="help" style="margin:0">into the video</span></div>
+    <div class="row"><label for="markersFps">Frames a second</label>
+      <select id="markersFps" style="font:inherit;padding:5px 8px;border:1px solid var(--fp-line-strong);border-radius:8px"></select>
+      <label for="markersLead">Marker sits</label>
+      <input type="number" id="markersLead" min="0" max="60" step="1" value="5" style="width:4.5em;font:inherit">
+      <span class="help" style="margin:0">seconds before the moment</span></div>
+    <div class="row" id="markersSave"></div>
+    <p class="help" id="markersNote"></p>
+    <div class="row"><button class="alt" id="markersClose">Close</button></div>
+    <details class="info"><summary>Expand for info</summary><p class="note">Drop the camera recording of the game into a video editor with this file and every
+      moment is marked on the timeline. Type the video's first timecode as the recorder stamped it (a HyperDeck uses the time of day). If you have synced a
+      <b>4K replay</b> of this game to the recorder, that sync is used here too. For a video with no time of day in it, type how far into the video the first
+      quarter starts instead.</p>
+      <p class="note">Without FirstPass stats the file marks each quarter, each goal as the score went up and every moment marked with the Mark moment key. When
+      Studio holds the game's FirstPass stats, it marks every event the statistician recorded. A player is named only when FirstPass HQ says they may be named
+      in public; everyone else is marked by position. That file is private like all FirstPass stats: it is made on this Mac, or a device allowed over the
+      secure link.</p></details>
+  </section>
+
   <section id="savedDemos" hidden>
     <h2>Saved demos</h2>
     <div id="savedList"></div>
