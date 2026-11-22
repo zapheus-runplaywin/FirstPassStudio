@@ -1084,6 +1084,15 @@ it), to which the recording's 4K replay sync in `replay.json` is added, or `into
 `x-markers` and `x-markers-outside` (moments before the video starts, left out). Not yet imported into a real editor or lined up against
 a real recording.
 
+**The venue link.** On the venue's own network, FirstPass Vantage can hand each event of the game straight to Studio as well as
+sending it to FirstPass HQ, and the FirstPass Vision phone app can read the events from Studio, so the stream's FirstPass figures
+and the coach keep up when the venue's internet is slow (`venuelink.ts`). It needs the secure phone link on and the club signed in
+on the Devices tab, and takes events only for the game on the scoreboard that Studio already follows from HQ. In the app, type the
+six letters of the Mac's secure link and connect; someone at the Mac presses Allow. The app is then a device of its own kind in
+Devices: its key is sent in the `x-studio-key` header, opens `POST` and `GET /api/firstpass/venue/events` only, and can't press a
+Stream Deck link or change anything. The events never travel over plain http, aren't saved from the venue link (HQ's copy is the
+one kept, and replaces them as it arrives), and carry ids only: names come from HQ. Not yet tried at a venue.
+
 **4K replay** (`replay.ts`): *Replay* beside a game plays the recording's on-air layer (`scene`, `board`, `api`) back
 through Studio's own pages: `scene.ts` `replay()`/`replayBoard()` send the recorded scene and board to the sockets instead of
 the live ones (the live scene goes on underneath, unsaved changes impossible: scene, scoreboard, practice, sequences,

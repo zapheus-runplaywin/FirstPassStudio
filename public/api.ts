@@ -4,13 +4,13 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 const rows = $<HTMLTableSectionElement>('rows');
 // What Studio answers (devices.ts list() and asking(), securelink.ts status()).
 interface Device { id: string; name: string; kind: string; level: string; address?: string; created: string; lastSeen: string | null; secure?: boolean }
-interface Asking { id: string; name: string; address: string; browser: boolean; at: number; expires: string }
+interface Asking { id: string; name: string; address: string; browser: boolean; stats?: boolean; at: number; expires: string }
 interface DevicesAnswer { devices: Device[]; asking: Asking | null; error?: string }
 interface SecureLink {
   on: boolean; zoneId: string; keyId: string; hasSecret: boolean; domain: string | null; host: string | null; link: string;
   state: string; step: string; problem: string; expires: string | null;
 }
-const KINDS: Record<string, string> = { links: 'Stream Deck links (Website keys, and links copied from the Output page or this one)', program: 'A program that asked to be added', browser: 'A phone or browser, paired from its pair page', plugin: 'Studio Stream Deck plugin (signs each press)' };
+const KINDS: Record<string, string> = { links: 'Stream Deck links (Website keys, and links copied from the Output page or this one)', program: 'A program that asked to be added', browser: 'A phone or browser, paired from its pair page', plugin: 'Studio Stream Deck plugin (signs each press)', stats: 'FirstPass Vantage or Vision, on the venue link (a game\'s stats only)' };
 const LEVELS: Record<string, string> = { full: 'Everything', show: 'Sequences, scenes and sources', scoring: 'Scoring only' };
 const when = (iso: string | null) => iso ? new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Not yet';
 // Studio's one status line (studio.js): what just happened, or why it didn't.
@@ -21,9 +21,9 @@ function draw(list: Device[]) {
     const tr = document.createElement('tr');
     const name = document.createElement('td');
     const b = document.createElement('b'); b.textContent = d.name;
-    const what = document.createElement('div'); what.className = 'what'; what.textContent = (KINDS[d.kind] || d.kind) + (d.address ? `, at ${d.address}` : '') + (d.secure ? '; paired over the secure link, so it can see FirstPass stats' : '');
+    const what = document.createElement('div'); what.className = 'what'; what.textContent = (KINDS[d.kind] || d.kind) + (d.address ? `, at ${d.address}` : '') + (d.secure && d.kind !== 'stats' ? '; paired over the secure link, so it can see FirstPass stats' : '');
     name.append(b, what);
-    const cells = [LEVELS[d.level] || d.level, when(d.created), when(d.lastSeen)].map(t => { const td = document.createElement('td'); td.textContent = t; return td; });
+    const cells = [d.kind === 'stats' ? 'The venue link only' : LEVELS[d.level] || d.level, when(d.created), when(d.lastSeen)].map(t => { const td = document.createElement('td'); td.textContent = t; return td; });
     // A paired browser's level can be changed here.
     if (d.kind === 'browser') {
       const pick = document.createElement('select');
@@ -51,9 +51,11 @@ function drawAsking(a: Asking | null) {
   asking = a || null;
   $('asking').hidden = !asking;
   if (!asking) return;
-  $('askWho').textContent = `"${asking.name}" at ${asking.address} asks to control Studio`;
+  $('askWho').textContent = `"${asking.name}" at ${asking.address} asks to ${asking.stats ? 'use the venue link' : 'control Studio'}`;
   const until = `The request runs out at ${new Date(asking.expires).toLocaleTimeString([], { timeStyle: 'short' })}.`;
-  $('askWhat').textContent = asking.browser
+  $('askWhat').textContent = asking.stats
+    ? `FirstPass Vantage sends the game's stats to Studio over this network, and the FirstPass Vision phone app reads them here, for the game on the scoreboard. It can't change anything else. Only allow a statistician's or coach's device you know. ${until}`
+    : asking.browser
     ? `Scoring only: the scores, clock, quarter and game, as on Scoreboard control. Everything: the scene, sequences and settings too. Only allow a device you know is yours. ${until}`
     : `It will be able to change scores, the scene, sequences and settings, like a Stream Deck. Only allow a device you know is yours. ${until}`;
   $<HTMLButtonElement>('allow').textContent = asking.browser ? 'Allow scoring only' : 'Allow';

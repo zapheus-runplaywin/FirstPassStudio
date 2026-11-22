@@ -45,8 +45,14 @@ function privateRead(method: string, pathname: string): boolean {
 // copy a cookie that lets it. They are private reads too (privateRead()), so a DNS rebinding page can't ask for them
 // and a 4K replay never records them. They never go into the board, the scene, a game story or anything else that is
 // read openly or shared (security review re-check, 13 November 2026, R1 and R2).
+//
+// The venue link (/api/firstpass/venue/..., venuelink.ts) also answers FirstPass Vantage and the Vision phone app:
+// a device of kind 'stats' (devices.ts), allowed on the Mac, that collected its key over the secure link and asks over
+// it. Such a device gets nothing else of FirstPass stats, and nothing else of Studio.
 const FIRSTPASS = '/api/firstpass';
 const firstpass = (pathname: string) => pathname === FIRSTPASS || pathname.startsWith(FIRSTPASS + '/');
+const VENUE = FIRSTPASS + '/venue/';
+const venue = (pathname: string) => pathname.startsWith(VENUE);
 // The device a request came from, as far as FirstPass stats care: a paired browser and whether its cookie only ever
 // travelled over https.
 type FirstPassDevice = { kind: string; secure?: boolean } | null;
@@ -56,6 +62,7 @@ function firstpassRefusal(method: string, pathname: string, remoteAddress: strin
   own?: Set<string>): string | null {
   if (!firstpass(pathname) || isLocal(remoteAddress, own)) return null;
   if (device && device.kind === 'browser' && device.secure === true && encrypted) return null;
+  if (device && device.kind === 'stats' && device.secure === true && encrypted && venue(pathname)) return null;
   const how = !encrypted
     ? 'they only go to another device over Studio\'s secure link (https), set up on the Devices tab on the Mac'
     : 'this device was allowed over plain http, so open /pair.html by the secure link on it and press Allow on the Mac again';
@@ -206,4 +213,4 @@ function deckPress(pathname: string, proof: { keyOk?: boolean; signed?: boolean;
 }
 
 export type { Level, FirstPassDevice };
-export { changes, privateRead, PRIVATE, FIRSTPASS, firstpass, firstpassRefusal, MAC_ONLY, ASK, notThisMac, scoring, isLocal, ownAddresses, refusal, strip, hostOf, portOf, ownHosts, foreignHost, crossSite, deckPress };
+export { changes, privateRead, PRIVATE, FIRSTPASS, firstpass, venue, firstpassRefusal, MAC_ONLY, ASK, notThisMac, scoring, isLocal, ownAddresses, refusal, strip, hostOf, portOf, ownHosts, foreignHost, crossSite, deckPress };

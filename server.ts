@@ -46,6 +46,7 @@ import * as firstpassLib from './firstpass';
 import * as hqauthLib from './hqauth';
 import * as keychainLib from './keychain';
 import * as figuresLib from './firstpassfigures';
+import * as venuelinkLib from './venuelink';
 import * as hqstatsLib from './hqstats';
 import * as videomarkersLib from './videomarkers';
 import { execFile } from 'node:child_process';
@@ -229,6 +230,8 @@ const hq = hqauthLib.create({
 });
 // The FirstPass stats of the game on the scoreboard, from its club's HQ (hqstats.ts): caught up, then followed live.
 const hqstats = hqstatsLib.create({ log, store: firstpass, hq });
+// The venue link (venuelink.ts): events from FirstPass Vantage on the venue network, read by the Vision phone app.
+const venuelink = venuelinkLib.create({ stats: hqstats });
 hq.onSignOut(code => hqstats.signedOut(code));
 // Video markers for a recorded game (videomarkers.ts): what went to air, or the game's FirstPass stats when Studio holds
 // them (the game being followed now, else what the store kept of it).
@@ -948,13 +951,15 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     // whatever the lock says.
     const signed = devices.signed(method, req.url || '/', req.headers);
     const keyDevice = keyed ? devices.match(keyed[1]) : null;
-    const device = keyDevice || (signed === 'ok' && devices.byId(str(req.headers['x-studio-device']))) || devices.fromCookie(req.headers.cookie);
+    // FirstPass Vantage or the Vision phone app on the venue link (venuelink.ts): its key counts on those routes only.
+    const statsDevice = access.venue(url.pathname) ? devices.fromKey(req.headers['x-studio-key']) : null;
+    const device = keyDevice || (signed === 'ok' && devices.byId(str(req.headers['x-studio-device']))) || devices.fromCookie(req.headers.cookie) || statsDevice;
     const notMac = access.notThisMac(method, url.pathname, req.socket.remoteAddress);
     const refused = (access.changes(method, url.pathname) && access.crossSite(method, url.pathname, req.headers, PORT, ownHosts(), secureOrigin()))
       || (access.privateRead(method, url.pathname) && access.foreignHost(method, url.pathname, req.headers, ownHosts()))
       || notMac
       || access.firstpassRefusal(method, url.pathname, req.socket.remoteAddress, device || null, 'encrypted' in req.socket && req.socket.encrypted === true)
-      || access.refusal(MACHINE.remoteChanges, method, url.pathname, req.socket.remoteAddress, undefined, device ? device.level : null);
+      || access.refusal(MACHINE.remoteChanges, method, url.pathname, req.socket.remoteAddress, undefined, statsDevice && device === statsDevice ? 'full' : device ? device.level : null);
     if (refused) {
       const from = `${access.strip(req.socket.remoteAddress)} ${req.headers.origin || req.headers.host || ''}`;
       if (!refusedFrom.has(from)) { refusedFrom.add(from); log('warn', 'access', refused); }
@@ -992,7 +997,11 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     // Another device asks to control Studio (devices.ts ask()); it learns the answer from GET /api/pair/<id> with its token.
     if (url.pathname === '/api/pair' && method === 'POST') {
       const body = await readBody(req);
-      const asked = devices.ask(body.name, access.strip(req.socket.remoteAddress), str(body.publicKey) || undefined, body.browser === true);
+      // A FirstPass app asking to use the venue link: over the secure link only, so its key never crosses the network in the clear.
+      if (body.firstpass === true && !('encrypted' in req.socket && req.socket.encrypted === true) && !access.isLocal(req.socket.remoteAddress)) {
+        return send(res, 400, { error: 'FirstPass Vantage and Vision reach Studio only over its secure link (https), set up on the Devices tab on the Mac.' });
+      }
+      const asked = devices.ask(body.name, access.strip(req.socket.remoteAddress), str(body.publicKey) || undefined, body.browser === true, body.firstpass === true);
       return send(res, 'error' in asked ? 409 : 202, asked);
     }
     // A QR code that opens one of Studio's pages on a phone (Open on your phone): the pair page by this Mac's link, which
@@ -1061,6 +1070,12 @@ const handle = async (req: IncomingMessage, res: ServerResponse) => {
     // A recorded game's video markers with its FirstPass stats (videomarkers.ts): private as every /api/firstpass/ route.
     if (url.pathname === '/api/firstpass/markers' && videomarkers.route(req, res, url, { send })) return;
     if (url.pathname === '/api/firstpass/status' && method === 'GET') return send(res, 200, hqstats.status());
+    // The venue link (venuelink.ts): FirstPass Vantage hands over each event on the venue network, and the Vision phone
+    // app reads them from here. This Mac, or a FirstPass app allowed in Devices… asking over the secure link.
+    if (access.venue(url.pathname)) {
+      const from = statsDevice && device === statsDevice ? statsDevice.id : access.isLocal(req.socket.remoteAddress) ? 'this-mac' : '';
+      if (await venuelink.route(req, res, url, { send, readBody, sender: from })) return;
+    }
     // The FirstPass figures the scoreboard game's graphics may show (firstpassfigures.ts): {} when there are none.
     if (url.pathname === '/api/firstpass/onair' && method === 'GET') {
       const b = theBoard.board();
