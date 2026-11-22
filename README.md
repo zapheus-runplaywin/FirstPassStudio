@@ -1180,7 +1180,8 @@ pick each winner (the score is optional); those are kept in `control.json`, and 
 
 ## Licence
 
-FirstPass Studio is open source under the MIT licence; see [LICENSE](LICENSE). Bundled third-party code keeps its own
-licence (Montserrat in `public/vendor/montserrat/OFL.txt`, the graphics' fonts under the SIL Open Font Licence in
-`public/vendor/fonts/<font>/LICENSE`, and the `yaml` package that reads `openapi.yaml` under its ISC licence). Team and
-competition logos belong to their owners and are not covered by the MIT licence.
+Copyright (c) 2026 PIVT Media Pty Ltd. All rights reserved; see [LICENSE](LICENSE). The source is public for reference
+only: no right to use, copy, modify or distribute it is granted without written permission. Bundled third-party code
+keeps its own licence (Montserrat in `public/vendor/montserrat/OFL.txt`, the graphics' fonts under the SIL Open Font
+Licence in `public/vendor/fonts/<font>/LICENSE`, and the `yaml` package that reads `openapi.yaml` under its ISC licence).
+Team and competition logos belong to their owners.
