@@ -59,9 +59,9 @@ matches what its Edge Function does today).
 
 ## Where it lives and how each product gets it
 
-The source lives in FirstPass Studio's repository (`packages/playhq`), so anyone who forks or clones
-Studio can build it without a token. It is published to the public npm registry as
-`@firstpass/playhq` (MIT).
+The source lives in FirstPass Studio's repository (`packages/playhq`), so Studio builds it without a
+token. It is published to the public npm registry as `@firstpass/playhq` for FirstPass's own apps:
+all rights reserved (`UNLICENSED`, see LICENSE).
 
 - **Studio** uses it from this folder through an npm workspace. `npm ci` at Studio's root builds
   `dist/` (the package's `prepare` script), and `require('@firstpass/playhq')` loads it.
