@@ -482,8 +482,8 @@
         "out": 0.5
       },
       "gpt-6-rosalind": {
-        "in": 15,
-        "out": 75
+        "in": 10,
+        "out": 50
       },
       "gpt-6-sol": {
         "in": 2,
@@ -496,6 +496,18 @@
       "gpt-6.1-terra": {
         "in": 1,
         "out": 5
+      },
+      "gpt-6.2-astra": {
+        "in": 8,
+        "out": 40
+      },
+      "gpt-6.2-astra-law": {
+        "in": 8,
+        "out": 40
+      },
+      "gpt-6.2-sol": {
+        "in": 2,
+        "out": 10
       },
       "gpt-audio": {
         "in": 2.5,
@@ -687,6 +699,10 @@
         "in": 1.5,
         "out": 7.5
       },
+      "gemini-4-neon": {
+        "in": 3,
+        "out": 15
+      },
       "gemini-exp-1114": {
         "in": 0,
         "out": 0
@@ -746,6 +762,10 @@
       "gemma-4-31b-it": {
         "in": 0,
         "out": 0
+      },
+      "genie-4": {
+        "in": 1.5,
+        "out": 9
       },
       "learnlm-1.5-pro-experimental": {
         "in": 0,
